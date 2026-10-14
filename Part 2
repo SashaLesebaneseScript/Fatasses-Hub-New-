@@ -65,7 +65,7 @@ FH.injPlayer=function(maxD)
  return b
 end
 local TR=nil;pcall(function()TR=RST:WaitForChild("TaskRemote",5)end)
-FH.TR=TR;FH.tarea=nil;FH.ultima=nil;FH.volOrig=FH.SS.Volume
+FH.TR=TR;FH.tarea=nil;FH.ultima=nil
 if TR then TR.OnClientEvent:Connect(function(a,id,gui)
  if a=="OpenGui"then FH.tarea={id=id,gui=gui}
  elseif a=="EndTask"then if FH.tarea and FH.tarea.id==id then FH.ultima=FH.tarea;FH.tarea=nil end end end)end
@@ -125,13 +125,27 @@ FH.startAR=function()
     if pp then FH.firePrompt(pp)end end end
   task.wait(.4)end;arT=nil end)end
 FH.stopAR=function()FH.on.autoRequeue=false;arT=nil end
+-- Silent Mode (FIX: SoundService.Volume no existe, se mutean Sounds individuales)
 local siC
+FH.silentMuted={}
 FH.startSM=function()
- FH.volOrig=FH.SS.Volume;FH.SS.Volume=0
+ FH.silentMuted={}
+ for _,s in ipairs(FH.SS:GetDescendants())do
+  if s:IsA("Sound")then FH.silentMuted[s]=s.Volume;s.Volume=0 end end
  if siC then return end
- siC=RS.Heartbeat:Connect(function()if FH.on.silentMode and FH.SS.Volume>0 then FH.SS.Volume=0 end end)
+ siC=RS.Heartbeat:Connect(function()
+  if not FH.on.silentMode then return end
+  for _,s in ipairs(FH.SS:GetDescendants())do
+   if s:IsA("Sound")and s.Volume>0 then
+    if not FH.silentMuted[s]then FH.silentMuted[s]=s.Volume end
+    s.Volume=0 end end end)
 end
-FH.stopSM=function()FH.SS.Volume=FH.volOrig;if siC then siC:Disconnect();siC=nil end end
+FH.stopSM=function()
+ if FH.silentMuted then
+  for s,v in pairs(FH.silentMuted)do if s and s.Parent then s.Volume=v end end
+  FH.silentMuted=nil end
+ if siC then siC:Disconnect();siC=nil end
+end
 local m1C,lp=nil,0
 FH.startM1=function()
  if m1C then return end
