@@ -27,14 +27,26 @@ FH.getHealEv=function()
  if evCache.heal and evCache.heal.Parent then return evCache.heal end
  return FH.getEv("HealingEvent")
 end
+-- ===== KILLER: solo el jugador mas alto (>7 studs). Cacheado 0.5s. =====
+FH.killerCache=nil
+FH.killerCacheTime=0
+FH.updateKiller=function()
+ if tick()-FH.killerCacheTime<0.5 then return FH.killerCache end
+ local best,bestH=nil,0
+ for _,p in ipairs(PL:GetPlayers())do
+  if p.Character then
+   local h=p.Character:FindFirstChildOfClass("Humanoid")
+   if h and h.Health>0 then
+    local ok,sz=pcall(function()return p.Character:GetExtentsSize().Y end)
+    if ok and sz and sz>bestH then bestH=sz;best=p.Character end end end end
+ if bestH<7 then best=nil end
+ FH.killerCache=best
+ FH.killerCacheTime=tick()
+ return best
+end
 FH.isKiller=function(m)
  if not m then return false end
- local n=0
- for _,d in ipairs(m:GetDescendants())do if d:IsA("Script")or d:IsA("LocalScript")then n=n+1 end end
- if n>=FH.KST then return true end
- local ok,s=pcall(function()return m:GetExtentsSize().Y end)
- if ok and s and s>6.5 then return true end
- return m:GetAttribute("IsKiller")==true
+ return m==FH.updateKiller()
 end
 FH.nearest=function(maxD)
  maxD=maxD or math.huge
@@ -69,7 +81,7 @@ FH.TR=TR;FH.tarea=nil;FH.ultima=nil
 if TR then TR.OnClientEvent:Connect(function(a,id,gui)
  if a=="OpenGui"then FH.tarea={id=id,gui=gui}
  elseif a=="EndTask"then if FH.tarea and FH.tarea.id==id then FH.ultima=FH.tarea;FH.tarea=nil end end end)end
--- Auto Complete (fix v2: 1 disparo por tarea)
+-- Auto Complete (1 disparo por tarea)
 FH.acFired = {}
 FH.complete=function()
     if not FH.TR or not FH.tarea then return false end
@@ -107,7 +119,6 @@ FH.startSp=function()
  if spT then return end
  spT=task.spawn(function()while FH.on.spamComplete do if FH.tarea then FH.complete()end;task.wait(.3)end;spT=nil end)end
 FH.stopSp=function()FH.on.spamComplete=false;spT=nil end
--- Auto Start (fix v2: fireproximityprompt + descendientes)
 FH.getPrompts=function()
     local l = {}
     local mc = LP.Character
@@ -175,7 +186,6 @@ FH.startAS=function()
     end)
 end
 FH.stopAS=function()FH.on.autoStart=false;asT=nil end
--- Auto Requeue (fix v2: descendientes + solo limpia ultima si encuentra NPC)
 local arT
 FH.startAR=function()
     if arT then return end
@@ -212,7 +222,6 @@ FH.startAR=function()
     end)
 end
 FH.stopAR=function()FH.on.autoRequeue=false;arT=nil end
--- KILLER
 local m1C,lp=nil,0
 FH.startM1=function()
  if m1C then return end
