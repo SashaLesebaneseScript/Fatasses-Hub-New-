@@ -1,0 +1,151 @@
+-- ============ PARTE 3/5 ============
+local FH=getgenv().FH
+if not FH or not FH.p2 then warn("[FH] Ejecuta Partes 1-2 primero") return end
+if FH.p3 then warn("[FH] Parte 3 ya ejecutada") return end
+local RS,PL,WS,LP=FH.RS,FH.PL,FH.WS,FH.LP
+local conexion
+FH.startAP=function()
+ if conexion then return end
+ conexion=RS.Heartbeat:Connect(function()
+  if not FH.on.autoPatient then return end
+  local gui=LP.PlayerGui:FindFirstChild(FH.NOMBRE_GUI)
+  if not gui or not gui.Enabled then return end
+  local fm=gui:FindFirstChild("Frame");if not fm or not fm.Visible then return end
+  local catcher=fm:FindFirstChild("Catcher");if not catcher then return end
+  for _,h in ipairs(fm:GetChildren())do
+   if h.Name=="Note" and h:IsA("Frame")then
+    local a=h:GetAttribute("Angle")
+    if a then local d=math.abs(a-FH.ANGULO_ABAJO);if d>math.pi then d=2*math.pi-d end
+     if d>.3 then h:SetAttribute("Angle",FH.ANGULO_ABAJO)end end end end
+  local ac=FH.ANGULO_ABAJO+math.pi/2
+  catcher.Position=UDim2.new(math.cos(ac)*FH.RADIO+.5,0,math.sin(ac)*FH.RADIO+.5,0)
+  catcher.Rotation=math.deg(ac)+90
+  catcher.BackgroundColor3=Color3.fromRGB(255,120,20)end)end
+FH.stopAP=function()if conexion then conexion:Disconnect();conexion=nil end end
+local SIDES={["Straight"]={0,2},["Corner"]={1,2},["Endpoint"]={2},["TPipe"]={1,2,3}}
+local OPU={2,3,0,1}
+local DIRV={[0]={0,-1},[1]={1,0},[2]={0,1},[3]={-1,0}}
+local function rotCelda(c)local i=c:FindFirstChildOfClass("ImageButton");if not i then return 0 end
+ return math.round((i:GetAttribute("TargetRotation")or i.Rotation)/90)%4 end
+local function esRota(c)return c:FindFirstChild("IsBroken")~=nil end
+local function xyDeOrder(o)return(o-1)%5,math.floor((o-1)/5)end
+local function orderDeXY(x,y)return y*5+x+1 end
+local function lados(c)local p=c:FindFirstChild("PipeType");if not p then return{}end
+ local bs=SIDES[p.Value];if not bs then return{}end;local r=rotCelda(c);local l={}
+ for _,b in ipairs(bs)do table.insert(l,(b+r)%4)end;return l end
+local function puedeAbrir(c,l1,l2)
+ local p=c:FindFirstChild("PipeType");if not p then return nil end
+ local bs=SIDES[p.Value];if not bs then return nil end
+ local ra=rotCelda(c)
+ for d=0,3 do local rp=(ra+d)%4;local a1,a2=false,false
+  for _,b in ipairs(bs)do local l=(b+rp)%4
+   if l==l1 then a1=true end;if l==l2 then a2=true end end
+  if a1 and a2 then return d end end;return nil end
+local function encontrar(celdas)
+ local mp={}
+ for _,c in ipairs(celdas)do local x,y=xyDeOrder(c.LayoutOrder);mp[x]=mp[x]or{};mp[x][y]=c end
+ local c1=mp[0]and mp[0][0];local c25=mp[4]and mp[4][4]
+ if not c1 or not c25 then return nil end
+ local l1=lados(c1);if #l1~=1 or(l1[1]~=1 and l1[1]~=2)then return nil end
+ local l25=lados(c25);if #l25~=1 or(l25[1]~=0 and l25[1]~=3)then return nil end
+ local cam={}
+ local function dfs(x,y,le)
+  local cel=mp[x]and mp[x][y]
+  if not cel or esRota(cel)then return false end
+  local o=orderDeXY(x,y)
+  if cam[o]~=nil then return false end
+  if o==25 then if le==l25[1]then cam[o]=0;return true end;return false end
+  if o==1 then
+   local ls=l1[1];local dx,dy=DIRV[ls][1],DIRV[ls][2]
+   local nx,ny=x+dx,y+dy
+   if nx>=0 and nx<5 and ny>=0 and ny<5 then
+    local v=mp[nx]and mp[nx][ny]
+    if v and not esRota(v)then local lo=OPU[ls+1];cam[o]=0
+     if dfs(nx,ny,lo)then return true end;cam[o]=nil end end
+   return false end
+  for ls=0,3 do
+   if ls~=le then
+    local dx,dy=DIRV[ls][1],DIRV[ls][2]
+    local nx,ny=x+dx,y+dy
+    if nx>=0 and nx<5 and ny>=0 and ny<5 then
+     local nO=orderDeXY(nx,ny)
+     local v=mp[nx]and mp[nx][ny]
+     if v and not esRota(v)and cam[nO]==nil then
+      local d=puedeAbrir(cel,le,ls)
+      if d~=nil then local lo=OPU[ls+1];cam[o]=d
+       if dfs(nx,ny,lo)then return true end;cam[o]=nil end end end end end
+  return false end
+ if dfs(0,0,nil)then return cam end;return nil end
+local function resolver(celdas)
+ local cam=encontrar(celdas);if not cam then return false end
+ for o=1,25 do local d=cam[o]
+  if d and d>0 then
+   for _,c in ipairs(celdas)do
+    if c.LayoutOrder==o then
+     local i=c:FindFirstChildOfClass("ImageButton")
+     if i then local r=i:GetAttribute("TargetRotation")or i.Rotation;local nr=r+d*90
+      i:SetAttribute("TargetRotation",nr);i.Rotation=nr end
+     break end end end end
+ local trig
+ for o=2,24 do local d=cam[o]or 0
+  if d>0 then for _,c in ipairs(celdas)do if c.LayoutOrder==o then trig=c;break end end;break end end
+ if trig then local i=trig:FindFirstChildOfClass("ImageButton")
+  if i then local r=i:GetAttribute("TargetRotation")or i.Rotation
+   i:SetAttribute("TargetRotation",r-90);i.Rotation=r-90
+   if firesignal then pcall(firesignal,i.MouseButton1Click)end end end
+ return true end
+local genC,ultGrid,resolv
+FH.startGen=function()
+ if genC then return end
+ genC=RS.Heartbeat:Connect(function()
+  if not FH.on.autoGen then return end
+  local gui=LP.PlayerGui:FindFirstChild(FH.NOMBRE_GUI2)
+  if not gui or not gui.Enabled then ultGrid=nil;return end
+  local gc=gui:FindFirstChild("GridContainer");if not gc or not gc.Visible then ultGrid=nil;return end
+  if ultGrid==gc or resolv then return end
+  local celdas={}
+  for _,h in ipairs(gc:GetChildren())do if h:IsA("Frame")and h:FindFirstChildOfClass("ImageButton")then table.insert(celdas,h)end end
+  if #celdas<25 then return end
+  table.sort(celdas,function(a,b)return a.LayoutOrder<b.LayoutOrder end)
+  resolv=true;ultGrid=gc
+  task.spawn(function()task.wait(.3);if FH.on.autoGen then resolver(celdas)end;resolv=false end)end)end
+FH.stopGen=function()if genC then genC:Disconnect();genC=nil end;resolv=false;ultGrid=nil end
+local abC
+FH.startAB=function()
+ if abC then return end
+ abC=RS.Heartbeat:Connect(function()
+  if not FH.on.antiBroken then return end
+  local gui=LP.PlayerGui:FindFirstChild(FH.NOMBRE_GUI2)
+  if not gui or not gui.Enabled then return end
+  local gc=gui:FindFirstChild("GridContainer");if not gc then return end
+  for _,celda in ipairs(gc:GetChildren())do
+   if celda:IsA("Frame")then
+    local ib=celda:FindFirstChild("IsBroken");if ib then ib:Destroy()end
+    local ov=celda:FindFirstChild("BrokenOverlay");if ov then ov:Destroy()end end end end)end
+FH.stopAB=function()if abC then abC:Disconnect();abC=nil end end
+local espCache={}
+local function mapId()if WS:FindFirstChild("Map1")then return 1 end;if WS:FindFirstChild("Map2")then return 2 end;return 0 end
+local function tipo(m,mi)if not m or not m.Name then return nil end
+ local n=string.lower(m.Name)
+ if mi==1 and string.find(n,"patient",1,true)then return "patient"end
+ if mi==2 and string.find(n,"tube",1,true)then return "tube"end end
+local function scanESP()
+ local mi=mapId();local list={}
+ for _,o in ipairs(WS:GetDescendants())do if o:IsA("Model")and tipo(o,mi)then list[o]=true end end
+ for m in pairs(list)do
+  if not espCache[m]then
+   local h=Instance.new("Highlight")
+   h.FillTransparency=.5;h.OutlineTransparency=0
+   h.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
+   h.Adornee=m;h.Parent=m
+   h.FillColor=Color3.fromRGB(255,120,20);h.OutlineColor=Color3.fromRGB(255,180,80)
+   espCache[m]=h end end
+ for m,h in pairs(espCache)do if not list[m]or not m.Parent then h:Destroy();espCache[m]=nil end end end
+local eT
+FH.startESP=function()
+ if eT then return end
+ scanESP()
+ eT=task.spawn(function()while FH.on.espActive do task.wait(2);if FH.on.espActive then scanESP()end end;eT=nil end)end
+FH.stopESP=function()for m,h in pairs(espCache)do h:Destroy()end;espCache={};eT=nil end
+FH.p3=true
+print("🎃 [3/5] Scientist viejos + ESP OK")
