@@ -112,12 +112,14 @@ FH.startAS2=function()
 FH.stopAS2=function()if aSC then aSC:Disconnect();aSC=nil end;aimT=0 end
 local TABS={"Esp","Scientist","Class A","Class S","Extra Stuff"}
 local tabs={};FH.tabs=tabs;FH.pestana="Esp"
+-- FIX: tabla de iconos como variable aparte
+local ICON_MAP={Esp="👁",Scientist="🧪",["Class A"]="💚",["Class S"]="🎯",["Extra Stuff"]="⚡"}
 local function mkTab(n,cs)
  local t=Instance.new("TextButton",FH.sb)
  t.Size=UDim2.new(1,-6,0,32);t.BackgroundColor3=C.bg_card;t.BackgroundTransparency=.2
  t.Text="";t.BorderSizePixel=0;t.AutoButtonColor=false
  Instance.new("UICorner",t).CornerRadius=UDim.new(0,10)
- local ic={Esp="👁",Scientist="🧪",["Class A"]="💚",["Class S"]="🎯",["Extra Stuff"]="⚡"}[n]or"🎃"
+ local ic=ICON_MAP[n] or "🎃"
  local i=Instance.new("TextLabel",t)
  i.Size=UDim2.new(0,18,0,18);i.Position=UDim2.new(0,8,.5,-9);i.BackgroundTransparency=1
  i.Text=ic;i.TextColor3=cs and C.text_sub or C.text
