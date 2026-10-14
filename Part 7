@@ -1,0 +1,95 @@
+-- ============ PARTE 7/7 - Sounds, Music, Animations ============
+local FH = getgenv().FH
+if not FH or not FH.p5 then warn("[FH] Ejecuta Partes 1-5 primero") return end
+if FH.p7 then warn("[FH] Parte 7 ya ejecutada") return end
+local RS,PL,LP = FH.RS,FH.PL,FH.LP
+local C = FH.C
+local fr = FH.fr
+local sg = FH.sg
+local TW = FH.TW
+
+-- ===== Sonidos extra =====
+FH.SND.button = "rbxassetid://9119717523"
+FH.SND.open   = "rbxassetid://9119717523"
+FH.SND.music  = "rbxassetid://1837879082"  -- cambia si no suena
+
+-- ===== Musica de fondo =====
+local music = nil
+FH.startMusic = function()
+    if music and music.Parent then return end
+    music = Instance.new("Sound")
+    music.SoundId = FH.SND.music
+    music.Volume = 0.15
+    music.Looped = true
+    music.Parent = sg
+    music:Play()
+end
+FH.stopMusic = function()
+    if music then
+        music:Stop()
+        music:Destroy()
+        music = nil
+    end
+end
+
+-- ===== Hook sonido a TODOS los botones =====
+local function hookAll()
+    for _, d in ipairs(sg:GetDescendants()) do
+        if d:IsA("TextButton") and not d:GetAttribute("FH_S") then
+            local p = d.Parent
+            local skip = false
+            -- No añadir a toggles (ya tienen su sonido propio)
+            if p and p.Name and string.find(p.Name, "Opt_") then skip = true end
+            -- No añadir a tabs (ya tienen tab_switch)
+            if p == FH.sb then skip = true end
+            if not skip then
+                d:SetAttribute("FH_S", true)
+                d.MouseButton1Click:Connect(function()
+                    pcall(function() FH.sfx("button", 1.8, 1.05) end)
+                end)
+            end
+        end
+    end
+end
+hookAll()
+
+-- Re-hook cuando el panel cambia (nuevos botones al cambiar de tab)
+local origPanel = FH.panel
+FH.panel = function()
+    origPanel()
+    hookAll()
+end
+
+-- ===== Animacion apertura/cierre + sonido + musica =====
+local lastVisible = fr.Visible
+-- Trigger inicial (arranca musica si ya está visible)
+if fr.Visible then
+    FH.startMusic()
+end
+
+RS.Heartbeat:Connect(function()
+    local v = fr.Visible
+    if v ~= lastVisible then
+        if v then
+            -- APERTURA: efecto "pop"
+            fr.Size = UDim2.new(0, FH.BW * 0.6, 0, FH.BH * 0.6)
+            fr.BackgroundTransparency = 0.5
+            TW:Create(fr, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+                Size = UDim2.new(0, FH.BW, 0, FH.BH)
+            }):Play()
+            TW:Create(fr, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                BackgroundTransparency = 0.05
+            }):Play()
+            FH.sfx("open", 2, 1)
+            FH.startMusic()
+        else
+            -- CIERRE: fade rápido + parar musica
+            FH.sfx("close", 2.5, 1)
+            FH.stopMusic()
+        end
+        lastVisible = v
+    end
+end)
+
+FH.p7 = true
+print("🎃 [7/7] Sounds + Music + Animations OK")
