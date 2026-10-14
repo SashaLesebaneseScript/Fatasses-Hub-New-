@@ -1,0 +1,189 @@
+-- ============ PARTE 2/5 ============
+local FH=getgenv().FH
+if not FH or not FH.p1 then warn("[FH] Ejecuta Parte 1 primero") return end
+if FH.p2 then warn("[FH] Parte 2 ya ejecutada") return end
+local RS,PL,WS,RST,LP=FH.RS,FH.PL,FH.WS,FH.RST,FH.LP
+FH.vision=function(t)
+ if not t then return false end
+ local mc=LP.Character;if not mc then return false end
+ local mh=mc:FindFirstChild("Head")or mc:FindFirstChild("HumanoidRootPart")
+ local th=t:FindFirstChild("Head")or t:FindFirstChild("HumanoidRootPart")
+ if not mh or not th then return false end
+ local rp=RaycastParams.new()
+ rp.FilterType=Enum.RaycastFilterType.Exclude;rp.FilterDescendantsInstances={mc,t}
+ return not WS:Raycast(mh.Position,th.Position-mh.Position,rp)
+end
+local evCache={}
+FH.getEv=function(n)
+ if evCache[n] and evCache[n].Parent then return evCache[n]end
+ local e=RST:FindFirstChild(n)
+ if e and e:IsA("RemoteEvent")then evCache[n]=e;return e end
+ for _,v in ipairs(RST:GetDescendants())do
+  if v:IsA("RemoteEvent")and v.Name==n then evCache[n]=v;return v end end
+end
+FH.getHealEv=function()
+ local hs=RST:FindFirstChild("HealingAbility")
+ if hs then local e=hs:FindFirstChild("HealingEvent");if e then evCache.heal=e;return e end end
+ if evCache.heal and evCache.heal.Parent then return evCache.heal end
+ return FH.getEv("HealingEvent")
+end
+FH.isKiller=function(m)
+ if not m then return false end
+ local n=0
+ for _,d in ipairs(m:GetDescendants())do if d:IsA("Script")or d:IsA("LocalScript")then n=n+1 end end
+ if n>=FH.KST then return true end
+ local ok,s=pcall(function()return m:GetExtentsSize().Y end)
+ if ok and s and s>6.5 then return true end
+ return m:GetAttribute("IsKiller")==true
+end
+FH.nearest=function(maxD)
+ maxD=maxD or math.huge
+ local mc=LP.Character;if not mc then return nil end
+ local mh=mc:FindFirstChild("HumanoidRootPart");if not mh then return nil end
+ local b,bd=nil,maxD
+ for _,p in ipairs(PL:GetPlayers())do
+  if p~=LP and p.Character then
+   local ch=p.Character;local h=ch:FindFirstChildOfClass("Humanoid");local hr=ch:FindFirstChild("HumanoidRootPart")
+   if h and h.Health>0 and hr then
+    local d=(mh.Position-hr.Position).Magnitude
+    if d<bd then bd=d;b={Player=p,Char=ch,HRP=hr}end end end end
+ return b
+end
+FH.injPlayer=function(maxD)
+ maxD=maxD or 20
+ local mc=LP.Character;if not mc then return nil end
+ local mh=mc:FindFirstChild("HumanoidRootPart");if not mh then return nil end
+ local b,bd=nil,maxD
+ for _,p in ipairs(PL:GetPlayers())do
+  if p~=LP and p.Character then
+   local ch=p.Character;local h=ch:FindFirstChildOfClass("Humanoid");local hr=ch:FindFirstChild("HumanoidRootPart")
+   if h and hr and h.Health>0 and h.Health<h.MaxHealth then
+    local ex=p:FindFirstChild("Experiment")
+    if not(ex and ex.Value==true)then
+     local d=(mh.Position-hr.Position).Magnitude
+     if d<bd then bd=d;b=p end end end end end
+ return b
+end
+local TR=nil;pcall(function()TR=RST:WaitForChild("TaskRemote",5)end)
+FH.TR=TR;FH.tarea=nil;FH.ultima=nil;FH.volOrig=FH.SS.Volume
+if TR then TR.OnClientEvent:Connect(function(a,id,gui)
+ if a=="OpenGui"then FH.tarea={id=id,gui=gui}
+ elseif a=="EndTask"then if FH.tarea and FH.tarea.id==id then FH.ultima=FH.tarea;FH.tarea=nil end end end)end
+FH.complete=function()
+ if not FH.TR or not FH.tarea then return false end
+ pcall(function()FH.TR:FireServer("CompleteStep",FH.tarea.id)end)
+ return true
+end
+local acT
+FH.startAC=function()
+ if acT then return end
+ acT=task.spawn(function()
+  while FH.on.autoComplete do
+   if FH.tarea then task.wait(.3);if FH.on.autoComplete and FH.tarea then FH.complete()end;task.wait(.5)
+   else task.wait(.3)end end
+  acT=nil end)end
+FH.stopAC=function()FH.on.autoComplete=false;acT=nil end
+local spT
+FH.startSp=function()
+ if spT then return end
+ spT=task.spawn(function()while FH.on.spamComplete do if FH.tarea then FH.complete()end;task.wait(.3)end;spT=nil end)end
+FH.stopSp=function()FH.on.spamComplete=false;spT=nil end
+FH.getPrompts=function()
+ local l={};local mc=LP.Character
+ local mp=mc and mc:FindFirstChild("HumanoidRootPart")and mc.HumanoidRootPart.Position
+ if not mp then return l end
+ for _,o in ipairs(WS:GetChildren())do
+  if o:IsA("Model")then
+   local pp=o:FindFirstChild("ProximityPrompt",true)
+   local hr=o:FindFirstChild("HumanoidRootPart")or o:FindFirstChildWhichIsA("BasePart")
+   if pp and hr then table.insert(l,{pp=pp,d=(mp-hr.Position).Magnitude})end end end
+ table.sort(l,function(a,b)return a.d<b.d end);return l
+end
+FH.firePrompt=function(pp)
+ pcall(function()
+  if not pp.Enabled then pp.Enabled=true end
+  if firesignal and pp.Triggered then firesignal(pp.Triggered)end
+  if pp.HoldDuration>0 then keypress(Enum.KeyCode.E);task.wait(pp.HoldDuration+.05);keyrelease(Enum.KeyCode.E)end
+ end)
+end
+local asT
+FH.startAS=function()
+ if asT then return end
+ asT=task.spawn(function()while FH.on.autoStart do
+  if not FH.tarea then local l=FH.getPrompts();if #l>0 then FH.firePrompt(l[1].pp)end end
+  task.wait(.5)end;asT=nil end)end
+FH.stopAS=function()FH.on.autoStart=false;asT=nil end
+local arT
+FH.startAR=function()
+ if arT then return end
+ arT=task.spawn(function()while FH.on.autoRequeue do
+  if FH.ultima and not FH.tarea then
+   local npc=WS:FindFirstChild(string.split(FH.ultima.id,"_")[1])
+   FH.ultima=nil;task.wait(.5)
+   if FH.on.autoRequeue and npc then
+    local pp=npc:FindFirstChild("ProximityPrompt",true)
+    if pp then FH.firePrompt(pp)end end end
+  task.wait(.4)end;arT=nil end)end
+FH.stopAR=function()FH.on.autoRequeue=false;arT=nil end
+local siC
+FH.startSM=function()
+ FH.volOrig=FH.SS.Volume;FH.SS.Volume=0
+ if siC then return end
+ siC=RS.Heartbeat:Connect(function()if FH.on.silentMode and FH.SS.Volume>0 then FH.SS.Volume=0 end end)
+end
+FH.stopSM=function()FH.SS.Volume=FH.volOrig;if siC then siC:Disconnect();siC=nil end end
+local m1C,lp=nil,0
+FH.startM1=function()
+ if m1C then return end
+ m1C=RS.Heartbeat:Connect(function()
+  if not FH.on.autoM1 then return end
+  if not FH.isKiller(LP.Character)then return end
+  if tick()-lp<.6 then return end
+  local t=FH.nearest(9);if not t then return end
+  local e=FH.getEv("PunchEvent");if not e then return end
+  pcall(function()e:FireServer()end);lp=tick()end)end
+FH.stopM1=function()if m1C then m1C:Disconnect();m1C=nil end end
+local aC
+FH.startAM1=function()
+ if aC then return end
+ aC=RS.RenderStepped:Connect(function()
+  if not FH.on.aimlockM1 then return end
+  if not FH.isKiller(LP.Character)then return end
+  local t=FH.nearest(11)
+  if t then local hr=t.Char:FindFirstChild("HumanoidRootPart")
+   if hr then workspace.CurrentCamera.CFrame=CFrame.lookAt(workspace.CurrentCamera.CFrame.Position,hr.Position)end end end)end
+FH.stopAM1=function()if aC then aC:Disconnect();aC=nil end end
+local sc,ls=nil,0
+FH.startSc=function()
+ if sc then return end
+ sc=RS.Heartbeat:Connect(function()
+  if not FH.on.autoScream then return end
+  if not FH.isKiller(LP.Character)then return end
+  if tick()-ls<25 then return end
+  local t=FH.nearest(3);if not t then return end
+  local e=FH.getEv("AbilityEvent");if not e then return end
+  pcall(function()e:FireServer()end);ls=tick()end)end
+FH.stopSc=function()if sc then sc:Disconnect();sc=nil end end
+local tc,lt=nil,0
+FH.startTk=function()
+ if tc then return end
+ tc=RS.Heartbeat:Connect(function()
+  if not FH.on.autoThrow then return end
+  if not FH.isKiller(LP.Character)then return end
+  if tick()-lt<.5 then return end
+  local e=FH.getEv("AbilityEvent2");if not e then return end
+  pcall(function()e:FireServer()end);lt=tick()end)end
+FH.stopTk=function()if tc then tc:Disconnect();tc=nil end end
+local sT,lsT=nil,0
+FH.startST=function()
+ if sT then return end
+ sT=RS.Heartbeat:Connect(function()
+  if not FH.on.smartThrow then return end
+  if not FH.isKiller(LP.Character)then return end
+  if tick()-lsT<.5 then return end
+  local t=FH.nearest(30);if not t or not FH.vision(t.Char)then return end
+  local e=FH.getEv("AbilityEvent2");if not e then return end
+  pcall(function()e:FireServer()end);lsT=tick()end)end
+FH.stopST=function()if sT then sT:Disconnect();sT=nil end end
+FH.p2=true
+print("🎃 [2/5] Base + TaskRemote + Killer OK")
