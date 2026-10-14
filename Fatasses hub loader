@@ -1,0 +1,32 @@
+-- ============ FATASSES HUB LOADER v2 ============
+local URLS = {
+    "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part1",
+    "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%202",
+    "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%203",
+    "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%204",
+    "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%205",
+}
+local DELAY = 2
+
+print("🎃 LOADER: Iniciando carga...")
+for i = 1, #URLS do
+    print("🎃 LOADER: Cargando parte " .. i .. "/5...")
+    local ok, code = pcall(function() return game:HttpGet(URLS[i], true) end)
+    if not ok or not code or code == "" then
+        warn("🎃 LOADER: ERROR al descargar parte " .. i)
+        return
+    end
+    local fn, err = loadstring(code)
+    if not fn then
+        warn("🎃 LOADER: ERROR de sintaxis en parte " .. i .. ": " .. tostring(err))
+        return
+    end
+    local ok2, err2 = pcall(fn)
+    if not ok2 then
+        warn("🎃 LOADER: ERROR al ejecutar parte " .. i .. ": " .. tostring(err2))
+        return
+    end
+    print("🎃 LOADER: ✅ Parte " .. i .. "/5 OK")
+    if i < #URLS then task.wait(DELAY) end
+end
+print("🎃 LOADER: ✅ TODO CARGADO")
