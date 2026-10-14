@@ -67,7 +67,7 @@ local function findK()
    local ch=p.Character;local h=ch:FindFirstChildOfClass("Humanoid")
    if h and h.Health>0 then
     local n=countScr(ch);local a=ch:GetExtentsSize().Y
-    if n>=FH.KST then local s=1000+n;if s>bs then bs=s;bk=ch end
+    if n>=FH.KST then local sc=1000+n;if sc>bs then bs=sc;bk=ch end
     elseif a>bs then bs=a;bk=ch end end end end
  return bk end
 local function aim()local mc=LP.Character;return mc and mc:GetAttribute("IsAiming")==true end
@@ -110,45 +110,72 @@ FH.startAS2=function()
   if not k or not k.Parent then return end
   if FH.vision(k)then if shoot()then ultD=tick();aimT=tick()end end end)end
 FH.stopAS2=function()if aSC then aSC:Disconnect();aSC=nil end;aimT=0 end
+
+-- ===== FUNCION DE ICONO (sin tablas literales indexadas) =====
+local function getIcon(n)
+ if n=="Esp" then return "👁" end
+ if n=="Scientist" then return "🧪" end
+ if n=="Class A" then return "💚" end
+ if n=="Class S" then return "🎯" end
+ if n=="Extra Stuff" then return "⚡" end
+ return "🎃"
+end
+
 local TABS={"Esp","Scientist","Class A","Class S","Extra Stuff"}
 local tabs={};FH.tabs=tabs;FH.pestana="Esp"
--- FIX: tabla de iconos como variable aparte
-local ICON_MAP={Esp="👁",Scientist="🧪",["Class A"]="💚",["Class S"]="🎯",["Extra Stuff"]="⚡"}
 local function mkTab(n,cs)
  local t=Instance.new("TextButton",FH.sb)
- t.Size=UDim2.new(1,-6,0,32);t.BackgroundColor3=C.bg_card;t.BackgroundTransparency=.2
- t.Text="";t.BorderSizePixel=0;t.AutoButtonColor=false
+ t.Size=UDim2.new(1,-6,0,32)
+ t.BackgroundColor3=C.bg_card
+ t.BackgroundTransparency=.2
+ t.Text=""
+ t.BorderSizePixel=0
+ t.AutoButtonColor=false
  Instance.new("UICorner",t).CornerRadius=UDim.new(0,10)
- local ic=ICON_MAP[n] or "🎃"
+ local ic=getIcon(n)
  local i=Instance.new("TextLabel",t)
- i.Size=UDim2.new(0,18,0,18);i.Position=UDim2.new(0,8,.5,-9);i.BackgroundTransparency=1
- i.Text=ic;i.TextColor3=cs and C.text_sub or C.text
- i.TextScaled=true;i.Font=Enum.Font.GothamBold
+ i.Size=UDim2.new(0,18,0,18)
+ i.Position=UDim2.new(0,8,.5,-9)
+ i.BackgroundTransparency=1
+ i.Text=ic
+ i.TextColor3=cs and C.text_sub or C.text
+ i.TextScaled=true
+ i.Font=Enum.Font.GothamBold
  local l=Instance.new("TextLabel",t)
- l.Size=UDim2.new(1,-34,1,0);l.Position=UDim2.new(0,30,0,0);l.BackgroundTransparency=1
- l.Text=n;l.TextColor3=cs and C.text_sub or C.text
- l.TextScaled=true;l.Font=Enum.Font.GothamBold;l.TextXAlignment=Enum.TextXAlignment.Left
+ l.Size=UDim2.new(1,-34,1,0)
+ l.Position=UDim2.new(0,30,0,0)
+ l.BackgroundTransparency=1
+ l.Text=n
+ l.TextColor3=cs and C.text_sub or C.text
+ l.TextScaled=true
+ l.Font=Enum.Font.GothamBold
+ l.TextXAlignment=Enum.TextXAlignment.Left
  local ck=false
  local function setSt(s)
   if s=="sel"then t.BackgroundColor3=C.bg_card_hl;t.BackgroundTransparency=0
   else t.BackgroundColor3=C.bg_card;t.BackgroundTransparency=.2 end end
  t.MouseButton1Click:Connect(function()
   if ck or cs or FH.pestana==n then return end
-  ck=true;FH.sfx("tab_switch",2,1)
+  ck=true
+  FH.sfx("tab_switch",2,1)
   if tabs[FH.pestana]then tabs[FH.pestana].S("dese")end
-  FH.pestana=n;setSt("sel")
+  FH.pestana=n
+  setSt("sel")
   task.spawn(function()pcall(FH.panel)end)
   task.delay(.5,function()ck=false end)end)
  tabs[n]={S=setSt,CS=cs}end
 for _,n in ipairs(TABS)do mkTab(n,false)end
 if tabs["Esp"]then tabs["Esp"].S("sel")end
+
 local pupd=false
 FH.panel=function()
  if pupd then return end
  pupd=true
  pcall(function()
-  for _,h in ipairs(FH.oc:GetChildren())do if not h:IsA("UIListLayout")then h:Destroy()end end
-  local opt=FH.crearOpcion;local btn=FH.crearBotonAccion
+  for _,h in ipairs(FH.oc:GetChildren())do
+   if not h:IsA("UIListLayout")then h:Destroy()end end
+  local opt=FH.crearOpcion
+  local btn=FH.crearBotonAccion
   if FH.pestana=="Esp"then
    opt("ESP Tasks 👁",function(v)FH.on.espActive=v;if v then FH.startESP()else FH.stopESP()end end)
    opt("ESP Players 🎃",function(v)FH.on.espPlActive=v;if v then FH.startEP()else FH.stopEP()end end)
@@ -180,18 +207,28 @@ FH.panel=function()
   end
  end)
  pupd=false end
+
 local th=Instance.new("Frame")
-th.Size=UDim2.new(0,60,0,60);th.Position=UDim2.new(0,20,.75,0)
-th.BackgroundTransparency=1;th.Parent=FH.sg
+th.Size=UDim2.new(0,60,0,60)
+th.Position=UDim2.new(0,20,.75,0)
+th.BackgroundTransparency=1
+th.Parent=FH.sg
 local tbtn=Instance.new("TextButton",th)
-tbtn.Size=UDim2.new(1,0,1,0);tbtn.BackgroundColor3=C.accent
-tbtn.Text="";tbtn.BorderSizePixel=0;tbtn.AutoButtonColor=false
+tbtn.Size=UDim2.new(1,0,1,0)
+tbtn.BackgroundColor3=C.accent
+tbtn.Text=""
+tbtn.BorderSizePixel=0
+tbtn.AutoButtonColor=false
 Instance.new("UICorner",tbtn).CornerRadius=UDim.new(1,0)
 local sl2=Instance.new("TextLabel",tbtn)
-sl2.Size=UDim2.new(1,0,1,0);sl2.BackgroundTransparency=1
-sl2.Text="🎃";sl2.TextColor3=Color3.fromRGB(255,255,255)
-sl2.TextScaled=true;sl2.Font=Enum.Font.GothamBlack
+sl2.Size=UDim2.new(1,0,1,0)
+sl2.BackgroundTransparency=1
+sl2.Text="🎃"
+sl2.TextColor3=Color3.fromRGB(255,255,255)
+sl2.TextScaled=true
+sl2.Font=Enum.Font.GothamBlack
 tbtn.MouseButton1Click:Connect(function()FH.fr.Visible=not FH.fr.Visible end)
+
 FH.panel()
 FH.p5=true
 print("🎃 [5/5] TODO LISTO. GUI activa.")
