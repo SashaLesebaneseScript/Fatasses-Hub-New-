@@ -69,20 +69,43 @@ FH.TR=TR;FH.tarea=nil;FH.ultima=nil
 if TR then TR.OnClientEvent:Connect(function(a,id,gui)
  if a=="OpenGui"then FH.tarea={id=id,gui=gui}
  elseif a=="EndTask"then if FH.tarea and FH.tarea.id==id then FH.ultima=FH.tarea;FH.tarea=nil end end end)end
+
+-- ===== FIX Auto Complete: 1 disparo por tarea, verifica id antes de disparar =====
+FH.acFired = {}
 FH.complete=function()
- if not FH.TR or not FH.tarea then return false end
- pcall(function()FH.TR:FireServer("CompleteStep",FH.tarea.id)end)
- return true
+    if not FH.TR or not FH.tarea then return false end
+    local id = FH.tarea.id
+    if not id then return false end
+    local ok = pcall(function() FH.TR:FireServer("CompleteStep", id) end)
+    return ok
 end
+
 local acT
 FH.startAC=function()
- if acT then return end
- acT=task.spawn(function()
-  while FH.on.autoComplete do
-   if FH.tarea then task.wait(.3);if FH.on.autoComplete and FH.tarea then FH.complete()end;task.wait(.5)
-   else task.wait(.3)end end
-  acT=nil end)end
-FH.stopAC=function()FH.on.autoComplete=false;acT=nil end
+    if acT then return end
+    FH.acFired = {}
+    acT=task.spawn(function()
+        while FH.on.autoComplete do
+            local t = FH.tarea
+            if t and t.id and not FH.acFired[t.id] then
+                task.wait(1)
+                if FH.on.autoComplete and FH.tarea and FH.tarea.id == t.id and not FH.acFired[t.id] then
+                    FH.acFired[t.id] = true
+                    FH.complete()
+                end
+            end
+            task.wait(.5)
+        end
+        acT=nil
+    end)
+end
+FH.stopAC=function()
+    FH.on.autoComplete=false
+    FH.acFired = {}
+    acT=nil
+end
+-- ===== FIN FIX =====
+
 local spT
 FH.startSp=function()
  if spT then return end
@@ -125,7 +148,7 @@ FH.startAR=function()
     if pp then FH.firePrompt(pp)end end end
   task.wait(.4)end;arT=nil end)end
 FH.stopAR=function()FH.on.autoRequeue=false;arT=nil end
--- Silent Mode (FIX: SoundService.Volume no existe, se mutean Sounds individuales)
+-- Silent Mode (mutea Sounds individuales, SoundService.Volume no existe)
 local siC
 FH.silentMuted={}
 FH.startSM=function()
@@ -200,4 +223,4 @@ FH.startST=function()
   pcall(function()e:FireServer()end);lsT=tick()end)end
 FH.stopST=function()if sT then sT:Disconnect();sT=nil end end
 FH.p2=true
-print("🎃 [2/5] Base + TaskRemote + Killer OK")
+print("🎃 [2/5] Base + TaskRemote + Killer OK (Auto Complete fix v2)")
