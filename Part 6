@@ -1,0 +1,345 @@
+-- ============ PARTE 6/6 - Class S Extension ============
+local FH = getgenv().FH
+if not FH or not FH.p5 then warn("[FH] Ejecuta Partes 1-5 primero") return end
+if FH.p6 then warn("[FH] Parte 6 ya ejecutada") return end
+local RS,PL,WS,RST,LP = FH.RS,FH.PL,FH.WS,FH.RST,FH.LP
+local C = FH.C
+
+-- ===== Helpers =====
+local gunEvCache = nil
+local function getGunEv()
+    if gunEvCache and gunEvCache.Parent then return gunEvCache end
+    gunEvCache = RST:FindFirstChild("GunEvent")
+    return gunEvCache
+end
+
+local function getAimState()
+    local mc = LP.Character
+    if not mc then return false end
+    return mc:GetAttribute("IsAiming") == true
+end
+
+local function getNearestKiller()
+    local best, bd = nil, math.huge
+    local mc = LP.Character
+    if not mc then return nil end
+    local mh = mc:FindFirstChild("HumanoidRootPart")
+    if not mh then return nil end
+    for _, p in ipairs(PL:GetPlayers()) do
+        if p ~= LP and p.Character then
+            local ch = p.Character
+            local h = ch:FindFirstChildOfClass("Humanoid")
+            if h and h.Health > 0 and FH.isKiller(ch) then
+                local hr = ch:FindFirstChild("HumanoidRootPart")
+                if hr then
+                    local d = (mh.Position - hr.Position).Magnitude
+                    if d < bd then bd = d; best = ch end
+                end
+            end
+        end
+    end
+    return best
+end
+
+local function predictHead(char)
+    if not char then return nil end
+    local head = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
+    if not head then return nil end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return head.Position end
+    local ping = LP:GetNetworkPing() or 0.05
+    local predictTime = ping * 1.5
+    return head.Position + hrp.AssemblyLinearVelocity * predictTime
+end
+
+local function crosshairPos()
+    local cam = workspace.CurrentCamera
+    if not cam then return nil end
+    local vp = cam.ViewportSize
+    local ray = cam:ViewportPointToRay(vp.X/2, vp.Y/2)
+    local rp = RaycastParams.new()
+    rp.FilterDescendantsInstances = {LP.Character}
+    rp.FilterType = Enum.RaycastFilterType.Exclude
+    local r = workspace:Raycast(ray.Origin, ray.Direction*500, rp)
+    if r then return r.Position end
+    return ray.Origin + ray.Direction*500
+end
+
+-- ===== State =====
+FH.s6 = {
+    rapidFire=false, silentAim=false, prediction=true,
+    triggerbot=false, autoFireAim=false, autoFireLOS=false, autoFireStun=false,
+    customCrosshair=false, fovCircle=false, noCamShake=false, noWindup=false,
+    fovRadius=220, lastShot=0,
+}
+local S = FH.s6
+
+-- ===== Fire =====
+local function fireAt(pos)
+    local ev = getGunEv()
+    if not ev then return false end
+    local ok = pcall(function() ev:FireServer("Shoot", pos) end)
+    if ok then S.lastShot = tick() end
+    return ok
+end
+
+FH.s6Shoot = function()
+    if not getAimState() then return false end
+    if S.silentAim then
+        local t = getNearestKiller()
+        if t then
+            local pos
+            if S.prediction then pos = predictHead(t)
+            elseif t.Head then pos = t.Head.Position end
+            if pos then return fireAt(pos) end
+        end
+    end
+    local pos = crosshairPos()
+    if pos then return fireAt(pos) end
+    return false
+end
+
+-- ===== Rapid Fire =====
+local rapidT = nil
+local function startRapid()
+    if rapidT then return end
+    rapidT = task.spawn(function()
+        while S.rapidFire do
+            if getAimState() then FH.s6Shoot() end
+            task.wait(0.5)
+        end
+        rapidT = nil
+    end)
+end
+local function stopRapid() S.rapidFire = false; rapidT = nil end
+
+-- ===== Burst =====
+FH.s6Burst = function(n)
+    n = n or 5
+    task.spawn(function()
+        for i = 1, n do
+            if not getAimState() then break end
+            FH.s6Shoot()
+            task.wait(0.5)
+        end
+    end)
+end
+
+-- ===== Triggerbot =====
+local trigT = nil
+local function startTrig()
+    if trigT then return end
+    trigT = task.spawn(function()
+        while S.triggerbot do
+            task.wait(0.05)
+            if getAimState() then
+                local cam = workspace.CurrentCamera
+                if cam then
+                    local vp = cam.ViewportSize
+                    local ray = cam:ViewportPointToRay(vp.X/2, vp.Y/2)
+                    local rp = RaycastParams.new()
+                    rp.FilterDescendantsInstances = {LP.Character}
+                    rp.FilterType = Enum.RaycastFilterType.Exclude
+                    local r = workspace:Raycast(ray.Origin, ray.Direction*500, rp)
+                    if r and r.Instance then
+                        local model = r.Instance
+                        while model and not model:FindFirstChildOfClass("Humanoid") and model.Parent do
+                            model = model.Parent
+                        end
+                        if model and model:FindFirstChildOfClass("Humanoid") then
+                            local plr = PL:GetPlayerFromCharacter(model)
+                            if plr and plr ~= LP and FH.isKiller(model) then
+                                FH.s6Shoot()
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        trigT = nil
+    end)
+end
+local function stopTrig() S.triggerbot = false; trigT = nil end
+
+-- ===== Auto Fire LOS =====
+local losT = nil
+local function startLOS()
+    if losT then return end
+    losT = task.spawn(function()
+        while S.autoFireLOS do
+            task.wait(0.5)
+            if getAimState() then
+                local t = getNearestKiller()
+                if t and FH.vision(t) then FH.s6Shoot() end
+            end
+        end
+        losT = nil
+    end)
+end
+local function stopLOS() S.autoFireLOS = false; losT = nil end
+
+-- ===== Auto Fire Stun =====
+local stunT = nil
+local function startStun()
+    if stunT then return end
+    stunT = task.spawn(function()
+        while S.autoFireStun do
+            task.wait(0.2)
+            if getAimState() then
+                local t = getNearestKiller()
+                if t and t:FindFirstChild("Stunner") then FH.s6Shoot() end
+            end
+        end
+        stunT = nil
+    end)
+end
+local function stopStun() S.autoFireStun = false; stunT = nil end
+
+-- ===== Auto Fire on Aim =====
+local lastAimState = false
+RS.Heartbeat:Connect(function()
+    local a = getAimState()
+    if a and not lastAimState and S.autoFireAim then
+        task.spawn(function()
+            local delay = S.noWindup and 0.05 or 0.5
+            task.wait(delay)
+            if getAimState() then FH.s6Shoot() end
+        end)
+    end
+    lastAimState = a
+end)
+
+-- ===== No Camera Shake =====
+RS.Heartbeat:Connect(function()
+    if not S.noCamShake then return end
+    if tick() - S.lastShot > 0.3 then return end
+    local mc = LP.Character
+    if not mc then return end
+    local h = mc:FindFirstChildOfClass("Humanoid")
+    if h and h.CameraOffset.Magnitude > 0.5 then
+        h.CameraOffset = Vector3.new(0,0,0)
+    end
+end)
+
+-- ===== FOV Circle =====
+local fovGui = nil
+local function createFOV()
+    if fovGui then return end
+    fovGui = Instance.new("ScreenGui")
+    fovGui.Name = "FH_FOV"
+    fovGui.ResetOnSpawn = false
+    fovGui.IgnoreGuiInset = true
+    fovGui.DisplayOrder = 1000
+    fovGui.Parent = FH.parent
+    local f = Instance.new("Frame", fovGui)
+    f.AnchorPoint = Vector2.new(0.5, 0.5)
+    f.Position = UDim2.new(0.5, 0, 0.5, 0)
+    f.Size = UDim2.new(0, S.fovRadius*2, 0, S.fovRadius*2)
+    f.BackgroundTransparency = 1
+    f.BorderSizePixel = 0
+    Instance.new("UICorner", f).CornerRadius = UDim.new(1, 0)
+    local str = Instance.new("UIStroke", f)
+    str.Color = Color3.fromRGB(255, 120, 20)
+    str.Thickness = 2
+    str.Transparency = 0.3
+end
+local function destroyFOV()
+    if fovGui then fovGui:Destroy(); fovGui = nil end
+end
+
+-- ===== Custom Crosshair =====
+local crossGui = nil
+local function createCrosshair()
+    if crossGui then return end
+    crossGui = Instance.new("ScreenGui")
+    crossGui.Name = "FH_Crosshair"
+    crossGui.ResetOnSpawn = false
+    crossGui.IgnoreGuiInset = true
+    crossGui.DisplayOrder = 999
+    crossGui.Parent = FH.parent
+    local function bar(sx, sy, px, py)
+        local b = Instance.new("Frame", crossGui)
+        b.Size = UDim2.new(0, sx, 0, sy)
+        b.Position = UDim2.new(0.5, px, 0.5, py)
+        b.AnchorPoint = Vector2.new(0.5, 0.5)
+        b.BackgroundColor3 = Color3.fromRGB(255, 120, 20)
+        b.BorderSizePixel = 0
+    end
+    bar(2, 10, 0, -12)
+    bar(2, 10, 0, 12)
+    bar(10, 2, -12, 0)
+    bar(10, 2, 12, 0)
+    local dot = Instance.new("Frame", crossGui)
+    dot.Size = UDim2.new(0, 3, 0, 3)
+    dot.Position = UDim2.new(0.5, 0, 0.5, 0)
+    dot.AnchorPoint = Vector2.new(0.5, 0.5)
+    dot.BackgroundColor3 = Color3.fromRGB(255, 120, 20)
+    dot.BorderSizePixel = 0
+    Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+end
+local function destroyCrosshair()
+    if crossGui then crossGui:Destroy(); crossGui = nil end
+end
+
+-- ===== Panel Hook =====
+local origPanel = FH.panel
+local function header(txt)
+    local h = Instance.new("TextLabel", FH.oc)
+    h.Size = UDim2.new(1, 0, 0, 22)
+    h.BackgroundTransparency = 1
+    h.Text = txt
+    h.TextColor3 = C.accent
+    h.Font = Enum.Font.GothamBold
+    h.TextScaled = true
+    h.TextXAlignment = Enum.TextXAlignment.Left
+end
+
+FH.panel = function()
+    origPanel()
+    if FH.pestana ~= "Class S" then return end
+    local opt = FH.crearOpcion
+    local btn = FH.crearBotonAccion
+
+    header("── Disparo ──")
+    opt("Rapid Fire ⚡", function(v)
+        S.rapidFire = v
+        if v then startRapid() else stopRapid() end
+    end)
+    btn("Burst Fire x5 🔥", function() FH.s6Burst(5) end)
+
+    header("── Apuntado ──")
+    opt("Silent Aim 👻", function(v) S.silentAim = v end)
+    opt("Prediction 🎯", function(v) S.prediction = v end)
+    opt("FOV Circle ⭕", function(v)
+        S.fovCircle = v
+        if v then createFOV() else destroyFOV() end
+    end)
+
+    header("── Auto Fire ──")
+    opt("Triggerbot 🎯", function(v)
+        S.triggerbot = v
+        if v then startTrig() else stopTrig() end
+    end)
+    opt("Auto Fire on Aim 🚀", function(v) S.autoFireAim = v end)
+    opt("Auto Fire on LOS 👁", function(v)
+        S.autoFireLOS = v
+        if v then startLOS() else stopLOS() end
+    end)
+    opt("Auto Fire on Stun 💫", function(v)
+        S.autoFireStun = v
+        if v then startStun() else stopStun() end
+    end)
+
+    header("── Misc ──")
+    opt("No Camera Shake 📷", function(v) S.noCamShake = v end)
+    opt("No Windup Lock ⏩", function(v) S.noWindup = v end)
+    opt("Custom Crosshair ✚", function(v)
+        S.customCrosshair = v
+        if v then createCrosshair() else destroyCrosshair() end
+    end)
+end
+
+if FH.pestana == "Class S" then FH.panel() end
+
+FH.p6 = true
+print("🎃 [6/6] Class S Extension OK")
