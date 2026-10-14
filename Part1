@@ -142,48 +142,4 @@ FH.crearBotonAccion=function(nombre,onFire)
  b.MouseButton1Click:Connect(function()FH.sfx("toggle_on",2,1.3);pcall(onFire)end)
 end
 FH.p1=true
-print("🎃 [1/5] Setup + GUI OK")local baseUrl = "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-Lesbian/main/Fatasses%20Hub"
-local archivoTemp = "FatassesHub_part"
-
-print("⏳ Descargando y dividiendo el script en partes...")
-
-local exito, contenido = pcall(function()
-    return game:HttpGet(baseUrl)
-end)
-
-if exito and contenido and #contenido > 0 then
-    local tamanoParte = 15000 -- Tamaño de cada fragmento (15KB)
-    local totalPartes = math.ceil(#contenido / tamanoParte)
-    
-    print("✅ Descargado. Dividiendo en " .. totalPartes .. " partes...")
-    
-    for i = 1, totalPartes do
-        local inicio = (i - 1) * tamanoParte + 1
-        local fin = math.min(i * tamanoParte, #contenido)
-        local fragmento = contenido:sub(inicio, fin)
-        local nombreParte = archivoTemp .. i .. ".lua"
-        
-        writefile(nombreParte, fragmento)
-        print("   -> Parte " .. i .. " guardada (" .. #fragmento .. " caracteres)")
-    end
-    
-    print("✅ Todas las partes guardadas. Ejecutando parte por parte...")
-    
-    for i = 1, totalPartes do
-        local nombreParte = archivoTemp .. i .. ".lua"
-        print("   -> Ejecutando parte " .. i .. "...")
-        
-        local exitoEjecucion, errorEjecucion = pcall(function()
-            dofile(nombreParte)
-        end)
-        
-        if not exitoEjecucion then
-            warn("❌ Error en la parte " .. i .. ": " .. tostring(errorEjecucion))
-            break
-        end
-    end
-    
-    print("✅ Proceso completado. Revisa si la GUI apareció.")
-else
-    warn("❌ Error al descargar: " .. tostring(contenido))
-end
+print("🎃 [1/5] Setup + GUI OK")
