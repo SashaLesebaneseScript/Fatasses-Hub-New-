@@ -69,8 +69,7 @@ FH.TR=TR;FH.tarea=nil;FH.ultima=nil
 if TR then TR.OnClientEvent:Connect(function(a,id,gui)
  if a=="OpenGui"then FH.tarea={id=id,gui=gui}
  elseif a=="EndTask"then if FH.tarea and FH.tarea.id==id then FH.ultima=FH.tarea;FH.tarea=nil end end end)end
-
--- ===== FIX Auto Complete: 1 disparo por tarea, verifica id antes de disparar =====
+-- Auto Complete (fix v2: 1 disparo por tarea)
 FH.acFired = {}
 FH.complete=function()
     if not FH.TR or not FH.tarea then return false end
@@ -79,7 +78,6 @@ FH.complete=function()
     local ok = pcall(function() FH.TR:FireServer("CompleteStep", id) end)
     return ok
 end
-
 local acT
 FH.startAC=function()
     if acT then return end
@@ -104,71 +102,117 @@ FH.stopAC=function()
     FH.acFired = {}
     acT=nil
 end
--- ===== FIN FIX =====
-
 local spT
 FH.startSp=function()
  if spT then return end
  spT=task.spawn(function()while FH.on.spamComplete do if FH.tarea then FH.complete()end;task.wait(.3)end;spT=nil end)end
 FH.stopSp=function()FH.on.spamComplete=false;spT=nil end
+-- Auto Start (fix v2: fireproximityprompt + descendientes)
 FH.getPrompts=function()
- local l={};local mc=LP.Character
- local mp=mc and mc:FindFirstChild("HumanoidRootPart")and mc.HumanoidRootPart.Position
- if not mp then return l end
- for _,o in ipairs(WS:GetChildren())do
-  if o:IsA("Model")then
-   local pp=o:FindFirstChild("ProximityPrompt",true)
-   local hr=o:FindFirstChild("HumanoidRootPart")or o:FindFirstChildWhichIsA("BasePart")
-   if pp and hr then table.insert(l,{pp=pp,d=(mp-hr.Position).Magnitude})end end end
- table.sort(l,function(a,b)return a.d<b.d end);return l
+    local l = {}
+    local mc = LP.Character
+    if not mc then return l end
+    local hrp = mc:FindFirstChild("HumanoidRootPart")
+    if not hrp then return l end
+    local mp = hrp.Position
+    for _, pp in ipairs(WS:GetDescendants()) do
+        if pp:IsA("ProximityPrompt") and pp.Enabled then
+            local model = pp.Parent
+            if model then
+                local ref = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChildWhichIsA("BasePart")
+                if not ref and model.Parent then
+                    ref = model.Parent:FindFirstChildWhichIsA("BasePart")
+                end
+                if ref then
+                    table.insert(l, {pp=pp, d=(mp-ref.Position).Magnitude})
+                end
+            end
+        end
+    end
+    table.sort(l, function(a,b) return a.d < b.d end)
+    return l
 end
 FH.firePrompt=function(pp)
- pcall(function()
-  if not pp.Enabled then pp.Enabled=true end
-  if firesignal and pp.Triggered then firesignal(pp.Triggered)end
-  if pp.HoldDuration>0 then keypress(Enum.KeyCode.E);task.wait(pp.HoldDuration+.05);keyrelease(Enum.KeyCode.E)end
- end)
+    if not pp then return false end
+    pcall(function()
+        if not pp.Enabled then pp.Enabled = true end
+        if fireproximityprompt then
+            fireproximityprompt(pp)
+            return
+        end
+        if firesignal then
+            pcall(firesignal, pp.PromptButtonHoldBegan)
+            pcall(firesignal, pp.PromptButtonHoldEnded)
+            pcall(firesignal, pp.Triggered)
+            return
+        end
+        if pp.HoldDuration and pp.HoldDuration > 0 then
+            keypress(Enum.KeyCode.E)
+            task.wait(pp.HoldDuration + .05)
+            keyrelease(Enum.KeyCode.E)
+        else
+            keypress(Enum.KeyCode.E)
+            task.wait(.05)
+            keyrelease(Enum.KeyCode.E)
+        end
+    end)
+    return true
 end
 local asT
 FH.startAS=function()
- if asT then return end
- asT=task.spawn(function()while FH.on.autoStart do
-  if not FH.tarea then local l=FH.getPrompts();if #l>0 then FH.firePrompt(l[1].pp)end end
-  task.wait(.5)end;asT=nil end)end
+    if asT then return end
+    asT=task.spawn(function()
+        while FH.on.autoStart do
+            if not FH.tarea then
+                local l = FH.getPrompts()
+                if #l > 0 then
+                    FH.firePrompt(l[1].pp)
+                end
+            end
+            task.wait(.7)
+        end
+        asT=nil
+    end)
+end
 FH.stopAS=function()FH.on.autoStart=false;asT=nil end
+-- Auto Requeue (fix v2: descendientes + solo limpia ultima si encuentra NPC)
 local arT
 FH.startAR=function()
- if arT then return end
- arT=task.spawn(function()while FH.on.autoRequeue do
-  if FH.ultima and not FH.tarea then
-   local npc=WS:FindFirstChild(string.split(FH.ultima.id,"_")[1])
-   FH.ultima=nil;task.wait(.5)
-   if FH.on.autoRequeue and npc then
-    local pp=npc:FindFirstChild("ProximityPrompt",true)
-    if pp then FH.firePrompt(pp)end end end
-  task.wait(.4)end;arT=nil end)end
+    if arT then return end
+    arT=task.spawn(function()
+        while FH.on.autoRequeue do
+            local ult = FH.ultima
+            if ult and not FH.tarea then
+                local npcName = string.split(ult.id, "_")[1]
+                local npc = nil
+                for _, obj in ipairs(WS:GetDescendants()) do
+                    if obj.Name == npcName then npc = obj; break end
+                end
+                if npc then
+                    local pp = npc:FindFirstChild("ProximityPrompt", true)
+                    if not pp and npc.Parent then
+                        pp = npc.Parent:FindFirstChild("ProximityPrompt", true)
+                    end
+                    if pp then
+                        FH.ultima = nil
+                        task.wait(.5)
+                        if FH.on.autoRequeue and not FH.tarea then
+                            FH.firePrompt(pp)
+                        end
+                    else
+                        FH.ultima = nil
+                    end
+                else
+                    FH.ultima = nil
+                end
+            end
+            task.wait(.6)
+        end
+        arT=nil
+    end)
+end
 FH.stopAR=function()FH.on.autoRequeue=false;arT=nil end
--- Silent Mode (mutea Sounds individuales, SoundService.Volume no existe)
-local siC
-FH.silentMuted={}
-FH.startSM=function()
- FH.silentMuted={}
- for _,s in ipairs(FH.SS:GetDescendants())do
-  if s:IsA("Sound")then FH.silentMuted[s]=s.Volume;s.Volume=0 end end
- if siC then return end
- siC=RS.Heartbeat:Connect(function()
-  if not FH.on.silentMode then return end
-  for _,s in ipairs(FH.SS:GetDescendants())do
-   if s:IsA("Sound")and s.Volume>0 then
-    if not FH.silentMuted[s]then FH.silentMuted[s]=s.Volume end
-    s.Volume=0 end end end)
-end
-FH.stopSM=function()
- if FH.silentMuted then
-  for s,v in pairs(FH.silentMuted)do if s and s.Parent then s.Volume=v end end
-  FH.silentMuted=nil end
- if siC then siC:Disconnect();siC=nil end
-end
+-- KILLER
 local m1C,lp=nil,0
 FH.startM1=function()
  if m1C then return end
@@ -223,4 +267,4 @@ FH.startST=function()
   pcall(function()e:FireServer()end);lsT=tick()end)end
 FH.stopST=function()if sT then sT:Disconnect();sT=nil end end
 FH.p2=true
-print("🎃 [2/5] Base + TaskRemote + Killer OK (Auto Complete fix v2)")
+print("🎃 [2/5] Base + TaskRemote + Killer OK")
