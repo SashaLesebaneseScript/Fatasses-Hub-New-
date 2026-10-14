@@ -1,11 +1,10 @@
--- ============ PARTE 6/6 - Class S Extension (simplified) ============
+-- ============ PARTE 6/6 - Class S Extension ============
 local FH = getgenv().FH
 if not FH or not FH.p5 then warn("[FH] Ejecuta Partes 1-5 primero") return end
 if FH.p6 then warn("[FH] Parte 6 ya ejecutada") return end
 local RS,PL,WS,RST,LP = FH.RS,FH.PL,FH.WS,FH.RST,FH.LP
 local C = FH.C
 
--- GunEvent
 local gunEv
 local function getGun()
     if gunEv and gunEv.Parent then return gunEv end
@@ -13,22 +12,11 @@ local function getGun()
     return gunEv
 end
 
--- Killer = jugador MAS ALTO (solo hay 1)
-local function getKiller()
-    local best, bestH = nil, 6.5
-    for _, p in ipairs(PL:GetPlayers()) do
-        if p ~= LP and p.Character then
-            local h = p.Character:FindFirstChildOfClass("Humanoid")
-            if h and h.Health > 0 then
-                local ok, sz = pcall(function() return p.Character:GetExtentsSize().Y end)
-                if ok and sz and sz > bestH then
-                    bestH = sz
-                    best = p.Character
-                end
-            end
-        end
-    end
-    return best
+local function getKiller() return FH.updateKiller() end
+
+local function isAiming()
+    local mc = LP.Character
+    return mc and mc:GetAttribute("IsAiming") == true
 end
 
 local function headPos(char)
@@ -59,29 +47,19 @@ local function shoot(pos)
     return pcall(function() g:FireServer("Shoot", pos) end)
 end
 
--- Detectar F (independiente del cooldown del cliente)
-local holding = false
-FH.UI.InputBegan:Connect(function(inp, proc)
-    if proc then return end
-    if inp.KeyCode == Enum.KeyCode.F or inp.KeyCode == Enum.KeyCode.ButtonL2 then
-        holding = true
-    end
-end)
-FH.UI.InputEnded:Connect(function(inp)
-    if inp.KeyCode == Enum.KeyCode.F or inp.KeyCode == Enum.KeyCode.ButtonL2 then
-        holding = false
-    end
-end)
-
--- No Cooldown: dispara cada 0.5s mientras mantengas F
--- Bypassa el lock local de 40s del cliente completamente
 local ncT
 local function startNC()
     if ncT then return end
     ncT = task.spawn(function()
         while S.noCooldown do
-            if holding then
-                local pos = S.silentAim and headPos(getKiller()) or crosshairPos()
+            if isAiming() then
+                local pos
+                if S.silentAim then
+                    local k = getKiller()
+                    pos = k and headPos(k)
+                else
+                    pos = crosshairPos()
+                end
                 if pos then shoot(pos) end
             end
             task.wait(S.rate)
@@ -91,13 +69,12 @@ local function startNC()
 end
 local function stopNC() S.noCooldown = false; ncT = nil end
 
--- Auto Fire: dispara SOLO si el killer es visible y mantienes F
 local afT
 local function startAF()
     if afT then return end
     afT = task.spawn(function()
         while S.autoFire do
-            if holding then
+            if isAiming() then
                 local k = getKiller()
                 if k and FH.vision(k) then
                     local pos = S.silentAim and headPos(k) or crosshairPos()
@@ -111,7 +88,6 @@ local function startAF()
 end
 local function stopAF() S.autoFire = false; afT = nil end
 
--- Hook panel de Class S
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
@@ -141,4 +117,4 @@ end
 
 if FH.pestana == "Class S" then FH.panel() end
 FH.p6 = true
-print("🎃 [6/6] Class S Extension OK (simplified)")
+print("🎃 [6/6] Class S Extension OK")
