@@ -1,11 +1,10 @@
--- ============ FATASSES HUB LOADER v3 (6 partes) ============
+-- ============ FATASSES HUB LOADER (5 partes) ============
 local URLS = {
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part1",
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%202",
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%203",
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%204",
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%205",
-    "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%206",
 }
 
 local DELAY = 2
