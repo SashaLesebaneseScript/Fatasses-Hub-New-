@@ -14,11 +14,6 @@ end
 
 local function getKiller() return FH.updateKiller() end
 
-local function isAiming()
-    local mc = LP.Character
-    return mc and mc:GetAttribute("IsAiming") == true
-end
-
 local function headPos(char)
     if not char then return nil end
     local head = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
@@ -38,25 +33,46 @@ local function crosshairPos()
     return ray.Origin + ray.Direction*500
 end
 
-local S = { noCooldown=false, silentAim=false, autoFire=false, rate=0.5 }
+local S = { noCooldown=false, silentAim=false, autoFire=false, rate=0.5, lastShot=0 }
+local holding = false
+
+-- Deteccion de F directa (independiente del script del juego)
+FH.UI.InputBegan:Connect(function(inp, proc)
+    if proc then return end
+    if inp.KeyCode == Enum.KeyCode.F or inp.KeyCode == Enum.KeyCode.ButtonL2 then
+        holding = true
+    end
+end)
+FH.UI.InputEnded:Connect(function(inp)
+    if inp.KeyCode == Enum.KeyCode.F or inp.KeyCode == Enum.KeyCode.ButtonL2 then
+        holding = false
+    end
+end)
 
 local function shoot(pos)
     if not pos then return false end
     local g = getGun()
     if not g then return false end
-    return pcall(function() g:FireServer("Shoot", pos) end)
+    local ok = pcall(function() g:FireServer("Shoot", pos) end)
+    if ok then S.lastShot = tick() end
+    return ok
 end
 
+-- ===== No Cooldown: dispara mientras mantengas F (bypassa cooldown del cliente) =====
 local ncT
 local function startNC()
     if ncT then return end
     ncT = task.spawn(function()
         while S.noCooldown do
-            if isAiming() then
+            if holding then
                 local pos
                 if S.silentAim then
                     local k = getKiller()
-                    pos = k and headPos(k)
+                    if k and FH.vision(k) then
+                        pos = headPos(k)
+                    else
+                        pos = crosshairPos()
+                    end
                 else
                     pos = crosshairPos()
                 end
@@ -69,12 +85,15 @@ local function startNC()
 end
 local function stopNC() S.noCooldown = false; ncT = nil end
 
+-- ===== Auto Fire: solo dispara si killer visible y estas apuntando =====
 local afT
 local function startAF()
     if afT then return end
     afT = task.spawn(function()
         while S.autoFire do
-            if isAiming() then
+            local mc = LP.Character
+            local aiming = mc and mc:GetAttribute("IsAiming") == true
+            if aiming then
                 local k = getKiller()
                 if k and FH.vision(k) then
                     local pos = S.silentAim and headPos(k) or crosshairPos()
@@ -88,6 +107,109 @@ local function startAF()
 end
 local function stopAF() S.autoFire = false; afT = nil end
 
+-- ===== Stun Monitor GUI =====
+local stunPanel = nil
+local killerStunnerRef = nil
+local stunLog = {}
+
+local function getCooldownTime()
+    local n = 0
+    for _, p in ipairs(PL:GetPlayers()) do
+        if p == LP then continue end
+        local ch = p.Character
+        if ch and ch:FindFirstChild("Stunner") then n = n + 5 end
+    end
+    return n + 40
+end
+
+local function createStunPanel()
+    if stunPanel then return end
+    stunPanel = Instance.new("ScreenGui")
+    stunPanel.Name = "FH_StunMonitor"
+    stunPanel.ResetOnSpawn = false
+    stunPanel.IgnoreGuiInset = true
+    stunPanel.DisplayOrder = 1001
+    stunPanel.Parent = FH.parent
+    local bg = Instance.new("Frame", stunPanel)
+    bg.Size = UDim2.new(0, 260, 0, 78)
+    bg.Position = UDim2.new(1, -20, 0, 80)
+    bg.AnchorPoint = Vector2.new(1, 0)
+    bg.BackgroundColor3 = Color3.fromRGB(20, 10, 28)
+    bg.BackgroundTransparency = 0.15
+    bg.BorderSizePixel = 0
+    Instance.new("UICorner", bg).CornerRadius = UDim.new(0, 10)
+    local str = Instance.new("UIStroke", bg)
+    str.Color = Color3.fromRGB(255, 120, 20)
+    str.Thickness = 2
+    local status = Instance.new("TextLabel", bg)
+    status.Name = "Status"
+    status.Size = UDim2.new(1, -16, 0, 32)
+    status.Position = UDim2.new(0, 8, 0, 8)
+    status.BackgroundTransparency = 1
+    status.Text = "LISTO PARA DISPARAR"
+    status.TextColor3 = Color3.fromRGB(120, 255, 120)
+    status.Font = Enum.Font.GothamBold
+    status.TextScaled = true
+    local info = Instance.new("TextLabel", bg)
+    info.Name = "Info"
+    info.Size = UDim2.new(1, -16, 0, 26)
+    info.Position = UDim2.new(0, 8, 0, 44)
+    info.BackgroundTransparency = 1
+    info.Text = "Sin eventos"
+    info.TextColor3 = Color3.fromRGB(200, 170, 200)
+    info.Font = Enum.Font.Gotham
+    info.TextScaled = true
+    info.TextXAlignment = Enum.TextXAlignment.Left
+end
+
+local function destroyStunPanel()
+    if stunPanel then stunPanel:Destroy(); stunPanel = nil end
+    killerStunnerRef = nil
+    stunLog = {}
+end
+
+local function updateStunPanel()
+    if not stunPanel then return end
+    local bg = stunPanel:FindFirstChildOfClass("Frame")
+    if not bg then return end
+    local status = bg:FindFirstChild("Status")
+    local info = bg:FindFirstChild("Info")
+    if not status or not info then return end
+    local cd = getCooldownTime()
+    local remaining = math.max(0, cd - (tick() - S.lastShot))
+    if remaining <= 0.1 then
+        status.Text = "🟢 LISTO PARA DISPARAR"
+        status.TextColor3 = Color3.fromRGB(120, 255, 120)
+    else
+        status.Text = string.format("🔴 Cooldown: %ds", math.ceil(remaining))
+        status.TextColor3 = Color3.fromRGB(255, 80, 80)
+    end
+    local k = getKiller()
+    if k then
+        local stunner = k:FindFirstChild("Stunner")
+        if stunner and stunner ~= killerStunnerRef then
+            killerStunnerRef = stunner
+            table.insert(stunLog, 1, {t = tick(), name = k.Name})
+            if #stunLog > 5 then table.remove(stunLog) end
+        elseif not stunner then
+            killerStunnerRef = nil
+        end
+    end
+    if #stunLog > 0 then
+        local el = tick() - stunLog[1].t
+        if el < 15 then
+            info.Text = string.format("⚡ %s stuneado hace %ds", stunLog[1].name, math.floor(el))
+        else
+            info.Text = "Sin eventos recientes"
+        end
+    else
+        info.Text = "Sin eventos"
+    end
+end
+
+RS.Heartbeat:Connect(updateStunPanel)
+
+-- ===== Hook panel =====
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
@@ -112,6 +234,10 @@ FH.panel = function()
     opt("Auto Fire 🔫", function(v)
         S.autoFire = v
         if v then startAF() else stopAF() end
+    end)
+    hdr("── Monitor ──")
+    opt("Stun Monitor ⚡", function(v)
+        if v then createStunPanel() else destroyStunPanel() end
     end)
 end
 
