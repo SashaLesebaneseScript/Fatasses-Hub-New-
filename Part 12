@@ -1,4 +1,4 @@
--- ============ PARTE 12/12 - Fun Tab (Guardian v2) ============
+-- ============ PARTE 12/12 - Fun Tab (Guardian v3) ============
 local FH = getgenv().FH
 if not FH or not FH.p11 then warn("[FH] Ejecuta Partes 1-11 primero") return end
 if FH.p12 then warn("[FH] Parte 12 ya ejecutada") return end
@@ -113,9 +113,9 @@ local function setInfJump(on)
     end
 end
 
--- ===== Guardian v2 =====
--- Se posiciona ENTRE el superviviente y el asesino, al pecho del superviviente, mirando al asesino.
--- No atraviesa paredes: raycast antes de moverse. Si hay muro, se queda donde esta.
+-- ===== Guardian v3 =====
+-- Se posiciona ENTRE el superviviente y el asesino, al pecho del survivor, mirando al killer.
+-- No atraviesa paredes (raycast). Si queda atascado lejos, teleport de emergencia.
 local guardianConn = nil
 local savedSpeed, savedJump = 16, 50
 
@@ -165,7 +165,6 @@ local function updateGuardian()
     if not myhrp then return end
     local myhum = mc:FindFirstChildOfClass("Humanoid")
 
-    -- Bloquear input mientras orbitamos
     if myhum then
         myhum.WalkSpeed = 0
         myhum.JumpPower = 0
@@ -174,17 +173,14 @@ local function updateGuardian()
     local killer = FH.updateKiller()
     local khrp = killer and killer:FindFirstChild("HumanoidRootPart")
 
-    -- Calcular posicion objetivo
     local targetPos, lookAt
     if khrp then
-        -- Direccion horizontal del survivor hacia el killer
         local flatDir = Vector3.new(khrp.Position.X - shrp.Position.X, 0, khrp.Position.Z - shrp.Position.Z)
         if flatDir.Magnitude > 0.1 then
             flatDir = flatDir.Unit
         else
             flatDir = Vector3.new(0, 0, -1)
         end
-        -- Nos paramos entre el survivor y el killer, a N studs del survivor
         targetPos = Vector3.new(
             shrp.Position.X + flatDir.X * FH.fun.guardianRadius,
             shrp.Position.Y + 1,
@@ -192,12 +188,24 @@ local function updateGuardian()
         )
         lookAt = khrp.Position
     else
-        -- Sin killer: quedarse al lado del survivor
         targetPos = shrp.Position + Vector3.new(2.5, 1, 0)
         lookAt = shrp.Position
     end
 
-    -- Anti-wall: raycast desde mi posicion al target
+    local finalLook = Vector3.new(lookAt.X, targetPos.Y, lookAt.Z)
+
+    -- ===== Deteccion de atascado: teleport de emergencia =====
+    local distToSurvivor = (myhrp.Position - shrp.Position).Magnitude
+    local maxAllowed = FH.fun.guardianRadius + 4
+
+    if distToSurvivor > maxAllowed then
+        pcall(function()
+            myhrp.CFrame = CFrame.lookAt(targetPos, finalLook)
+        end)
+        return
+    end
+
+    -- Anti-wall normal
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Exclude
     params.FilterDescendantsInstances = {mc, survivor}
@@ -211,10 +219,8 @@ local function updateGuardian()
     if dist > 0.1 then
         local ray = WS:Raycast(origin, delta, params)
         if ray then
-            -- Hay pared en medio: colocar justo antes de la pared
             local hitDist = (ray.Position - origin).Magnitude
             if hitDist < 1.5 then
-                -- Pared pegada: no moverse, solo rotar hacia el killer
                 local rotY = math.atan2(-(lookAt.X - origin.X), -(lookAt.Z - origin.Z))
                 myhrp.CFrame = CFrame.new(origin) * CFrame.Angles(0, rotY, 0)
                 return
@@ -223,8 +229,6 @@ local function updateGuardian()
         end
     end
 
-    -- Aplicar posicion mirando al killer (solo en horizontal, sin mirar arriba/abajo)
-    local finalLook = Vector3.new(lookAt.X, finalPos.Y, lookAt.Z)
     pcall(function()
         myhrp.CFrame = CFrame.lookAt(finalPos, finalLook)
     end)
@@ -319,7 +323,7 @@ FH.panel = function()
         if v then startGuardian() else stopGuardian() end
     end)
 
-    -- Slider de distancia (ya no de velocidad)
+    -- Slider de distancia
     local holder = Instance.new("Frame", FH.oc)
     holder.Size = UDim2.new(1, 0, 0, 40)
     holder.BackgroundColor3 = C.bg_card
@@ -374,4 +378,4 @@ end
 
 if FH.pestana == "Fun" then FH.panel() end
 FH.p12 = true
-print("🎃 [12/12] Fun Tab OK (Guardian v2)")
+print("🎃 [12/12] Fun Tab OK (Guardian v3)")
