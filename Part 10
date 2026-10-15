@@ -1,6 +1,6 @@
--- ============ PARTE 10/10 - Vacía (Get 1Q eliminado) ============
+-- ============ PARTE 10/10 - Vacía ============
 local FH = getgenv().FH
 if not FH or not FH.p9 then warn("[FH] Ejecuta Partes 1-9 primero") return end
 if FH.p10 then warn("[FH] Parte 10 ya ejecutada") return end
 FH.p10 = true
-print("🎃 [10/10] Part 10 skip (Get 1Q removed)")
+print("🎃 [10/10] Part 10 skip")
