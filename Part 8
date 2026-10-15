@@ -1,0 +1,223 @@
+-- ============ PARTE 8/8 - Killer Punch ============
+local FH = getgenv().FH
+if not FH or not FH.p7 then warn("[FH] Ejecuta Partes 1-7 primero") return end
+if FH.p8 then warn("[FH] Parte 8 ya ejecutada") return end
+local RS,PL,WS,RST,LP = FH.RS,FH.PL,FH.WS,FH.RST,FH.LP
+local C = FH.C
+
+local PunchEvent = RST:FindFirstChild("PunchEvent")
+
+FH.k8 = {
+    alwaysMaxVel = false,
+    noCooldown   = false,
+    autoPunch    = false,
+    antiStun     = false,
+    silentAim    = false,
+    multiPunch   = false,
+    maxSpeed     = 25,
+    range        = 12,
+    attackId     = 0,
+}
+local K = FH.k8
+local velConn, punchT = nil, nil
+
+local function soyKiller() return FH.isKiller(LP.Character) end
+
+local function estoyStuneado()
+    local mc = LP.Character
+    if not mc then return false end
+    local s = mc:FindFirstChild("Stun")
+    return s and s.Value == true
+end
+
+local function enemigoCercano(radio)
+    radio = radio or K.range
+    local mc = LP.Character
+    if not mc then return nil end
+    local mh = mc:FindFirstChild("HumanoidRootPart")
+    if not mh then return nil end
+    local best, bd = nil, radio
+    for _, p in ipairs(PL:GetPlayers()) do
+        if p ~= LP and p.Character then
+            local h = p.Character:FindFirstChildOfClass("Humanoid")
+            local hr = p.Character:FindFirstChild("HumanoidRootPart")
+            if h and h.Health > 0 and hr then
+                local d = (mh.Position - hr.Position).Magnitude
+                if d < bd then bd = d; best = p.Character end
+            end
+        end
+    end
+    return best
+end
+
+local function firePunch()
+    if not PunchEvent then return false end
+    local mc = LP.Character
+    if not mc then return false end
+    local hrp = mc:FindFirstChild("HumanoidRootPart")
+    if not hrp then return false end
+    K.attackId = K.attackId + 1
+    local pos = hrp.Position
+    local dir = hrp.CFrame.LookVector
+    if K.silentAim then
+        local t = enemigoCercano(K.range)
+        if t then
+            local th = t:FindFirstChild("HumanoidRootPart")
+            if th then
+                dir = (th.Position - hrp.Position).Unit
+                if K.multiPunch then pos = th.Position end
+            end
+        end
+    end
+    return pcall(function()
+        PunchEvent:FireServer({
+            AttackId = K.attackId,
+            Position = pos,
+            Velocity = hrp.AssemblyLinearVelocity,
+            Direction = dir,
+        })
+    end)
+end
+
+-- Always Max Velocity + Anti Stun (comparten loop)
+local function startVelLoop()
+    if velConn then return end
+    velConn = RS.Heartbeat:Connect(function()
+        if not (K.alwaysMaxVel or K.antiStun) then return end
+        if not soyKiller() then return end
+        local mc = LP.Character
+        if not mc then return end
+        local h = mc:FindFirstChildOfClass("Humanoid")
+        if K.antiStun then
+            local s = mc:FindFirstChild("Stun")
+            if s and s.Value == true then
+                pcall(function() s.Value = false end)
+            end
+        end
+        if h and not estoyStuneado() then
+            if h.WalkSpeed ~= K.maxSpeed then h.WalkSpeed = K.maxSpeed end
+        end
+    end)
+end
+local function stopVelLoop()
+    K.alwaysMaxVel = false
+    K.antiStun = false
+    if velConn then velConn:Disconnect(); velConn = nil end
+end
+
+-- No Cooldown + Auto Punch (comparten loop)
+local function startPunchLoop()
+    if punchT then return end
+    punchT = task.spawn(function()
+        while K.noCooldown or K.autoPunch do
+            if soyKiller() then
+                if K.noCooldown then
+                    firePunch()
+                    task.wait(0.05)
+                elseif K.autoPunch then
+                    if enemigoCercano(K.range) then firePunch() end
+                    task.wait(0.3)
+                end
+            else
+                task.wait(0.3)
+            end
+        end
+        punchT = nil
+    end)
+end
+local function stopPunchLoop()
+    K.noCooldown = false
+    K.autoPunch = false
+    punchT = nil
+end
+
+-- Panel (añadido a la pestaña Experiment)
+local origPanel = FH.panel
+FH.panel = function()
+    origPanel()
+    if FH.pestana ~= "Experiment" then return end
+    local opt = FH.crearOpcion
+    local hdr = function(t)
+        local h = Instance.new("TextLabel", FH.oc)
+        h.Size = UDim2.new(1,0,0,22)
+        h.BackgroundTransparency = 1
+        h.Text = t
+        h.TextColor3 = C.accent
+        h.Font = Enum.Font.GothamBold
+        h.TextScaled = true
+        h.TextXAlignment = Enum.TextXAlignment.Left
+    end
+    hdr("── Killer Punch ──")
+    opt("Always Max Velocity 🏃", function(v)
+        K.alwaysMaxVel = v
+        if v then startVelLoop() elseif not K.antiStun then stopVelLoop() end
+    end)
+    opt("No Cooldown ⚡", function(v)
+        K.noCooldown = v
+        if v then startPunchLoop() elseif not K.autoPunch then stopPunchLoop() end
+    end)
+    opt("Auto Punch 👊", function(v)
+        K.autoPunch = v
+        if v then startPunchLoop() elseif not K.noCooldown then stopPunchLoop() end
+    end)
+    opt("Anti Stun 🛡", function(v)
+        K.antiStun = v
+        if v then startVelLoop() elseif not K.alwaysMaxVel then stopVelLoop() end
+    end)
+    opt("Silent Aim Punch 👻", function(v) K.silentAim = v end)
+    opt("Multi-Punch (hitbox area) 💥", function(v) K.multiPunch = v end)
+
+    -- Slider de rango
+    local holder = Instance.new("Frame", FH.oc)
+    holder.Size = UDim2.new(1, 0, 0, 40)
+    holder.BackgroundColor3 = C.bg_card
+    holder.BackgroundTransparency = 0.2
+    holder.BorderSizePixel = 0
+    Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 10)
+    local hs = Instance.new("UIStroke", holder)
+    hs.Color = C.border; hs.Thickness = 1; hs.Transparency = 0.5
+    local lbl = Instance.new("TextLabel", holder)
+    lbl.Size = UDim2.new(0, 90, 1, 0); lbl.Position = UDim2.new(0, 12, 0, 0)
+    lbl.BackgroundTransparency = 1; lbl.Text = "Rango"
+    lbl.TextColor3 = C.text; lbl.TextScaled = true
+    lbl.Font = Enum.Font.GothamBold; lbl.TextXAlignment = Enum.TextXAlignment.Left
+    local valL = Instance.new("TextLabel", holder)
+    valL.Size = UDim2.new(0, 40, 1, 0); valL.Position = UDim2.new(1, -50, 0, 0)
+    valL.BackgroundTransparency = 1; valL.Text = tostring(K.range)
+    valL.TextColor3 = C.accent; valL.TextScaled = true
+    valL.Font = Enum.Font.GothamBold
+    local bar = Instance.new("Frame", holder)
+    bar.Size = UDim2.new(1, -190, 0, 14); bar.Position = UDim2.new(0, 100, 0.5, -7)
+    bar.BackgroundColor3 = Color3.fromRGB(20, 10, 28); bar.BorderSizePixel = 0
+    Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
+    local fill = Instance.new("Frame", bar)
+    fill.Size = UDim2.new((K.range - 1) / 99, 0, 1, 0)
+    fill.BackgroundColor3 = C.accent; fill.BorderSizePixel = 0
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+    local drag = false
+    local function upd(x)
+        local rel = math.clamp((x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+        fill.Size = UDim2.new(rel, 0, 1, 0)
+        local v = math.floor(1 + rel * 99)
+        K.range = v; valL.Text = tostring(v)
+    end
+    bar.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            drag = true; upd(i.Position.X)
+        end
+    end)
+    FH.UI.InputChanged:Connect(function(i)
+        if drag and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            upd(i.Position.X)
+        end
+    end)
+    FH.UI.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            drag = false
+        end
+    end)
+end
+
+if FH.pestana == "Experiment" then FH.panel() end
+FH.p8 = true
+print("🎃 [8/8] Killer Punch OK")
