@@ -1,4 +1,4 @@
--- ============ PARTE 12/12 - Fun Tab (v5) ============
+-- ============ PARTE 12/12 - Fun Tab (v6) ============
 local FH = getgenv().FH
 if not FH or not FH.p11 then warn("[FH] Ejecuta Partes 1-11 primero") return end
 if FH.p12 then warn("[FH] Parte 12 ya ejecutada") return end
@@ -10,9 +10,10 @@ FH.fun = {
     ragdoll=false, dance=false, swim=false, fall=false,
     enableJump=false, infJump=false,
     guardian=false, guardianRadius=4,
+    brokeScientist=false,
 }
 
--- ===== Emotes (solo Roblox oficiales, toggle en loop) =====
+-- ===== Emotes =====
 FH.EMOTES = {
     {name="Wave",       id="rbxassetid://507770239"},
     {name="Point",      id="rbxassetid://507770453"},
@@ -33,25 +34,18 @@ local function getEmoteTrack(animId)
     local mc = LP.Character; if not mc then return nil end
     local hum = mc:FindFirstChildOfClass("Humanoid"); if not hum then return nil end
     local animator = hum:FindFirstChildOfClass("Animator")
-    if not animator then
-        animator = Instance.new("Animator")
-        animator.Parent = hum
-    end
-    local a = Instance.new("Animation")
-    a.AnimationId = animId
+    if not animator then animator = Instance.new("Animator"); animator.Parent = hum end
+    local a = Instance.new("Animation"); a.AnimationId = animId
     local tr = animator:LoadAnimation(a)
-    tr.Looped = true
-    tr.Priority = Enum.AnimationPriority.Action
+    tr.Looped = true; tr.Priority = Enum.AnimationPriority.Action
     FH.emoteTracks[animId] = tr
     return tr
 end
-
 local function stopEmoteById(animId)
     local tr = FH.emoteTracks[animId]
     if tr then pcall(function() tr:Stop() end) end
     FH.emoteLoopActive[animId] = false
 end
-
 local function stopAllEmotes()
     for id in pairs(FH.emoteLoopActive) do
         local tr = FH.emoteTracks[id]
@@ -59,7 +53,6 @@ local function stopAllEmotes()
     end
     FH.emoteLoopActive = {}
 end
-
 local function toggleEmote(animId)
     if FH.emoteLoopActive[animId] then
         stopEmoteById(animId)
@@ -73,14 +66,12 @@ local function toggleEmote(animId)
     end
 end
 
--- ===== Ragdoll =====
+-- ===== Ragdoll / Dance / Swim / Fall =====
 local function setRagdoll(on)
     local mc = LP.Character; if not mc then return end
     local hum = mc:FindFirstChildOfClass("Humanoid"); if not hum then return end
     hum.PlatformStand = on
 end
-
--- ===== Dance (acción, no emote) =====
 local danceTrack = nil
 local function setDance(on)
     local mc = LP.Character; if not mc then return end
@@ -89,18 +80,14 @@ local function setDance(on)
     if not animator then animator = Instance.new("Animator"); animator.Parent = hum end
     if on then
         if danceTrack then return end
-        local a = Instance.new("Animation")
-        a.AnimationId = "rbxassetid://507771019"
+        local a = Instance.new("Animation"); a.AnimationId = "rbxassetid://507771019"
         danceTrack = animator:LoadAnimation(a)
-        danceTrack.Looped = true
-        danceTrack.Priority = Enum.AnimationPriority.Action
+        danceTrack.Looped = true; danceTrack.Priority = Enum.AnimationPriority.Action
         pcall(function() danceTrack:Play() end)
     else
         if danceTrack then pcall(function() danceTrack:Stop() end); danceTrack = nil end
     end
 end
-
--- ===== Swim =====
 local swimConn = nil
 local function setSwim(on)
     local mc = LP.Character; if not mc then return end
@@ -125,67 +112,48 @@ local function setSwim(on)
         pcall(function() hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
     end
 end
-
--- ===== Fall =====
 local function doFall()
     local mc = LP.Character; if not mc then return end
     local hum = mc:FindFirstChildOfClass("Humanoid"); if not hum then return end
     pcall(function() hum:ChangeState(Enum.HumanoidStateType.FallingDown) end)
 end
 
--- ===== Enable Jump =====
-local jumpLoopConn = nil
-local spaceConn = nil
-
+-- ===== Jump =====
+local jumpLoopConn, spaceConn = nil, nil
 local function doJumpNow()
     local mc = LP.Character; if not mc then return end
-    local hum = mc:FindFirstChildOfClass("Humanoid")
-    if not hum then return end
+    local hum = mc:FindFirstChildOfClass("Humanoid"); if not hum then return end
     pcall(function() hum:ChangeState(Enum.HumanoidStateType.Jumping) end)
     pcall(function() hum.Jump = true end)
 end
-
 local function startEnableJump()
     if jumpLoopConn then return end
     if not spaceConn then
         spaceConn = FH.UI.InputBegan:Connect(function(inp, proc)
-            if proc then return end
-            if not FH.fun.enableJump then return end
+            if proc or not FH.fun.enableJump then return end
             if inp.KeyCode == Enum.KeyCode.Space then doJumpNow() end
         end)
     end
     jumpLoopConn = RS.Heartbeat:Connect(function()
         if not FH.fun.enableJump then return end
-        local pg = LP:FindFirstChild("PlayerGui")
-        if not pg then return end
-        local tg = pg:FindFirstChild("TouchGui")
-        if not tg then return end
-        local jb = tg:FindFirstChild("JumpButton", true)
-        if not jb then return end
+        local pg = LP:FindFirstChild("PlayerGui"); if not pg then return end
+        local tg = pg:FindFirstChild("TouchGui"); if not tg then return end
+        local jb = tg:FindFirstChild("JumpButton", true); if not jb then return end
         if not jb.Visible then jb.Visible = true end
         if not jb.Active then jb.Active = true end
         if not jb:GetAttribute("FH_HOOKED") then
             jb:SetAttribute("FH_HOOKED", true)
-            jb.MouseButton1Click:Connect(function()
-                if FH.fun.enableJump then doJumpNow() end
-            end)
-            jb.MouseButton1Down:Connect(function()
-                if FH.fun.enableJump then doJumpNow() end
-            end)
-            jb.TouchTap:Connect(function()
-                if FH.fun.enableJump then doJumpNow() end
-            end)
+            jb.MouseButton1Click:Connect(function() if FH.fun.enableJump then doJumpNow() end end)
+            jb.MouseButton1Down:Connect(function() if FH.fun.enableJump then doJumpNow() end end)
+            jb.TouchTap:Connect(function() if FH.fun.enableJump then doJumpNow() end end)
         end
     end)
 end
-
 local function stopEnableJump()
     FH.fun.enableJump = false
     if jumpLoopConn then jumpLoopConn:Disconnect(); jumpLoopConn = nil end
     if spaceConn then spaceConn:Disconnect(); spaceConn = nil end
 end
-
--- ===== Inf Jump =====
 local infConn = nil
 local function startInfJump()
     if infConn then return end
@@ -204,8 +172,7 @@ local savedSpeed, savedJump = 16, 50
 local function getSurvivorTarget()
     local killer = FH.updateKiller()
     if killer then
-        local khrp = killer:FindFirstChild("HumanoidRootPart")
-        if not khrp then return nil end
+        local khrp = killer:FindFirstChild("HumanoidRootPart"); if not khrp then return nil end
         local best, bd = nil, math.huge
         for _, p in ipairs(PL:GetPlayers()) do
             if p.Character and p.Character ~= killer and p ~= LP then
@@ -221,7 +188,6 @@ local function getSurvivorTarget()
     end
     return nil
 end
-
 local function updateGuardian()
     if not FH.fun.guardian then return end
     local survivor = getSurvivorTarget(); if not survivor then return end
@@ -273,7 +239,6 @@ local function updateGuardian()
     end
     pcall(function() myhrp.CFrame = CFrame.lookAt(finalPos, finalLook) end)
 end
-
 local function startGuardian()
     if guardianConn then return end
     local mc = LP.Character
@@ -291,6 +256,25 @@ local function stopGuardian()
         local hum = mc:FindFirstChildOfClass("Humanoid")
         if hum then hum.WalkSpeed = savedSpeed; hum.JumpPower = savedJump end
     end
+end
+
+-- ===== Broke Scientist Mini game =====
+-- Dispara LeaveTask cuando el minijuego se abre = simula fallar
+local brokeConn = nil
+local function startBroke()
+    if brokeConn then return end
+    if not FH.TR then return end
+    brokeConn = FH.TR.OnClientEvent:Connect(function(accion, taskID, guiName)
+        if not FH.fun.brokeScientist then return end
+        if accion == "OpenGui" then
+            task.wait(0.3)
+            pcall(function() FH.TR:FireServer("LeaveTask", taskID) end)
+        end
+    end)
+end
+local function stopBroke()
+    FH.fun.brokeScientist = false
+    if brokeConn then brokeConn:Disconnect(); brokeConn = nil end
 end
 
 -- Re-aplicar al respawn
@@ -341,7 +325,7 @@ t.MouseButton1Click:Connect(function()
 end)
 FH.tabs["Fun"] = {S = setSt, CS = false}
 
--- ===== Panel =====
+-- ===== Panel Fun =====
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
@@ -357,6 +341,16 @@ FH.panel = function()
         h.TextScaled = true
         h.TextXAlignment = Enum.TextXAlignment.Left
     end
+
+    hdr("── Scientist ──")
+    opt("Spam Complete 🔁", function(v)
+        FH.on.spamComplete = v
+        if v then FH.startSp() else FH.stopSp() end
+    end)
+    opt("Broke Scientist Mini game 💥", function(v)
+        FH.fun.brokeScientist = v
+        if v then startBroke() else stopBroke() end
+    end)
 
     hdr("── Emotes (toggle) ──")
     for _, em in ipairs(FH.EMOTES) do
@@ -445,4 +439,4 @@ end
 
 if FH.pestana == "Fun" then FH.panel() end
 FH.p12 = true
-print("🎃 [12/12] Fun Tab OK (v5)")
+print("🎃 [12/12] Fun Tab OK (v6)")
