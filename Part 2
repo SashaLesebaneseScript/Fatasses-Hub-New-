@@ -27,7 +27,7 @@ FH.getHealEv=function()
  if evCache.heal and evCache.heal.Parent then return evCache.heal end
  return FH.getEv("HealingEvent")
 end
--- ===== KILLER: solo el jugador mas alto (>7 studs). Cacheado 0.5s. =====
+-- KILLER: el mas alto (incluyendo al LocalPlayer)
 FH.killerCache=nil
 FH.killerCacheTime=0
 FH.updateKiller=function()
@@ -81,7 +81,6 @@ FH.TR=TR;FH.tarea=nil;FH.ultima=nil
 if TR then TR.OnClientEvent:Connect(function(a,id,gui)
  if a=="OpenGui"then FH.tarea={id=id,gui=gui}
  elseif a=="EndTask"then if FH.tarea and FH.tarea.id==id then FH.ultima=FH.tarea;FH.tarea=nil end end end)end
--- Auto Complete (1 disparo por tarea)
 FH.acFired = {}
 FH.complete=function()
     if not FH.TR or not FH.tarea then return false end
