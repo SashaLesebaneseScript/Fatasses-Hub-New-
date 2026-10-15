@@ -1,4 +1,4 @@
--- ============ PARTE 8/8 - Killer Punch (v4) ============
+-- ============ PARTE 8/8 - Killer Punch (v5) ============
 local FH = getgenv().FH
 if not FH or not FH.p7 then warn("[FH] Ejecuta Partes 1-7 primero") return end
 if FH.p8 then warn("[FH] Parte 8 ya ejecutada") return end
@@ -32,7 +32,7 @@ local function enemigoCercano(radio)
     local mh = mc:FindFirstChild("HumanoidRootPart"); if not mh then return nil end
     local best, bd = nil, radio
     for _, p in ipairs(PL:GetPlayers()) do
-        if p ~= LP and not FH.isProtectedPlayer(p) and p.Character then
+        if p ~= LP and p.Character then
             local h = p.Character:FindFirstChildOfClass("Humanoid")
             local hr = p.Character:FindFirstChild("HumanoidRootPart")
             if h and h.Health > 0 and hr then
@@ -44,83 +44,80 @@ local function enemigoCercano(radio)
     return best
 end
 
--- ===== FIRE CUBO: duplica hitbox en 27 puntos alrededor del objetivo (centrado) =====
-local function fireCube(targetChar, radius)
-    local ev = getPunchEv(); if not ev then return end
-    local mc = LP.Character; if not mc then return end
-    local mh = mc:FindFirstChild("HumanoidRootPart"); if not mh then return end
-    local th = targetChar and (targetChar:FindFirstChild("Head") or targetChar:FindFirstChild("HumanoidRootPart"))
-    if not th then return end
-    K.attackId = K.attackId + 1
-    local id = K.attackId
-    local startT = tick()
-    task.spawn(function()
-        while tick() - startT <= 0.4 do
-            local c = LP.Character; if not c then break end
-            local h = c:FindFirstChild("HumanoidRootPart"); if not h then break end
-            local t2 = targetChar and (targetChar:FindFirstChild("Head") or targetChar:FindFirstChild("HumanoidRootPart"))
-            if not t2 then break end
-            local center = t2.Position
-            local step = radius / 2
-            -- 27 puntos: 3x3x3 centrado en el objetivo
-            for dx = -1, 1 do
-                for dy = -1, 1 do
-                    for dz = -1, 1 do
-                        local pos = center + Vector3.new(dx * step, dy * step, dz * step)
-                        local dir = h.CFrame.LookVector
-                        pcall(function()
-                            ev:FireServer({
-                                AttackId = id,
-                                Position = pos,
-                                Velocity = Vector3.new(0,0,0),
-                                Direction = dir,
-                            })
-                        end)
-                    end
-                end
-            end
-            task.wait(0.05)
+-- ===== Anti Stun FIX (agresivo, hook-based) =====
+local stunConns = {}
+local stunLoops = {}
+
+local function nukeStun(val)
+    if val:GetAttribute("FH_STUN") then return end
+    val:SetAttribute("FH_STUN", true)
+    -- Forzar a false ya
+    pcall(function() val.Value = false end)
+    -- Hook cambios de Value (por si el server lo re-setea)
+    table.insert(stunConns, val:GetPropertyChangedSignal("Value"):Connect(function()
+        if K.antiStun and val.Value then
+            pcall(function() val.Value = false end)
         end
-    end)
+    end))
+    -- Loop por si el hook falla
+    table.insert(stunLoops, task.spawn(function()
+        while K.antiStun and val.Parent do
+            if val.Value then
+                pcall(function() val.Value = false end)
+            end
+            task.wait()
+        end
+    end))
 end
 
--- ===== FIRE 360: dispara en esfera alrededor del jugador (ignora paredes) =====
-local function fire360(radius)
-    local ev = getPunchEv(); if not ev then return end
-    local mc = LP.Character; if not mc then return end
-    local mh = mc:FindFirstChild("HumanoidRootPart"); if not mh then return end
-    K.attackId = K.attackId + 1
-    local id = K.attackId
-    local center = mh.Position
-    -- Direcciones en esfera: 6 ejes + 8 diagonales + 12 bordes = 26 direcciones
-    local dirs = {
-        Vector3.new(1,0,0), Vector3.new(-1,0,0),
-        Vector3.new(0,1,0), Vector3.new(0,-1,0),
-        Vector3.new(0,0,1), Vector3.new(0,0,-1),
-        Vector3.new(1,1,1).Unit, Vector3.new(-1,1,1).Unit,
-        Vector3.new(1,-1,1).Unit, Vector3.new(1,1,-1).Unit,
-        Vector3.new(-1,-1,1).Unit, Vector3.new(-1,1,-1).Unit,
-        Vector3.new(1,-1,-1).Unit, Vector3.new(-1,-1,-1).Unit,
-        Vector3.new(1,1,0).Unit, Vector3.new(-1,-1,0).Unit,
-        Vector3.new(1,-1,0).Unit, Vector3.new(-1,1,0).Unit,
-        Vector3.new(0,1,1).Unit, Vector3.new(0,-1,-1).Unit,
-        Vector3.new(0,1,-1).Unit, Vector3.new(0,-1,1).Unit,
-        Vector3.new(1,0,1).Unit, Vector3.new(-1,0,-1).Unit,
-        Vector3.new(1,0,-1).Unit, Vector3.new(-1,0,1).Unit,
-    }
-    for _, dir in ipairs(dirs) do
-        pcall(function()
-            ev:FireServer({
-                AttackId = id,
-                Position = center,
-                Velocity = Vector3.new(0,0,0),
-                Direction = dir,
-            })
+local function findStunValues()
+    local mc = LP.Character
+    if not mc then return end
+    -- Buscar en Character, Humanoid, y cualquier Value con "stun" en el nombre
+    local roots = { mc }
+    local hum = mc:FindFirstChildOfClass("Humanoid")
+    if hum then table.insert(roots, hum) end
+    for _, root in ipairs(roots) do
+        for _, d in ipairs(root:GetDescendants()) do
+            if d.Name:lower():find("stun") then
+                if d:IsA("BoolValue") or d:IsA("IntValue") or d:IsA("NumberValue") then
+                    nukeStun(d)
+                end
+            end
+        end
+    end
+end
+
+local antiStunConn = nil
+local charAddedConn = nil
+
+local function startAntiStun()
+    findStunValues()
+    if antiStunConn then return end
+    -- Scan cada heartbeat (por si aparece uno nuevo)
+    antiStunConn = RS.Heartbeat:Connect(function()
+        if not K.antiStun then return end
+        findStunValues()
+    end)
+    -- Hook character respawn
+    if not charAddedConn then
+        charAddedConn = LP.CharacterAdded:Connect(function(ch)
+            task.wait(1)
+            if K.antiStun then findStunValues() end
         end)
     end
 end
 
--- ===== Auto Punch (queda igual, solo respeta protección) =====
+local function stopAntiStun()
+    K.antiStun = false
+    if antiStunConn then antiStunConn:Disconnect(); antiStunConn = nil end
+    for _, c in ipairs(stunConns) do pcall(function() c:Disconnect() end) end
+    stunConns = {}
+    for _, t in ipairs(stunLoops) do pcall(function() task.cancel(t) end) end
+    stunLoops = {}
+end
+
+-- ===== Auto Punch =====
 local apLoop = nil
 local function startAutoPunch()
     if apLoop then return end
@@ -165,30 +162,44 @@ local function startAutoPunch()
 end
 local function stopAutoPunch() K.autoPunch = false; apLoop = nil end
 
--- ===== Anti Stun =====
-local stunConn = nil
-local function startAntiStun()
-    if stunConn then return end
-    stunConn = RS.Heartbeat:Connect(function()
-        if not K.antiStun then return end
-        local mc = LP.Character; if not mc then return end
-        for _, d in ipairs(mc:GetDescendants()) do
-            if d.Name:lower():find("stun") then
-                if d:IsA("BoolValue") and d.Value == true then
-                    pcall(function() d.Value = false end)
-                elseif (d:IsA("NumberValue") or d:IsA("IntValue")) and d.Value > 0 then
-                    pcall(function() d.Value = 0 end)
+-- ===== Hitbox Tp (cubo centrado en el objetivo) =====
+local function fireCube(targetChar, radius)
+    local ev = getPunchEv(); if not ev then return end
+    local mc = LP.Character; if not mc then return end
+    local mh = mc:FindFirstChild("HumanoidRootPart"); if not mh then return end
+    local th = targetChar and (targetChar:FindFirstChild("Head") or targetChar:FindFirstChild("HumanoidRootPart"))
+    if not th then return end
+    K.attackId = K.attackId + 1
+    local id = K.attackId
+    local startT = tick()
+    task.spawn(function()
+        while tick() - startT <= 0.4 do
+            local c = LP.Character; if not c then break end
+            local h = c:FindFirstChild("HumanoidRootPart"); if not h then break end
+            local t2 = targetChar and (targetChar:FindFirstChild("Head") or targetChar:FindFirstChild("HumanoidRootPart"))
+            if not t2 then break end
+            local center = t2.Position
+            local step = radius / 2
+            for dx = -1, 1 do
+                for dy = -1, 1 do
+                    for dz = -1, 1 do
+                        local pos = center + Vector3.new(dx * step, dy * step, dz * step)
+                        pcall(function()
+                            ev:FireServer({
+                                AttackId = id,
+                                Position = pos,
+                                Velocity = Vector3.new(0, 0, 0),
+                                Direction = h.CFrame.LookVector,
+                            })
+                        end)
+                    end
                 end
             end
+            task.wait(0.05)
         end
     end)
 end
-local function stopAntiStun()
-    K.antiStun = false
-    if stunConn then stunConn:Disconnect(); stunConn = nil end
-end
 
--- ===== Hitbox Tp =====
 local tpLoop = nil
 local function startHitboxTp()
     if tpLoop then return end
@@ -211,7 +222,41 @@ local function startHitboxTp()
 end
 local function stopHitboxTp() K.hitboxTp = false; tpLoop = nil end
 
--- ===== 360° Hitbox (ignora paredes) =====
+-- ===== 360° Hitbox =====
+local function fire360(radius)
+    local ev = getPunchEv(); if not ev then return end
+    local mc = LP.Character; if not mc then return end
+    local mh = mc:FindFirstChild("HumanoidRootPart"); if not mh then return end
+    K.attackId = K.attackId + 1
+    local id = K.attackId
+    local center = mh.Position
+    local dirs = {
+        Vector3.new(1,0,0), Vector3.new(-1,0,0),
+        Vector3.new(0,1,0), Vector3.new(0,-1,0),
+        Vector3.new(0,0,1), Vector3.new(0,0,-1),
+        Vector3.new(1,1,1).Unit, Vector3.new(-1,1,1).Unit,
+        Vector3.new(1,-1,1).Unit, Vector3.new(1,1,-1).Unit,
+        Vector3.new(-1,-1,1).Unit, Vector3.new(-1,1,-1).Unit,
+        Vector3.new(1,-1,-1).Unit, Vector3.new(-1,-1,-1).Unit,
+        Vector3.new(1,1,0).Unit, Vector3.new(-1,-1,0).Unit,
+        Vector3.new(1,-1,0).Unit, Vector3.new(-1,1,0).Unit,
+        Vector3.new(0,1,1).Unit, Vector3.new(0,-1,-1).Unit,
+        Vector3.new(0,1,-1).Unit, Vector3.new(0,-1,1).Unit,
+        Vector3.new(1,0,1).Unit, Vector3.new(-1,0,-1).Unit,
+        Vector3.new(1,0,-1).Unit, Vector3.new(-1,0,1).Unit,
+    }
+    for _, dir in ipairs(dirs) do
+        pcall(function()
+            ev:FireServer({
+                AttackId = id,
+                Position = center,
+                Velocity = Vector3.new(0, 0, 0),
+                Direction = dir,
+            })
+        end)
+    end
+end
+
 local hbLoop = nil
 local function startHitbox360()
     if hbLoop then return end
@@ -252,7 +297,6 @@ FH.panel = function()
         if v then startHitbox360() else stopHitbox360() end
     end)
 
-    -- Slider Rango
     local function mkSlider(labelTxt, minV, maxV, getV, setV)
         local holder = Instance.new("Frame", FH.oc)
         holder.Size = UDim2.new(1, 0, 0, 40)
@@ -310,4 +354,4 @@ end
 
 if FH.pestana == "Experiment" then FH.panel() end
 FH.p8 = true
-print("🎃 [8/8] Killer Punch OK (v4)")
+print("🎃 [8/8] Killer Punch OK (v5)")
