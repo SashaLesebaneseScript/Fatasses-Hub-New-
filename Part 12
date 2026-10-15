@@ -6,35 +6,25 @@ local RS,PL,LP = FH.RS,FH.PL,FH.LP
 local C = FH.C
 
 FH.fun = {
-    ragdoll = false,
-    dance = false,
-    swim = false,
-    fall = false,
-    enableJump = false,
-    infJump = false,
+    ragdoll = false, dance = false, swim = false, fall = false,
+    enableJump = false, infJump = false,
+    guardian = false, guardianRadius = 6, guardianSpeed = 2.5,
 }
 
 -- ===== Ragdoll =====
 local function setRagdoll(on)
-    local mc = LP.Character
-    if not mc then return end
-    local hum = mc:FindFirstChildOfClass("Humanoid")
-    if not hum then return end
+    local mc = LP.Character; if not mc then return end
+    local hum = mc:FindFirstChildOfClass("Humanoid"); if not hum then return end
     hum.PlatformStand = on
 end
 
 -- ===== Dance =====
 local danceTrack = nil
 local function setDance(on)
-    local mc = LP.Character
-    if not mc then return end
-    local hum = mc:FindFirstChildOfClass("Humanoid")
-    if not hum then return end
+    local mc = LP.Character; if not mc then return end
+    local hum = mc:FindFirstChildOfClass("Humanoid"); if not hum then return end
     local animator = hum:FindFirstChildOfClass("Animator")
-    if not animator then
-        animator = Instance.new("Animator")
-        animator.Parent = hum
-    end
+    if not animator then animator = Instance.new("Animator"); animator.Parent = hum end
     if on then
         if danceTrack then return end
         local anim = Instance.new("Animation")
@@ -44,20 +34,15 @@ local function setDance(on)
         danceTrack.Priority = Enum.AnimationPriority.Action
         pcall(function() danceTrack:Play() end)
     else
-        if danceTrack then
-            pcall(function() danceTrack:Stop() end)
-            danceTrack = nil
-        end
+        if danceTrack then pcall(function() danceTrack:Stop() end); danceTrack = nil end
     end
 end
 
--- ===== Swim (nadar en el aire) =====
+-- ===== Swim =====
 local swimConn = nil
 local function setSwim(on)
-    local mc = LP.Character
-    if not mc then return end
-    local hum = mc:FindFirstChildOfClass("Humanoid")
-    if not hum then return end
+    local mc = LP.Character; if not mc then return end
+    local hum = mc:FindFirstChildOfClass("Humanoid"); if not hum then return end
     if on then
         pcall(function()
             hum:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
@@ -66,10 +51,8 @@ local function setSwim(on)
         if swimConn then return end
         swimConn = RS.Heartbeat:Connect(function()
             if not FH.fun.swim then return end
-            local c = LP.Character
-            if not c then return end
-            local h = c:FindFirstChildOfClass("Humanoid")
-            if not h then return end
+            local c = LP.Character; if not c then return end
+            local h = c:FindFirstChildOfClass("Humanoid"); if not h then return end
             local state = h:GetState()
             if state ~= Enum.HumanoidStateType.Swimming and state ~= Enum.HumanoidStateType.Jumping then
                 pcall(function() h:ChangeState(Enum.HumanoidStateType.Swimming) end)
@@ -81,12 +64,10 @@ local function setSwim(on)
     end
 end
 
--- ===== Fall (caer con cuerpo hacia abajo) =====
+-- ===== Fall =====
 local function setFall()
-    local mc = LP.Character
-    if not mc then return end
-    local hum = mc:FindFirstChildOfClass("Humanoid")
-    if not hum then return end
+    local mc = LP.Character; if not mc then return end
+    local hum = mc:FindFirstChildOfClass("Humanoid"); if not hum then return end
     pcall(function() hum:ChangeState(Enum.HumanoidStateType.FallingDown) end)
 end
 
@@ -99,22 +80,16 @@ local function setEnableJump(on)
             local tg = pg:FindFirstChild("TouchGui")
             if tg then
                 local jb = tg:FindFirstChild("JumpButton", true)
-                if jb then
-                    jb.Visible = true
-                    jb.Active = true
-                end
+                if jb then jb.Visible = true; jb.Active = true end
             end
         end
         if not jumpRebindConn then
             jumpRebindConn = FH.UI.InputBegan:Connect(function(inp, proc)
                 if proc or not FH.fun.enableJump then return end
                 if inp.KeyCode == Enum.KeyCode.Space then
-                    local mc = LP.Character
-                    if not mc then return end
+                    local mc = LP.Character; if not mc then return end
                     local hum = mc:FindFirstChildOfClass("Humanoid")
-                    if hum then
-                        pcall(function() hum:ChangeState(Enum.HumanoidStateType.Jumping) end)
-                    end
+                    if hum then pcall(function() hum:ChangeState(Enum.HumanoidStateType.Jumping) end) end
                 end
             end)
         end
@@ -128,16 +103,104 @@ local infJumpConn = nil
 local function setInfJump(on)
     if on and not infJumpConn then
         infJumpConn = FH.UI.JumpRequest:Connect(function()
-            local mc = LP.Character
-            if not mc then return end
+            local mc = LP.Character; if not mc then return end
             local hum = mc:FindFirstChildOfClass("Humanoid")
-            if hum then
-                pcall(function() hum:ChangeState(Enum.HumanoidStateType.Jumping) end)
-            end
+            if hum then pcall(function() hum:ChangeState(Enum.HumanoidStateType.Jumping) end) end
         end)
     elseif not on and infJumpConn then
-        infJumpConn:Disconnect()
-        infJumpConn = nil
+        infJumpConn:Disconnect(); infJumpConn = nil
+    end
+end
+
+-- ===== Guardian =====
+-- Orbita alrededor del superviviente mas cercano al killer para bloquear golpes
+local guardianConn = nil
+local guardianAngle = 0
+local savedSpeed, savedJump = 16, 50
+
+local function getSurvivorTarget()
+    -- Si hay killer: el superviviente MAS CERCANO al killer
+    -- Si no hay killer: el jugador mas cercano a mi
+    local killer = FH.updateKiller()
+    if killer then
+        local khrp = killer:FindFirstChild("HumanoidRootPart")
+        if not khrp then return nil end
+        local best, bestD = nil, math.huge
+        for _, p in ipairs(PL:GetPlayers()) do
+            if p.Character and p.Character ~= killer and p ~= LP then
+                local h = p.Character:FindFirstChildOfClass("Humanoid")
+                local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+                if h and h.Health > 0 and hrp then
+                    local d = (khrp.Position - hrp.Position).Magnitude
+                    if d < bestD then bestD = d; best = p.Character end
+                end
+            end
+        end
+        return best
+    end
+    -- Fallback: jugador mas cercano a mi
+    local myhrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    if not myhrp then return nil end
+    local best, bestD = nil, math.huge
+    for _, p in ipairs(PL:GetPlayers()) do
+        if p ~= LP and p.Character then
+            local h = p.Character:FindFirstChildOfClass("Humanoid")
+            local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+            if h and h.Health > 0 and hrp then
+                local d = (myhrp.Position - hrp.Position).Magnitude
+                if d < bestD then bestD = d; best = p.Character end
+            end
+        end
+    end
+    return best
+end
+
+local function startGuardian()
+    if guardianConn then return end
+    guardianAngle = 0
+    local mc = LP.Character
+    if mc then
+        local hum = mc:FindFirstChildOfClass("Humanoid")
+        if hum then savedSpeed = hum.WalkSpeed; savedJump = hum.JumpPower end
+    end
+    guardianConn = RS.RenderStepped:Connect(function(dt)
+        if not FH.fun.guardian then return end
+        local survivor = getSurvivorTarget()
+        if not survivor then return end
+        local shrp = survivor:FindFirstChild("HumanoidRootPart")
+        if not shrp then return end
+        local mc2 = LP.Character
+        if not mc2 then return end
+        local myhrp = mc2:FindFirstChild("HumanoidRootPart")
+        if not myhrp then return end
+        local myhum = mc2:FindFirstChildOfClass("Humanoid")
+        -- Avanzar angulo de orbita
+        guardianAngle = guardianAngle + dt * FH.fun.guardianSpeed
+        if guardianAngle > math.pi * 2 then guardianAngle = guardianAngle - math.pi * 2 end
+        -- Calcular posicion en el circulo
+        local offset = Vector3.new(
+            math.cos(guardianAngle) * FH.fun.guardianRadius,
+            3,
+            math.sin(guardianAngle) * FH.fun.guardianRadius
+        )
+        local targetPos = shrp.Position + offset
+        pcall(function()
+            myhrp.CFrame = CFrame.new(targetPos, shrp.Position)
+        end)
+        if myhum then
+            myhum.WalkSpeed = 0
+            myhum.JumpPower = 0
+        end
+    end)
+end
+
+local function stopGuardian()
+    FH.fun.guardian = false
+    if guardianConn then guardianConn:Disconnect(); guardianConn = nil end
+    local mc = LP.Character
+    if mc then
+        local hum = mc:FindFirstChildOfClass("Humanoid")
+        if hum then hum.WalkSpeed = savedSpeed; hum.JumpPower = savedJump end
     end
 end
 
@@ -149,9 +212,10 @@ LP.CharacterAdded:Connect(function(ch)
     if FH.fun.swim then setSwim(true) end
     if FH.fun.infJump then setInfJump(true) end
     if FH.fun.enableJump then setEnableJump(true) end
+    if FH.fun.guardian then startGuardian() end
 end)
 
--- ===== Crear tab =====
+-- ===== Crear tab Fun =====
 local t = Instance.new("TextButton", FH.sb)
 t.Size = UDim2.new(1, -6, 0, 32)
 t.BackgroundColor3 = C.bg_card
@@ -160,37 +224,20 @@ t.Text = ""
 t.BorderSizePixel = 0
 t.AutoButtonColor = false
 Instance.new("UICorner", t).CornerRadius = UDim.new(0, 10)
-
 local icon = Instance.new("TextLabel", t)
-icon.Size = UDim2.new(0, 18, 0, 18)
-icon.Position = UDim2.new(0, 8, 0.5, -9)
-icon.BackgroundTransparency = 1
-icon.Text = "🎮"
-icon.TextColor3 = C.text
-icon.TextScaled = true
-icon.Font = Enum.Font.GothamBold
-
+icon.Size = UDim2.new(0, 18, 0, 18); icon.Position = UDim2.new(0, 8, 0.5, -9)
+icon.BackgroundTransparency = 1; icon.Text = "🎮"; icon.TextColor3 = C.text
+icon.TextScaled = true; icon.Font = Enum.Font.GothamBold
 local lbl = Instance.new("TextLabel", t)
-lbl.Size = UDim2.new(1, -34, 1, 0)
-lbl.Position = UDim2.new(0, 30, 0, 0)
-lbl.BackgroundTransparency = 1
-lbl.Text = "Fun"
-lbl.TextColor3 = C.text
-lbl.TextScaled = true
-lbl.Font = Enum.Font.GothamBold
+lbl.Size = UDim2.new(1, -34, 1, 0); lbl.Position = UDim2.new(0, 30, 0, 0)
+lbl.BackgroundTransparency = 1; lbl.Text = "Fun"; lbl.TextColor3 = C.text
+lbl.TextScaled = true; lbl.Font = Enum.Font.GothamBold
 lbl.TextXAlignment = Enum.TextXAlignment.Left
-
 local ck = false
 local function setSt(s)
-    if s == "sel" then
-        t.BackgroundColor3 = C.bg_card_hl
-        t.BackgroundTransparency = 0
-    else
-        t.BackgroundColor3 = C.bg_card
-        t.BackgroundTransparency = 0.2
-    end
+    if s == "sel" then t.BackgroundColor3 = C.bg_card_hl; t.BackgroundTransparency = 0
+    else t.BackgroundColor3 = C.bg_card; t.BackgroundTransparency = 0.2 end
 end
-
 t.MouseButton1Click:Connect(function()
     if ck or FH.pestana == "Fun" then return end
     ck = true
@@ -210,32 +257,78 @@ FH.panel = function()
     if FH.pestana ~= "Fun" then return end
     local opt = FH.crearOpcion
 
-    opt("Ragdoll 🕺", function(v)
-        FH.fun.ragdoll = v
-        setRagdoll(v)
-    end)
-    opt("Dance 💃", function(v)
-        FH.fun.dance = v
-        setDance(v)
-    end)
-    opt("Swim 🏊", function(v)
-        FH.fun.swim = v
-        setSwim(v)
-    end)
+    opt("Ragdoll 🕺", function(v) FH.fun.ragdoll = v; setRagdoll(v) end)
+    opt("Dance 💃", function(v) FH.fun.dance = v; setDance(v) end)
+    opt("Swim 🏊", function(v) FH.fun.swim = v; setSwim(v) end)
     opt("Fall 🤕", function(v)
         FH.fun.fall = v
         if v then setFall(); FH.est["Fall 🤕"] = false end
     end)
-    opt("Enable Jump 🦘", function(v)
-        FH.fun.enableJump = v
-        setEnableJump(v)
+    opt("Enable Jump 🦘", function(v) FH.fun.enableJump = v; setEnableJump(v) end)
+    opt("Inf Jump ♾️", function(v) FH.fun.infJump = v; setInfJump(v) end)
+    opt("Guardian 🛡️", function(v)
+        FH.fun.guardian = v
+        if v then startGuardian() else stopGuardian() end
     end)
-    opt("Inf Jump ♾️", function(v)
-        FH.fun.infJump = v
-        setInfJump(v)
-    end)
+
+    -- Slider radio del Guardian
+    local function mkSlider(labelTxt, minV, maxV, initV, cb)
+        local holder = Instance.new("Frame", FH.oc)
+        holder.Size = UDim2.new(1, 0, 0, 40)
+        holder.BackgroundColor3 = C.bg_card
+        holder.BackgroundTransparency = 0.2
+        holder.BorderSizePixel = 0
+        Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 10)
+        local hs = Instance.new("UIStroke", holder)
+        hs.Color = C.border; hs.Thickness = 1; hs.Transparency = 0.5
+        local l1 = Instance.new("TextLabel", holder)
+        l1.Size = UDim2.new(0, 84, 1, 0); l1.Position = UDim2.new(0, 12, 0, 0)
+        l1.BackgroundTransparency = 1; l1.Text = labelTxt
+        l1.TextColor3 = C.text; l1.TextScaled = true
+        l1.Font = Enum.Font.GothamBold; l1.TextXAlignment = Enum.TextXAlignment.Left
+        local valL = Instance.new("TextLabel", holder)
+        valL.Size = UDim2.new(0, 40, 1, 0); valL.Position = UDim2.new(1, -50, 0, 0)
+        valL.BackgroundTransparency = 1; valL.Text = string.format("%.1f", initV)
+        valL.TextColor3 = C.accent; valL.TextScaled = true
+        valL.Font = Enum.Font.GothamBold
+        local bar = Instance.new("Frame", holder)
+        bar.Size = UDim2.new(1, -190, 0, 14); bar.Position = UDim2.new(0, 100, 0.5, -7)
+        bar.BackgroundColor3 = Color3.fromRGB(20, 10, 28); bar.BorderSizePixel = 0
+        Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
+        local rel0 = (initV - minV) / (maxV - minV)
+        local fill = Instance.new("Frame", bar)
+        fill.Size = UDim2.new(rel0, 0, 1, 0)
+        fill.BackgroundColor3 = C.accent; fill.BorderSizePixel = 0
+        Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+        local dragging = false
+        local function upd(x)
+            local rel = math.clamp((x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+            fill.Size = UDim2.new(rel, 0, 1, 0)
+            local v = minV + rel * (maxV - minV)
+            valL.Text = string.format("%.1f", v)
+            cb(v)
+        end
+        bar.InputBegan:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                dragging = true; upd(i.Position.X)
+            end
+        end)
+        FH.UI.InputChanged:Connect(function(i)
+            if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+                upd(i.Position.X)
+            end
+        end)
+        FH.UI.InputEnded:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                dragging = false
+            end
+        end)
+    end
+
+    mkSlider("Radio", 3, 20, FH.fun.guardianRadius, function(v) FH.fun.guardianRadius = v end)
+    mkSlider("Velocidad", 0.5, 8, FH.fun.guardianSpeed, function(v) FH.fun.guardianSpeed = v end)
 end
 
 if FH.pestana == "Fun" then FH.panel() end
 FH.p12 = true
-print("🎃 [12/12] Fun Tab OK")
+print("🎃 [12/12] Fun Tab OK (con Guardian)")
