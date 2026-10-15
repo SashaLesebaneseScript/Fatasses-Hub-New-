@@ -1,14 +1,15 @@
--- ============ PARTE 12/12 - Fun Tab ============
+-- ============ PARTE 12/12 - Fun Tab (Guardian v2) ============
 local FH = getgenv().FH
 if not FH or not FH.p11 then warn("[FH] Ejecuta Partes 1-11 primero") return end
 if FH.p12 then warn("[FH] Parte 12 ya ejecutada") return end
 local RS,PL,LP = FH.RS,FH.PL,FH.LP
+local WS = FH.WS
 local C = FH.C
 
 FH.fun = {
     ragdoll = false, dance = false, swim = false, fall = false,
     enableJump = false, infJump = false,
-    guardian = false, guardianRadius = 6, guardianSpeed = 2.5,
+    guardian = false, guardianRadius = 4,
 }
 
 -- ===== Ragdoll =====
@@ -112,15 +113,13 @@ local function setInfJump(on)
     end
 end
 
--- ===== Guardian =====
--- Orbita alrededor del superviviente mas cercano al killer para bloquear golpes
+-- ===== Guardian v2 =====
+-- Se posiciona ENTRE el superviviente y el asesino, al pecho del superviviente, mirando al asesino.
+-- No atraviesa paredes: raycast antes de moverse. Si hay muro, se queda donde esta.
 local guardianConn = nil
-local guardianAngle = 0
 local savedSpeed, savedJump = 16, 50
 
 local function getSurvivorTarget()
-    -- Si hay killer: el superviviente MAS CERCANO al killer
-    -- Si no hay killer: el jugador mas cercano a mi
     local killer = FH.updateKiller()
     if killer then
         local khrp = killer:FindFirstChild("HumanoidRootPart")
@@ -138,7 +137,6 @@ local function getSurvivorTarget()
         end
         return best
     end
-    -- Fallback: jugador mas cercano a mi
     local myhrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
     if not myhrp then return nil end
     local best, bestD = nil, math.huge
@@ -155,42 +153,92 @@ local function getSurvivorTarget()
     return best
 end
 
+local function updateGuardian()
+    if not FH.fun.guardian then return end
+    local survivor = getSurvivorTarget()
+    if not survivor then return end
+    local shrp = survivor:FindFirstChild("HumanoidRootPart")
+    if not shrp then return end
+    local mc = LP.Character
+    if not mc then return end
+    local myhrp = mc:FindFirstChild("HumanoidRootPart")
+    if not myhrp then return end
+    local myhum = mc:FindFirstChildOfClass("Humanoid")
+
+    -- Bloquear input mientras orbitamos
+    if myhum then
+        myhum.WalkSpeed = 0
+        myhum.JumpPower = 0
+    end
+
+    local killer = FH.updateKiller()
+    local khrp = killer and killer:FindFirstChild("HumanoidRootPart")
+
+    -- Calcular posicion objetivo
+    local targetPos, lookAt
+    if khrp then
+        -- Direccion horizontal del survivor hacia el killer
+        local flatDir = Vector3.new(khrp.Position.X - shrp.Position.X, 0, khrp.Position.Z - shrp.Position.Z)
+        if flatDir.Magnitude > 0.1 then
+            flatDir = flatDir.Unit
+        else
+            flatDir = Vector3.new(0, 0, -1)
+        end
+        -- Nos paramos entre el survivor y el killer, a N studs del survivor
+        targetPos = Vector3.new(
+            shrp.Position.X + flatDir.X * FH.fun.guardianRadius,
+            shrp.Position.Y + 1,
+            shrp.Position.Z + flatDir.Z * FH.fun.guardianRadius
+        )
+        lookAt = khrp.Position
+    else
+        -- Sin killer: quedarse al lado del survivor
+        targetPos = shrp.Position + Vector3.new(2.5, 1, 0)
+        lookAt = shrp.Position
+    end
+
+    -- Anti-wall: raycast desde mi posicion al target
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {mc, survivor}
+    if killer then table.insert(params.FilterDescendantsInstances, killer) end
+
+    local origin = myhrp.Position
+    local delta = targetPos - origin
+    local dist = delta.Magnitude
+
+    local finalPos = targetPos
+    if dist > 0.1 then
+        local ray = WS:Raycast(origin, delta, params)
+        if ray then
+            -- Hay pared en medio: colocar justo antes de la pared
+            local hitDist = (ray.Position - origin).Magnitude
+            if hitDist < 1.5 then
+                -- Pared pegada: no moverse, solo rotar hacia el killer
+                local rotY = math.atan2(-(lookAt.X - origin.X), -(lookAt.Z - origin.Z))
+                myhrp.CFrame = CFrame.new(origin) * CFrame.Angles(0, rotY, 0)
+                return
+            end
+            finalPos = origin + delta.Unit * (hitDist - 1)
+        end
+    end
+
+    -- Aplicar posicion mirando al killer (solo en horizontal, sin mirar arriba/abajo)
+    local finalLook = Vector3.new(lookAt.X, finalPos.Y, lookAt.Z)
+    pcall(function()
+        myhrp.CFrame = CFrame.lookAt(finalPos, finalLook)
+    end)
+end
+
 local function startGuardian()
     if guardianConn then return end
-    guardianAngle = 0
     local mc = LP.Character
     if mc then
         local hum = mc:FindFirstChildOfClass("Humanoid")
         if hum then savedSpeed = hum.WalkSpeed; savedJump = hum.JumpPower end
     end
-    guardianConn = RS.RenderStepped:Connect(function(dt)
-        if not FH.fun.guardian then return end
-        local survivor = getSurvivorTarget()
-        if not survivor then return end
-        local shrp = survivor:FindFirstChild("HumanoidRootPart")
-        if not shrp then return end
-        local mc2 = LP.Character
-        if not mc2 then return end
-        local myhrp = mc2:FindFirstChild("HumanoidRootPart")
-        if not myhrp then return end
-        local myhum = mc2:FindFirstChildOfClass("Humanoid")
-        -- Avanzar angulo de orbita
-        guardianAngle = guardianAngle + dt * FH.fun.guardianSpeed
-        if guardianAngle > math.pi * 2 then guardianAngle = guardianAngle - math.pi * 2 end
-        -- Calcular posicion en el circulo
-        local offset = Vector3.new(
-            math.cos(guardianAngle) * FH.fun.guardianRadius,
-            3,
-            math.sin(guardianAngle) * FH.fun.guardianRadius
-        )
-        local targetPos = shrp.Position + offset
-        pcall(function()
-            myhrp.CFrame = CFrame.new(targetPos, shrp.Position)
-        end)
-        if myhum then
-            myhum.WalkSpeed = 0
-            myhum.JumpPower = 0
-        end
+    guardianConn = RS.RenderStepped:Connect(function()
+        pcall(updateGuardian)
     end)
 end
 
@@ -271,64 +319,59 @@ FH.panel = function()
         if v then startGuardian() else stopGuardian() end
     end)
 
-    -- Slider radio del Guardian
-    local function mkSlider(labelTxt, minV, maxV, initV, cb)
-        local holder = Instance.new("Frame", FH.oc)
-        holder.Size = UDim2.new(1, 0, 0, 40)
-        holder.BackgroundColor3 = C.bg_card
-        holder.BackgroundTransparency = 0.2
-        holder.BorderSizePixel = 0
-        Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 10)
-        local hs = Instance.new("UIStroke", holder)
-        hs.Color = C.border; hs.Thickness = 1; hs.Transparency = 0.5
-        local l1 = Instance.new("TextLabel", holder)
-        l1.Size = UDim2.new(0, 84, 1, 0); l1.Position = UDim2.new(0, 12, 0, 0)
-        l1.BackgroundTransparency = 1; l1.Text = labelTxt
-        l1.TextColor3 = C.text; l1.TextScaled = true
-        l1.Font = Enum.Font.GothamBold; l1.TextXAlignment = Enum.TextXAlignment.Left
-        local valL = Instance.new("TextLabel", holder)
-        valL.Size = UDim2.new(0, 40, 1, 0); valL.Position = UDim2.new(1, -50, 0, 0)
-        valL.BackgroundTransparency = 1; valL.Text = string.format("%.1f", initV)
-        valL.TextColor3 = C.accent; valL.TextScaled = true
-        valL.Font = Enum.Font.GothamBold
-        local bar = Instance.new("Frame", holder)
-        bar.Size = UDim2.new(1, -190, 0, 14); bar.Position = UDim2.new(0, 100, 0.5, -7)
-        bar.BackgroundColor3 = Color3.fromRGB(20, 10, 28); bar.BorderSizePixel = 0
-        Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
-        local rel0 = (initV - minV) / (maxV - minV)
-        local fill = Instance.new("Frame", bar)
-        fill.Size = UDim2.new(rel0, 0, 1, 0)
-        fill.BackgroundColor3 = C.accent; fill.BorderSizePixel = 0
-        Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
-        local dragging = false
-        local function upd(x)
-            local rel = math.clamp((x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
-            fill.Size = UDim2.new(rel, 0, 1, 0)
-            local v = minV + rel * (maxV - minV)
-            valL.Text = string.format("%.1f", v)
-            cb(v)
-        end
-        bar.InputBegan:Connect(function(i)
-            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-                dragging = true; upd(i.Position.X)
-            end
-        end)
-        FH.UI.InputChanged:Connect(function(i)
-            if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-                upd(i.Position.X)
-            end
-        end)
-        FH.UI.InputEnded:Connect(function(i)
-            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-                dragging = false
-            end
-        end)
+    -- Slider de distancia (ya no de velocidad)
+    local holder = Instance.new("Frame", FH.oc)
+    holder.Size = UDim2.new(1, 0, 0, 40)
+    holder.BackgroundColor3 = C.bg_card
+    holder.BackgroundTransparency = 0.2
+    holder.BorderSizePixel = 0
+    Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 10)
+    local hs = Instance.new("UIStroke", holder)
+    hs.Color = C.border; hs.Thickness = 1; hs.Transparency = 0.5
+    local l1 = Instance.new("TextLabel", holder)
+    l1.Size = UDim2.new(0, 84, 1, 0); l1.Position = UDim2.new(0, 12, 0, 0)
+    l1.BackgroundTransparency = 1; l1.Text = "Distancia"
+    l1.TextColor3 = C.text; l1.TextScaled = true
+    l1.Font = Enum.Font.GothamBold; l1.TextXAlignment = Enum.TextXAlignment.Left
+    local valL = Instance.new("TextLabel", holder)
+    valL.Size = UDim2.new(0, 40, 1, 0); valL.Position = UDim2.new(1, -50, 0, 0)
+    valL.BackgroundTransparency = 1; valL.Text = string.format("%.1f", FH.fun.guardianRadius)
+    valL.TextColor3 = C.accent; valL.TextScaled = true
+    valL.Font = Enum.Font.GothamBold
+    local bar = Instance.new("Frame", holder)
+    bar.Size = UDim2.new(1, -190, 0, 14); bar.Position = UDim2.new(0, 100, 0.5, -7)
+    bar.BackgroundColor3 = Color3.fromRGB(20, 10, 28); bar.BorderSizePixel = 0
+    Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
+    local rel0 = (FH.fun.guardianRadius - 1) / 9
+    local fill = Instance.new("Frame", bar)
+    fill.Size = UDim2.new(rel0, 0, 1, 0)
+    fill.BackgroundColor3 = C.accent; fill.BorderSizePixel = 0
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+    local dragging = false
+    local function upd(x)
+        local rel = math.clamp((x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+        fill.Size = UDim2.new(rel, 0, 1, 0)
+        local v = 1 + rel * 9
+        FH.fun.guardianRadius = v
+        valL.Text = string.format("%.1f", v)
     end
-
-    mkSlider("Radio", 3, 20, FH.fun.guardianRadius, function(v) FH.fun.guardianRadius = v end)
-    mkSlider("Velocidad", 0.5, 8, FH.fun.guardianSpeed, function(v) FH.fun.guardianSpeed = v end)
+    bar.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = true; upd(i.Position.X)
+        end
+    end)
+    FH.UI.InputChanged:Connect(function(i)
+        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            upd(i.Position.X)
+        end
+    end)
+    FH.UI.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
 end
 
 if FH.pestana == "Fun" then FH.panel() end
 FH.p12 = true
-print("🎃 [12/12] Fun Tab OK (con Guardian)")
+print("🎃 [12/12] Fun Tab OK (Guardian v2)")
