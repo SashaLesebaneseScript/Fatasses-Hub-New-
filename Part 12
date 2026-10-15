@@ -1,0 +1,241 @@
+-- ============ PARTE 12/12 - Fun Tab ============
+local FH = getgenv().FH
+if not FH or not FH.p11 then warn("[FH] Ejecuta Partes 1-11 primero") return end
+if FH.p12 then warn("[FH] Parte 12 ya ejecutada") return end
+local RS,PL,LP = FH.RS,FH.PL,FH.LP
+local C = FH.C
+
+FH.fun = {
+    ragdoll = false,
+    dance = false,
+    swim = false,
+    fall = false,
+    enableJump = false,
+    infJump = false,
+}
+
+-- ===== Ragdoll =====
+local function setRagdoll(on)
+    local mc = LP.Character
+    if not mc then return end
+    local hum = mc:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+    hum.PlatformStand = on
+end
+
+-- ===== Dance =====
+local danceTrack = nil
+local function setDance(on)
+    local mc = LP.Character
+    if not mc then return end
+    local hum = mc:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+    local animator = hum:FindFirstChildOfClass("Animator")
+    if not animator then
+        animator = Instance.new("Animator")
+        animator.Parent = hum
+    end
+    if on then
+        if danceTrack then return end
+        local anim = Instance.new("Animation")
+        anim.AnimationId = "rbxassetid://507771019"
+        danceTrack = animator:LoadAnimation(anim)
+        danceTrack.Looped = true
+        danceTrack.Priority = Enum.AnimationPriority.Action
+        pcall(function() danceTrack:Play() end)
+    else
+        if danceTrack then
+            pcall(function() danceTrack:Stop() end)
+            danceTrack = nil
+        end
+    end
+end
+
+-- ===== Swim (nadar en el aire) =====
+local swimConn = nil
+local function setSwim(on)
+    local mc = LP.Character
+    if not mc then return end
+    local hum = mc:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+    if on then
+        pcall(function()
+            hum:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
+            hum:ChangeState(Enum.HumanoidStateType.Swimming)
+        end)
+        if swimConn then return end
+        swimConn = RS.Heartbeat:Connect(function()
+            if not FH.fun.swim then return end
+            local c = LP.Character
+            if not c then return end
+            local h = c:FindFirstChildOfClass("Humanoid")
+            if not h then return end
+            local state = h:GetState()
+            if state ~= Enum.HumanoidStateType.Swimming and state ~= Enum.HumanoidStateType.Jumping then
+                pcall(function() h:ChangeState(Enum.HumanoidStateType.Swimming) end)
+            end
+        end)
+    else
+        if swimConn then swimConn:Disconnect(); swimConn = nil end
+        pcall(function() hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
+    end
+end
+
+-- ===== Fall (caer con cuerpo hacia abajo) =====
+local function setFall()
+    local mc = LP.Character
+    if not mc then return end
+    local hum = mc:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+    pcall(function() hum:ChangeState(Enum.HumanoidStateType.FallingDown) end)
+end
+
+-- ===== Enable Jump =====
+local jumpRebindConn = nil
+local function setEnableJump(on)
+    if on then
+        local pg = LP:FindFirstChild("PlayerGui")
+        if pg then
+            local tg = pg:FindFirstChild("TouchGui")
+            if tg then
+                local jb = tg:FindFirstChild("JumpButton", true)
+                if jb then
+                    jb.Visible = true
+                    jb.Active = true
+                end
+            end
+        end
+        if not jumpRebindConn then
+            jumpRebindConn = FH.UI.InputBegan:Connect(function(inp, proc)
+                if proc or not FH.fun.enableJump then return end
+                if inp.KeyCode == Enum.KeyCode.Space then
+                    local mc = LP.Character
+                    if not mc then return end
+                    local hum = mc:FindFirstChildOfClass("Humanoid")
+                    if hum then
+                        pcall(function() hum:ChangeState(Enum.HumanoidStateType.Jumping) end)
+                    end
+                end
+            end)
+        end
+    else
+        if jumpRebindConn then jumpRebindConn:Disconnect(); jumpRebindConn = nil end
+    end
+end
+
+-- ===== Inf Jump =====
+local infJumpConn = nil
+local function setInfJump(on)
+    if on and not infJumpConn then
+        infJumpConn = FH.UI.JumpRequest:Connect(function()
+            local mc = LP.Character
+            if not mc then return end
+            local hum = mc:FindFirstChildOfClass("Humanoid")
+            if hum then
+                pcall(function() hum:ChangeState(Enum.HumanoidStateType.Jumping) end)
+            end
+        end)
+    elseif not on and infJumpConn then
+        infJumpConn:Disconnect()
+        infJumpConn = nil
+    end
+end
+
+-- ===== Re-aplicar al respawnear =====
+LP.CharacterAdded:Connect(function(ch)
+    task.wait(1.5)
+    if FH.fun.ragdoll then setRagdoll(true) end
+    if FH.fun.dance then setDance(true) end
+    if FH.fun.swim then setSwim(true) end
+    if FH.fun.infJump then setInfJump(true) end
+    if FH.fun.enableJump then setEnableJump(true) end
+end)
+
+-- ===== Crear tab =====
+local t = Instance.new("TextButton", FH.sb)
+t.Size = UDim2.new(1, -6, 0, 32)
+t.BackgroundColor3 = C.bg_card
+t.BackgroundTransparency = 0.2
+t.Text = ""
+t.BorderSizePixel = 0
+t.AutoButtonColor = false
+Instance.new("UICorner", t).CornerRadius = UDim.new(0, 10)
+
+local icon = Instance.new("TextLabel", t)
+icon.Size = UDim2.new(0, 18, 0, 18)
+icon.Position = UDim2.new(0, 8, 0.5, -9)
+icon.BackgroundTransparency = 1
+icon.Text = "🎮"
+icon.TextColor3 = C.text
+icon.TextScaled = true
+icon.Font = Enum.Font.GothamBold
+
+local lbl = Instance.new("TextLabel", t)
+lbl.Size = UDim2.new(1, -34, 1, 0)
+lbl.Position = UDim2.new(0, 30, 0, 0)
+lbl.BackgroundTransparency = 1
+lbl.Text = "Fun"
+lbl.TextColor3 = C.text
+lbl.TextScaled = true
+lbl.Font = Enum.Font.GothamBold
+lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+local ck = false
+local function setSt(s)
+    if s == "sel" then
+        t.BackgroundColor3 = C.bg_card_hl
+        t.BackgroundTransparency = 0
+    else
+        t.BackgroundColor3 = C.bg_card
+        t.BackgroundTransparency = 0.2
+    end
+end
+
+t.MouseButton1Click:Connect(function()
+    if ck or FH.pestana == "Fun" then return end
+    ck = true
+    FH.sfx("tab_switch", 2, 1)
+    if FH.tabs[FH.pestana] then FH.tabs[FH.pestana].S("dese") end
+    FH.pestana = "Fun"
+    setSt("sel")
+    task.spawn(function() pcall(FH.panel) end)
+    task.delay(0.5, function() ck = false end)
+end)
+FH.tabs["Fun"] = {S = setSt, CS = false}
+
+-- ===== Panel hook =====
+local origPanel = FH.panel
+FH.panel = function()
+    origPanel()
+    if FH.pestana ~= "Fun" then return end
+    local opt = FH.crearOpcion
+
+    opt("Ragdoll 🕺", function(v)
+        FH.fun.ragdoll = v
+        setRagdoll(v)
+    end)
+    opt("Dance 💃", function(v)
+        FH.fun.dance = v
+        setDance(v)
+    end)
+    opt("Swim 🏊", function(v)
+        FH.fun.swim = v
+        setSwim(v)
+    end)
+    opt("Fall 🤕", function(v)
+        FH.fun.fall = v
+        if v then setFall(); FH.est["Fall 🤕"] = false end
+    end)
+    opt("Enable Jump 🦘", function(v)
+        FH.fun.enableJump = v
+        setEnableJump(v)
+    end)
+    opt("Inf Jump ♾️", function(v)
+        FH.fun.infJump = v
+        setInfJump(v)
+    end)
+end
+
+if FH.pestana == "Fun" then FH.panel() end
+FH.p12 = true
+print("🎃 [12/12] Fun Tab OK")
