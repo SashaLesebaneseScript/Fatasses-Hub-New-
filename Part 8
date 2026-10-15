@@ -1,4 +1,4 @@
--- ============ PARTE 8/8 - Killer Punch (v8) ============
+-- ============ PARTE 8/8 - Killer Punch (v9) ============
 local FH = getgenv().FH
 if not FH or not FH.p7 then warn("[FH] Ejecuta Partes 1-7 primero") return end
 if FH.p8 then warn("[FH] Parte 8 ya ejecutada") return end
@@ -20,9 +20,33 @@ end
 FH.k8 = {
     autoPunch=false, antiStun=false,
     hitboxTp=false, hitbox360=false, hitboxExpander=false,
-    range=12, hbRange=30, expanderRange=500, attackId=0,
+    range=12, hbRange=30,
+    expanderRange=500, expanderWidth=40,
+    tpBoxSize=8, attackId=0,
 }
 local K = FH.k8
+
+-- Flag: true mientras NOSOTROS disparamos, para no auto-triggerear
+local EXTRA_MODE = false
+
+-- 26 direcciones (esfera completa para 360°)
+local SPHERE_DIRS = {}
+do
+    for _, v in ipairs({
+        Vector3.new(1,0,0), Vector3.new(-1,0,0),
+        Vector3.new(0,1,0), Vector3.new(0,-1,0),
+        Vector3.new(0,0,1), Vector3.new(0,0,-1),
+    }) do table.insert(SPHERE_DIRS, v) end
+    for _, v in ipairs({
+        Vector3.new(1,1,1), Vector3.new(-1,1,1), Vector3.new(1,-1,1), Vector3.new(1,1,-1),
+        Vector3.new(-1,-1,1), Vector3.new(-1,1,-1), Vector3.new(1,-1,-1), Vector3.new(-1,-1,-1),
+    }) do table.insert(SPHERE_DIRS, v.Unit) end
+    for _, v in ipairs({
+        Vector3.new(1,1,0), Vector3.new(-1,1,0), Vector3.new(1,-1,0), Vector3.new(-1,-1,0),
+        Vector3.new(1,0,1), Vector3.new(-1,0,1), Vector3.new(1,0,-1), Vector3.new(-1,0,-1),
+        Vector3.new(0,1,1), Vector3.new(0,-1,1), Vector3.new(0,1,-1), Vector3.new(0,-1,-1),
+    }) do table.insert(SPHERE_DIRS, v.Unit) end
+end
 
 local function soyKiller() return FH.isKiller(LP.Character) end
 
@@ -58,7 +82,7 @@ local function enemigoAlFrente(radio)
                 local dist = diff.Magnitude
                 if dist <= radio and dist > 0.1 then
                     local dot = look:Dot(diff.Unit)
-                    if dot > 0.5 then
+                    if dot > 0.3 then
                         local score = dot * 1000 - dist
                         if score > bestScore then bestScore = score; best = p.Character end
                     end
@@ -69,46 +93,185 @@ local function enemigoAlFrente(radio)
     return best
 end
 
--- ===== Auto Punch =====
-local apLoop = nil
-local function startAutoPunch()
-    if apLoop then return end
-    apLoop = task.spawn(function()
-        while K.autoPunch do
-            if soyKiller() then
-                local t = enemigoCercano(K.range)
-                if t then
-                    local ev = getPunchEv()
-                    local mc = LP.Character
-                    local mh = mc and mc:FindFirstChild("HumanoidRootPart")
-                    if ev and mh then
-                        K.attackId = K.attackId + 1
-                        local id = K.attackId
-                        local startT = tick()
-                        task.spawn(function()
-                            while tick() - startT <= 0.4 do
-                                local c = LP.Character; if not c then break end
-                                local h = c:FindFirstChild("HumanoidRootPart"); if not h then break end
+-- ===== EXTRAS: se ejecuta cuando el usuario toca el boton de punch =====
+local function triggerExtras()
+    if EXTRA_MODE then return end
+    if not soyKiller() then return end
+    local ev = getPunchEv()
+    if not ev then return end
+
+    local mc = LP.Character
+    local mh = mc and mc:FindFirstChild("HumanoidRootPart")
+    if not mh then return end
+
+    EXTRA_MODE = true
+
+    -- ===== Auto Punch: burst desde el jugador =====
+    if K.autoPunch then
+        K.attackId = K.attackId + 1
+        local id = K.attackId
+        local startT = tick()
+        while tick() - startT <= 0.4 do
+            local c = LP.Character; if not c then break end
+            local h = c:FindFirstChild("HumanoidRootPart"); if not h then break end
+            for i = 1, 5 do
+                pcall(function()
+                    ev:FireServer({
+                        AttackId = id,
+                        Position = h.Position,
+                        Velocity = h.AssemblyLinearVelocity,
+                        Direction = h.CFrame.LookVector,
+                    })
+                end)
+            end
+            task.wait(0.05)
+        end
+    end
+
+    -- ===== Hitbox Tp: caja GRANDE centrada en el enemigo =====
+    if K.hitboxTp then
+        local t = enemigoAlFrente(K.expanderRange) or enemigoCercano(K.range)
+        if t then
+            local th = t:FindFirstChild("Head") or t:FindFirstChild("HumanoidRootPart")
+            if th then
+                K.attackId = K.attackId + 1
+                local id = K.attackId
+                local boxSize = K.tpBoxSize
+                local startT = tick()
+                while tick() - startT <= 0.4 do
+                    local t2 = t and (t:FindFirstChild("Head") or t:FindFirstChild("HumanoidRootPart"))
+                    if not t2 then break end
+                    local center = t2.Position
+                    -- 5x5x5 = caja con 125 puntos (mucho mas grande)
+                    local step = boxSize / 2
+                    for dx = -2, 2 do
+                        for dy = -2, 2 do
+                            for dz = -2, 2 do
+                                local pos = center + Vector3.new(dx * step, dy * step, dz * step)
+                                local dir = (pos - mh.Position).Unit
                                 pcall(function()
                                     ev:FireServer({
                                         AttackId = id,
-                                        Position = h.Position,
-                                        Velocity = h.AssemblyLinearVelocity,
-                                        Direction = h.CFrame.LookVector,
+                                        Position = pos,
+                                        Velocity = Vector3.new(0,0,0),
+                                        Direction = dir,
                                     })
                                 end)
-                                task.wait(0.02)
                             end
+                        end
+                    end
+                    task.wait(0.1)
+                end
+            end
+        end
+    end
+
+    -- ===== 360° Hitbox: esfera gigante =====
+    if K.hitbox360 then
+        K.attackId = K.attackId + 1
+        local id = K.attackId
+        local R = K.hbRange
+        local startT = tick()
+        while tick() - startT <= 0.4 do
+            local c = LP.Character; if not c then break end
+            local h = c:FindFirstChild("HumanoidRootPart"); if not h then break end
+            local origin = h.Position
+            -- 3 esferas concentricas de 26 dirs cada una = 78 puntos
+            for _, rfrac in ipairs({0.4, 0.7, 1.0}) do
+                local r = R * rfrac
+                for _, dir in ipairs(SPHERE_DIRS) do
+                    local pos = origin + dir * r
+                    pcall(function()
+                        ev:FireServer({
+                            AttackId = id,
+                            Position = pos,
+                            Velocity = Vector3.new(0,0,0),
+                            Direction = dir,
+                        })
+                    end)
+                end
+            end
+            task.wait(0.1)
+        end
+    end
+
+    -- ===== Hitbox Expander: RAYO ANCHO hacia donde miras =====
+    if K.hitboxExpander then
+        K.attackId = K.attackId + 1
+        local id = K.attackId
+        local dist = K.expanderRange
+        local width = K.expanderWidth
+        local startT = tick()
+        while tick() - startT <= 0.4 do
+            local c = LP.Character; if not c then break end
+            local h = c:FindFirstChild("HumanoidRootPart"); if not h then break end
+            local look = h.CFrame.LookVector
+            local right = h.CFrame.RightVector
+            local up = h.CFrame.UpVector
+            local origin = h.Position + look * 2
+            -- Rayo ancho: 15 pasos de largo x 7x7 de ancho = 735 puntos
+            local lenSteps = 15
+            local wSteps = 3
+            for i = 0, lenSteps do
+                local lfrac = i / lenSteps
+                local basePos = origin + look * (dist * lfrac)
+                for j = -wSteps, wSteps do
+                    for k = -wSteps, wSteps do
+                        local offR = right * (j * (width / (2 * wSteps + 1)))
+                        local offU = up * (k * (width / (2 * wSteps + 1)))
+                        local pos = basePos + offR + offU
+                        pcall(function()
+                            ev:FireServer({
+                                AttackId = id,
+                                Position = pos,
+                                Velocity = Vector3.new(0,0,0),
+                                Direction = look,
+                            })
                         end)
                     end
-                    task.wait(0.45)
-                else task.wait(0.1) end
-            else task.wait(0.3) end
+                end
+            end
+            task.wait(0.1)
         end
-        apLoop = nil
-    end)
+    end
+
+    EXTRA_MODE = false
 end
-local function stopAutoPunch() K.autoPunch = false; apLoop = nil end
+
+-- ===== Hook PunchEvent.FireServer (detecta cuando el usuario toca el punch) =====
+task.spawn(function()
+    local ev = getPunchEv()
+    local tries = 0
+    while not ev and tries < 30 do
+        task.wait(0.5)
+        ev = getPunchEv()
+        tries = tries + 1
+    end
+    if not ev then
+        warn("[FH] No se encontro PunchEvent, hook NO instalado")
+        return
+    end
+    local ok = pcall(function()
+        local mt = getrawmetatable(game)
+        if setreadonly then setreadonly(mt, false) end
+        local oldNC = mt.__namecall
+        mt.__namecall = newcclosure(function(self, ...)
+            if getnamecallmethod() == "FireServer" and self == getPunchEv() then
+                if not EXTRA_MODE then
+                    -- Usuario toco el punch. Disparar extras en paralelo.
+                    task.spawn(triggerExtras)
+                end
+            end
+            return oldNC(self, ...)
+        end)
+        if setreadonly then setreadonly(mt, true) end
+    end)
+    if ok then
+        print("[FH] PunchEvent hook OK")
+    else
+        warn("[FH] No se pudo hookear __namecall")
+    end
+end)
 
 -- ===== Anti Stun =====
 local stunConns = {}
@@ -143,169 +306,20 @@ local function stopAntiStun()
     stunConns = {}
 end
 
--- ===== Hitbox Tp (Sniper: dispara en la posición del target) =====
-local tpLoop = nil
-local function startHitboxTp()
-    if tpLoop then return end
-    tpLoop = task.spawn(function()
-        while K.hitboxTp do
-            if soyKiller() then
-                local t = enemigoAlFrente(K.expanderRange)
-                if t then
-                    local ev = getPunchEv()
-                    local mc = LP.Character
-                    local mh = mc and mc:FindFirstChild("HumanoidRootPart")
-                    if ev and mh then
-                        local th = t:FindFirstChild("Head") or t:FindFirstChild("HumanoidRootPart")
-                        if th then
-                            K.attackId = K.attackId + 1
-                            local id = K.attackId
-                            local dir = (th.Position - mh.Position).Unit
-                            local startT = tick()
-                            task.spawn(function()
-                                while tick() - startT <= 0.4 do
-                                    local t2 = t and (t:FindFirstChild("Head") or t:FindFirstChild("HumanoidRootPart"))
-                                    if not t2 then break end
-                                    pcall(function()
-                                        ev:FireServer({
-                                            AttackId = id,
-                                            Position = t2.Position,
-                                            Velocity = Vector3.new(0,0,0),
-                                            Direction = dir,
-                                        })
-                                    end)
-                                    task.wait(0.02)
-                                end
-                            end)
-                        end
-                    end
-                    task.wait(0.45)
-                else task.wait(0.2) end
-            else task.wait(0.3) end
-        end
-        tpLoop = nil
-    end)
-end
-local function stopHitboxTp() K.hitboxTp = false; tpLoop = nil end
-
--- ===== 360° Hitbox =====
-local hbLoop = nil
-local function startHitbox360()
-    if hbLoop then return end
-    hbLoop = task.spawn(function()
-        while K.hitbox360 do
-            if soyKiller() then
-                local ev = getPunchEv()
-                local mc = LP.Character
-                local mh = mc and mc:FindFirstChild("HumanoidRootPart")
-                if ev and mh then
-                    K.attackId = K.attackId + 1
-                    local id = K.attackId
-                    local startT = tick()
-                    task.spawn(function()
-                        while tick() - startT <= 0.4 do
-                            local c = LP.Character; if not c then break end
-                            local h = c:FindFirstChild("HumanoidRootPart"); if not h then break end
-                            for ang = 0, 300, 60 do
-                                local rad = math.rad(ang)
-                                local dir = Vector3.new(math.cos(rad), 0, math.sin(rad))
-                                pcall(function()
-                                    ev:FireServer({
-                                        AttackId = id,
-                                        Position = h.Position,
-                                        Velocity = h.AssemblyLinearVelocity,
-                                        Direction = dir,
-                                    })
-                                end)
-                            end
-                            task.wait(0.05)
-                        end
-                    end)
-                end
-                task.wait(0.45)
-            else task.wait(0.3) end
-        end
-        hbLoop = nil
-    end)
-end
-local function stopHitbox360() K.hitbox360 = false; hbLoop = nil end
-
--- ===== Hitbox Expander (palo gigante en la dirección que miras) =====
-local hbExpandLoop = nil
-local function startHitboxExpander()
-    if hbExpandLoop then return end
-    hbExpandLoop = task.spawn(function()
-        while K.hitboxExpander do
-            if soyKiller() then
-                local ev = getPunchEv()
-                local mc = LP.Character
-                local mh = mc and mc:FindFirstChild("HumanoidRootPart")
-                if ev and mh then
-                    K.attackId = K.attackId + 1
-                    local id = K.attackId
-                    local dist = K.expanderRange
-                    local startT = tick()
-                    task.spawn(function()
-                        while tick() - startT <= 0.4 do
-                            local c = LP.Character
-                            if not c then break end
-                            local h = c:FindFirstChild("HumanoidRootPart")
-                            if not h then break end
-                            -- Dirección = donde mira AHORA (se recalcula cada frame)
-                            local nowLook = h.CFrame.LookVector
-                            local nowStart = h.Position + nowLook * 2
-                            -- Palo que se extiende desde el jugador hasta el rango
-                            local steps = 25
-                            for i = 0, steps do
-                                local frac = i / steps
-                                local pos = nowStart + nowLook * (dist * frac)
-                                pcall(function()
-                                    ev:FireServer({
-                                        AttackId = id,
-                                        Position = pos,
-                                        Velocity = Vector3.new(0,0,0),
-                                        Direction = nowLook,
-                                    })
-                                end)
-                            end
-                            task.wait(0.05)
-                        end
-                    end)
-                end
-                task.wait(0.45)
-            else task.wait(0.3) end
-        end
-        hbExpandLoop = nil
-    end)
-end
-local function stopHitboxExpander() K.hitboxExpander = false; hbExpandLoop = nil end
-
 -- ===== Panel =====
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
     if FH.pestana ~= "Experiment" then return end
     local opt = FH.crearOpcion
-    opt("Auto Punch 👊", function(v)
-        K.autoPunch = v
-        if v then startAutoPunch() else stopAutoPunch() end
-    end)
+    opt("Auto Punch 👊", function(v) K.autoPunch = v end)
     opt("Anti Stun 🛡", function(v)
         K.antiStun = v
         if v then startAntiStun() else stopAntiStun() end
     end)
-    opt("Hitbox Tp 👻", function(v)
-        K.hitboxTp = v
-        if v then startHitboxTp() else stopHitboxTp() end
-    end)
-    opt("360° Hitbox 💥", function(v)
-        K.hitbox360 = v
-        if v then startHitbox360() else stopHitbox360() end
-    end)
-    opt("Hitbox Expander 📏", function(v)
-        K.hitboxExpander = v
-        if v then startHitboxExpander() else stopHitboxExpander() end
-    end)
+    opt("Hitbox Tp 👻", function(v) K.hitboxTp = v end)
+    opt("360° Hitbox 💥", function(v) K.hitbox360 = v end)
+    opt("Hitbox Expander 📏", function(v) K.hitboxExpander = v end)
 
     local function mkSlider(labelTxt, minV, maxV, getV, setV)
         local holder = Instance.new("Frame", FH.oc)
@@ -317,7 +331,7 @@ FH.panel = function()
         local hs = Instance.new("UIStroke", holder)
         hs.Color = C.border; hs.Thickness = 1; hs.Transparency = 0.5
         local lbl = Instance.new("TextLabel", holder)
-        lbl.Size = UDim2.new(0, 84, 1, 0); lbl.Position = UDim2.new(0, 12, 0, 0)
+        lbl.Size = UDim2.new(0, 100, 1, 0); lbl.Position = UDim2.new(0, 12, 0, 0)
         lbl.BackgroundTransparency = 1; lbl.Text = labelTxt
         lbl.TextColor3 = C.text; lbl.TextScaled = true
         lbl.Font = Enum.Font.GothamBold; lbl.TextXAlignment = Enum.TextXAlignment.Left
@@ -327,7 +341,7 @@ FH.panel = function()
         valL.TextColor3 = C.accent; valL.TextScaled = true
         valL.Font = Enum.Font.GothamBold
         local bar = Instance.new("Frame", holder)
-        bar.Size = UDim2.new(1, -210, 0, 14); bar.Position = UDim2.new(0, 100, 0.5, -7)
+        bar.Size = UDim2.new(1, -230, 0, 14); bar.Position = UDim2.new(0, 115, 0.5, -7)
         bar.BackgroundColor3 = Color3.fromRGB(20, 10, 28); bar.BorderSizePixel = 0
         Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
         local rel0 = (getV() - minV) / (maxV - minV)
@@ -358,11 +372,14 @@ FH.panel = function()
             end
         end)
     end
+
     mkSlider("Rango", 1, 100, function() return K.range end, function(v) K.range = v end)
     mkSlider("360 Radio", 0, 9999, function() return K.hbRange end, function(v) K.hbRange = v end)
-    mkSlider("Expander Rango", 0, 9999, function() return K.expanderRange end, function(v) K.expanderRange = v end)
+    mkSlider("Expander Largo", 0, 9999, function() return K.expanderRange end, function(v) K.expanderRange = v end)
+    mkSlider("Expander Ancho", 5, 200, function() return K.expanderWidth end, function(v) K.expanderWidth = v end)
+    mkSlider("TP Caja", 2, 50, function() return K.tpBoxSize end, function(v) K.tpBoxSize = v end)
 end
 
 if FH.pestana == "Experiment" then FH.panel() end
 FH.p8 = true
-print("🎃 [8/8] Killer Punch OK (v8)")
+print("🎃 [8/8] Killer Punch OK (v9 - on-punch)")
