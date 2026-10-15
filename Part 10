@@ -1,4 +1,4 @@
--- ============ PARTE 10/10 - Data Farm (safe) ============
+-- ============ PARTE 10/10 - Data Farm (fast) ============
 local FH = getgenv().FH
 if not FH or not FH.p9 then warn("[FH] Ejecuta Partes 1-9 primero") return end
 if FH.p10 then warn("[FH] Parte 10 ya ejecutada") return end
@@ -6,39 +6,33 @@ local RS,PL,LP = FH.RS,FH.PL,FH.LP
 local C = FH.C
 
 FH.dataFarmActive = false
-FH.dataFarmCount = 0
-FH.dataFarmTarget = 0
 local farmThread = nil
-local farmLbl = nil
 
 local function fireBoost()
     local ev = FH.getHealEv()
-    if not ev then return false end
+    if not ev then return end
     for i = 1, 5 do
         pcall(function() ev:FireServer("GiveSpeedBoost") end)
     end
-    return true
 end
 
 local function startFarm(count)
     if farmThread then
         FH.dataFarmActive = false
         farmThread = nil
-        task.wait(0.2)
+        task.wait(0.1)
     end
-    FH.dataFarmTarget = count
-    FH.dataFarmCount = 0
     FH.dataFarmActive = true
     farmThread = task.spawn(function()
-        while FH.dataFarmActive and FH.dataFarmCount < FH.dataFarmTarget do
-            -- Velocidad segura: 5 batches por ciclo, con wait de 0.1s
-            -- = ~50 disparos por segundo (seguro para el cliente y el server)
-            for i = 1, 5 do
-                if FH.dataFarmCount >= FH.dataFarmTarget then break end
+        local fired = 0
+        -- Fire rapido: 500 batches por ciclo = 2500 disparos por ~1/60s
+        while FH.dataFarmActive and fired < count do
+            for i = 1, 500 do
+                if fired >= count or not FH.dataFarmActive then break end
                 fireBoost()
-                FH.dataFarmCount = FH.dataFarmCount + 1
+                fired = fired + 1
             end
-            task.wait(0.1)
+            task.wait()
         end
         FH.dataFarmActive = false
         farmThread = nil
@@ -48,57 +42,21 @@ end
 local function stopFarm()
     FH.dataFarmActive = false
     farmThread = nil
-    FH.dataFarmCount = 0
-    FH.dataFarmTarget = 0
 end
-
-RS.Heartbeat:Connect(function()
-    if farmLbl and farmLbl.Parent then
-        if FH.dataFarmActive then
-            farmLbl.Text = string.format("Farming: %d / %d", FH.dataFarmCount, FH.dataFarmTarget)
-            farmLbl.TextColor3 = Color3.fromRGB(120, 255, 120)
-        else
-            farmLbl.Text = "Farm: inactivo"
-            farmLbl.TextColor3 = Color3.fromRGB(140, 100, 150)
-        end
-    end
-end)
 
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
     if FH.pestana ~= "Class A" then return end
     local btn = FH.crearBotonAccion
-    local hdr = function(t)
-        local h = Instance.new("TextLabel", FH.oc)
-        h.Size = UDim2.new(1,0,0,22)
-        h.BackgroundTransparency = 1
-        h.Text = t
-        h.TextColor3 = C.accent
-        h.Font = Enum.Font.GothamBold
-        h.TextScaled = true
-        h.TextXAlignment = Enum.TextXAlignment.Left
-    end
-    hdr("── Data Farm ──")
     btn("Get 100K Data 💵", function() startFarm(3334) end)
     btn("Get 1M Data 💰", function() startFarm(33334) end)
     btn("Get 1B Data 💎", function() startFarm(33333334) end)
     btn("Get 1T Data 👑", function() startFarm(33333333334) end)
     btn("Get 1Q Data 🌌", function() startFarm(33333333333334) end)
     btn("STOP FARM 🛑", function() stopFarm() end)
-
-    farmLbl = Instance.new("TextLabel", FH.oc)
-    farmLbl.Size = UDim2.new(1, 0, 0, 24)
-    farmLbl.BackgroundColor3 = C.bg_card
-    farmLbl.BackgroundTransparency = 0.3
-    farmLbl.BorderSizePixel = 0
-    farmLbl.Text = "Farm: inactivo"
-    farmLbl.TextColor3 = Color3.fromRGB(140, 100, 150)
-    farmLbl.Font = Enum.Font.GothamBold
-    farmLbl.TextScaled = true
-    Instance.new("UICorner", farmLbl).CornerRadius = UDim.new(0, 8)
 end
 
 if FH.pestana == "Class A" then FH.panel() end
 FH.p10 = true
-print("🎃 [10/10] Data Farm OK")
+print("🎃 [10/10] Data Farm OK (fast)")
