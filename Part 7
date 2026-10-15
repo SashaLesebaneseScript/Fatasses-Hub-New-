@@ -12,19 +12,19 @@ local TW = FH.TW
 FH.SND.button = "rbxassetid://9119717523"
 FH.SND.open   = "rbxassetid://9119717523"
 
--- ===== Catalogo de musica =====
+-- ===== Catalogo de musica (sin Signaling, Execution Clap y Spoken For intercambiados) =====
 FH.MUSIC_LIST = {
     {name="Mesmerizer",       id="rbxassetid://71934965392436"},
     {name="F-L-Y",            id="rbxassetid://76819270320985"},
-    {name="Signaling",        id="rbxassetid://111806697876232"},
     {name="Birdbrain",        id="rbxassetid://139924511923380"},
-    {name="Execution Clap",   id="rbxassetid://91472362989961"},
-    {name="Spoken For",       id="rbxassetid://72478420140778"},
+    {name="Spoken For",       id="rbxassetid://91472362989961"},
+    {name="Execution Clap",   id="rbxassetid://72478420140778"},
     {name="Looping The Rooms",id="rbxassetid://116273924154778"},
 }
 FH.musicIndex = 1
 FH.musicOn = false
-FH.keepPlaying = false  -- toggle: seguir sonando con GUI cerrada
+FH.keepPlaying = false
+FH.musicVolume = 0.15
 local music = nil
 
 FH.startMusic = function()
@@ -35,8 +35,9 @@ FH.startMusic = function()
     end
     music = Instance.new("Sound")
     music.SoundId = FH.MUSIC_LIST[FH.musicIndex].id
-    music.Volume = 0.15
+    music.Volume = FH.musicVolume
     music.Looped = true
+    music:SetAttribute("FH_GUI", true)
     music.Parent = sg
     music:Play()
     FH.musicOn = true
@@ -55,6 +56,50 @@ FH.setMusic = function(idx)
         FH.startMusic()
     end
 end
+
+-- ===== Wrapper sfx para marcar sonidos de la GUI =====
+local origSfx = FH.sfx
+FH.sfx = function(n, v, p)
+    origSfx(n, v, p)
+    for _, s in ipairs(FH.SS:GetChildren()) do
+        if s:IsA("Sound") and not s:GetAttribute("FH_GUI") then
+            s:SetAttribute("FH_GUI", true)
+        end
+    end
+end
+
+-- ===== Mute Game Sounds =====
+FH.muteGame = false
+local mutedSounds = {}
+
+local function applyMuteGame()
+    if not FH.muteGame then return end
+    for _, root in ipairs({workspace, FH.SS}) do
+        for _, s in ipairs(root:GetDescendants()) do
+            if s:IsA("Sound") and not s:GetAttribute("FH_GUI") then
+                if mutedSounds[s] == nil then
+                    mutedSounds[s] = s.Volume
+                end
+                if s.Volume > 0 then s.Volume = 0 end
+            end
+        end
+    end
+end
+
+local function restoreMuteGame()
+    for s, v in pairs(mutedSounds) do
+        if s and s.Parent then
+            pcall(function() s.Volume = v end)
+        end
+    end
+    mutedSounds = {}
+end
+
+RS.Heartbeat:Connect(function()
+    if FH.muteGame then
+        applyMuteGame()
+    end
+end)
 
 -- ===== Hook sonido a TODOS los botones =====
 local function hookAll()
@@ -85,6 +130,7 @@ FH.panel = function()
     local opt = FH.crearOpcion
     local btn = FH.crearBotonAccion
 
+    -- Header Musica
     local h = Instance.new("TextLabel", FH.oc)
     h.Size = UDim2.new(1,0,0,22)
     h.BackgroundTransparency = 1
@@ -97,11 +143,82 @@ FH.panel = function()
     opt("Music ON/OFF 🎵", function(v)
         if v then FH.startMusic() else FH.stopMusic() end
     end)
-
     opt("Keep Playing 🎧", function(v)
         FH.keepPlaying = v
     end)
+    opt("Mute Game Sounds 🔇", function(v)
+        FH.muteGame = v
+        if not v then restoreMuteGame() end
+    end)
 
+    -- Slider de volumen
+    local holder = Instance.new("Frame", FH.oc)
+    holder.Size = UDim2.new(1, 0, 0, 40)
+    holder.BackgroundColor3 = C.bg_card
+    holder.BackgroundTransparency = 0.2
+    holder.BorderSizePixel = 0
+    Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 10)
+    local hstroke = Instance.new("UIStroke", holder)
+    hstroke.Color = C.border
+    hstroke.Thickness = 1
+    hstroke.Transparency = 0.5
+
+    local lbl = Instance.new("TextLabel", holder)
+    lbl.Size = UDim2.new(0, 84, 1, 0)
+    lbl.Position = UDim2.new(0, 12, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = "Volumen"
+    lbl.TextColor3 = C.text
+    lbl.TextScaled = true
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+    local barBg = Instance.new("Frame", holder)
+    barBg.Size = UDim2.new(1, -108, 0, 14)
+    barBg.Position = UDim2.new(1, -96, 0.5, -7)
+    barBg.BackgroundColor3 = Color3.fromRGB(20, 10, 28)
+    barBg.BorderSizePixel = 0
+    Instance.new("UICorner", barBg).CornerRadius = UDim.new(1, 0)
+
+    local fill = Instance.new("Frame", barBg)
+    fill.Size = UDim2.new(FH.musicVolume, 0, 1, 0)
+    fill.BackgroundColor3 = C.accent
+    fill.BorderSizePixel = 0
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+    local knob = Instance.new("Frame", barBg)
+    knob.Size = UDim2.new(0, 18, 0, 18)
+    knob.Position = UDim2.new(FH.musicVolume, -9, 0.5, -9)
+    knob.BackgroundColor3 = C.accent
+    knob.BorderSizePixel = 0
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+
+    local volDrag = false
+    local function updateVol(x)
+        local rel = math.clamp((x - barBg.AbsolutePosition.X) / barBg.AbsoluteSize.X, 0, 1)
+        fill.Size = UDim2.new(rel, 0, 1, 0)
+        knob.Position = UDim2.new(rel, -9, 0.5, -9)
+        FH.musicVolume = rel
+        if music then music.Volume = rel end
+    end
+    barBg.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            volDrag = true
+            updateVol(i.Position.X)
+        end
+    end)
+    FH.UI.InputChanged:Connect(function(i)
+        if volDrag and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            updateVol(i.Position.X)
+        end
+    end)
+    FH.UI.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            volDrag = false
+        end
+    end)
+
+    -- Botones de canciones
     for i, song in ipairs(FH.MUSIC_LIST) do
         btn("▶ " .. song.name, function()
             FH.setMusic(i)
@@ -131,7 +248,6 @@ RS.Heartbeat:Connect(function()
             if FH.musicOn then FH.startMusic() end
         else
             FH.sfx("close", 2.5, 1)
-            -- Solo parar musica si Keep Playing esta OFF
             if not FH.keepPlaying then
                 FH.stopMusic()
                 FH.musicOn = false
