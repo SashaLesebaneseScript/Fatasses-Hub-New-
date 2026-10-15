@@ -8,11 +8,9 @@ local fr = FH.fr
 local sg = FH.sg
 local TW = FH.TW
 
--- ===== Sonidos UI =====
 FH.SND.button = "rbxassetid://9119717523"
 FH.SND.open   = "rbxassetid://9119717523"
 
--- ===== Catalogo de musica (sin Signaling, Execution Clap y Spoken For intercambiados) =====
 FH.MUSIC_LIST = {
     {name="Mesmerizer",       id="rbxassetid://71934965392436"},
     {name="F-L-Y",            id="rbxassetid://76819270320985"},
@@ -57,7 +55,6 @@ FH.setMusic = function(idx)
     end
 end
 
--- ===== Wrapper sfx para marcar sonidos de la GUI =====
 local origSfx = FH.sfx
 FH.sfx = function(n, v, p)
     origSfx(n, v, p)
@@ -68,40 +65,6 @@ FH.sfx = function(n, v, p)
     end
 end
 
--- ===== Mute Game Sounds =====
-FH.muteGame = false
-local mutedSounds = {}
-
-local function applyMuteGame()
-    if not FH.muteGame then return end
-    for _, root in ipairs({workspace, FH.SS}) do
-        for _, s in ipairs(root:GetDescendants()) do
-            if s:IsA("Sound") and not s:GetAttribute("FH_GUI") then
-                if mutedSounds[s] == nil then
-                    mutedSounds[s] = s.Volume
-                end
-                if s.Volume > 0 then s.Volume = 0 end
-            end
-        end
-    end
-end
-
-local function restoreMuteGame()
-    for s, v in pairs(mutedSounds) do
-        if s and s.Parent then
-            pcall(function() s.Volume = v end)
-        end
-    end
-    mutedSounds = {}
-end
-
-RS.Heartbeat:Connect(function()
-    if FH.muteGame then
-        applyMuteGame()
-    end
-end)
-
--- ===== Hook sonido a TODOS los botones =====
 local function hookAll()
     for _, d in ipairs(sg:GetDescendants()) do
         if d:IsA("TextButton") and not d:GetAttribute("FH_S") then
@@ -120,7 +83,6 @@ local function hookAll()
 end
 hookAll()
 
--- ===== Hook panel: musica en Extra Stuff =====
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
@@ -130,28 +92,12 @@ FH.panel = function()
     local opt = FH.crearOpcion
     local btn = FH.crearBotonAccion
 
-    -- Header Musica
-    local h = Instance.new("TextLabel", FH.oc)
-    h.Size = UDim2.new(1,0,0,22)
-    h.BackgroundTransparency = 1
-    h.Text = "── Música ──"
-    h.TextColor3 = C.accent
-    h.Font = Enum.Font.GothamBold
-    h.TextScaled = true
-    h.TextXAlignment = Enum.TextXAlignment.Left
-
     opt("Music ON/OFF 🎵", function(v)
         if v then FH.startMusic() else FH.stopMusic() end
     end)
-    opt("Keep Playing 🎧", function(v)
-        FH.keepPlaying = v
-    end)
-    opt("Mute Game Sounds 🔇", function(v)
-        FH.muteGame = v
-        if not v then restoreMuteGame() end
-    end)
+    opt("Keep Playing 🎧", function(v) FH.keepPlaying = v end)
 
-    -- Slider de volumen
+    -- Slider volumen
     local holder = Instance.new("Frame", FH.oc)
     holder.Size = UDim2.new(1, 0, 0, 40)
     holder.BackgroundColor3 = C.bg_card
@@ -159,40 +105,24 @@ FH.panel = function()
     holder.BorderSizePixel = 0
     Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 10)
     local hstroke = Instance.new("UIStroke", holder)
-    hstroke.Color = C.border
-    hstroke.Thickness = 1
-    hstroke.Transparency = 0.5
-
+    hstroke.Color = C.border; hstroke.Thickness = 1; hstroke.Transparency = 0.5
     local lbl = Instance.new("TextLabel", holder)
-    lbl.Size = UDim2.new(0, 84, 1, 0)
-    lbl.Position = UDim2.new(0, 12, 0, 0)
-    lbl.BackgroundTransparency = 1
-    lbl.Text = "Volumen"
-    lbl.TextColor3 = C.text
-    lbl.TextScaled = true
-    lbl.Font = Enum.Font.GothamBold
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
-
+    lbl.Size = UDim2.new(0, 84, 1, 0); lbl.Position = UDim2.new(0, 12, 0, 0)
+    lbl.BackgroundTransparency = 1; lbl.Text = "Volumen"
+    lbl.TextColor3 = C.text; lbl.TextScaled = true
+    lbl.Font = Enum.Font.GothamBold; lbl.TextXAlignment = Enum.TextXAlignment.Left
     local barBg = Instance.new("Frame", holder)
-    barBg.Size = UDim2.new(1, -108, 0, 14)
-    barBg.Position = UDim2.new(1, -96, 0.5, -7)
-    barBg.BackgroundColor3 = Color3.fromRGB(20, 10, 28)
-    barBg.BorderSizePixel = 0
+    barBg.Size = UDim2.new(1, -108, 0, 14); barBg.Position = UDim2.new(1, -96, 0.5, -7)
+    barBg.BackgroundColor3 = Color3.fromRGB(20, 10, 28); barBg.BorderSizePixel = 0
     Instance.new("UICorner", barBg).CornerRadius = UDim.new(1, 0)
-
     local fill = Instance.new("Frame", barBg)
     fill.Size = UDim2.new(FH.musicVolume, 0, 1, 0)
-    fill.BackgroundColor3 = C.accent
-    fill.BorderSizePixel = 0
+    fill.BackgroundColor3 = C.accent; fill.BorderSizePixel = 0
     Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
-
     local knob = Instance.new("Frame", barBg)
-    knob.Size = UDim2.new(0, 18, 0, 18)
-    knob.Position = UDim2.new(FH.musicVolume, -9, 0.5, -9)
-    knob.BackgroundColor3 = C.accent
-    knob.BorderSizePixel = 0
+    knob.Size = UDim2.new(0, 18, 0, 18); knob.Position = UDim2.new(FH.musicVolume, -9, 0.5, -9)
+    knob.BackgroundColor3 = C.accent; knob.BorderSizePixel = 0
     Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
-
     local volDrag = false
     local function updateVol(x)
         local rel = math.clamp((x - barBg.AbsolutePosition.X) / barBg.AbsoluteSize.X, 0, 1)
@@ -203,8 +133,7 @@ FH.panel = function()
     end
     barBg.InputBegan:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-            volDrag = true
-            updateVol(i.Position.X)
+            volDrag = true; updateVol(i.Position.X)
         end
     end)
     FH.UI.InputChanged:Connect(function(i)
@@ -218,7 +147,6 @@ FH.panel = function()
         end
     end)
 
-    -- Botones de canciones
     for i, song in ipairs(FH.MUSIC_LIST) do
         btn("▶ " .. song.name, function()
             FH.setMusic(i)
@@ -228,7 +156,6 @@ FH.panel = function()
     end
 end
 
--- ===== Animacion apertura/cierre =====
 local lastVisible = fr.Visible
 if fr.Visible and FH.musicOn then FH.startMusic() end
 
