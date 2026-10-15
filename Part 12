@@ -1,4 +1,4 @@
--- ============ PARTE 12/12 - Fun Tab (v6) ============
+-- ============ PARTE 12/12 - Fun Tab (v7) ============
 local FH = getgenv().FH
 if not FH or not FH.p11 then warn("[FH] Ejecuta Partes 1-11 primero") return end
 if FH.p12 then warn("[FH] Parte 12 ya ejecutada") return end
@@ -13,7 +13,7 @@ FH.fun = {
     brokeScientist=false,
 }
 
--- ===== Emotes =====
+-- ===== Emotes (solo Roblox oficiales, toggle en loop) =====
 FH.EMOTES = {
     {name="Wave",       id="rbxassetid://507770239"},
     {name="Point",      id="rbxassetid://507770453"},
@@ -118,8 +118,9 @@ local function doFall()
     pcall(function() hum:ChangeState(Enum.HumanoidStateType.FallingDown) end)
 end
 
--- ===== Jump =====
-local jumpLoopConn, spaceConn = nil, nil
+-- ===== Enable Jump =====
+local jumpLoopConn = nil
+local spaceConn = nil
 local function doJumpNow()
     local mc = LP.Character; if not mc then return end
     local hum = mc:FindFirstChildOfClass("Humanoid"); if not hum then return end
@@ -166,9 +167,19 @@ local function stopInfJump()
     if infConn then infConn:Disconnect(); infConn = nil end
 end
 
--- ===== Guardian =====
+-- ===== Guardian (v3 - Lerp + Stun pause) =====
 local guardianConn = nil
 local savedSpeed, savedJump = 16, 50
+
+local function estoyStuneado()
+    local mc = LP.Character; if not mc then return false end
+    local s = mc:FindFirstChild("Stun")
+    if s and s:IsA("BoolValue") then return s.Value == true end
+    local hum = mc:FindFirstChildOfClass("Humanoid")
+    if hum and hum.PlatformStand then return true end
+    return false
+end
+
 local function getSurvivorTarget()
     local killer = FH.updateKiller()
     if killer then
@@ -188,8 +199,11 @@ local function getSurvivorTarget()
     end
     return nil
 end
+
 local function updateGuardian()
     if not FH.fun.guardian then return end
+    -- Pausar si stuneado (evita kick)
+    if estoyStuneado() then return end
     local survivor = getSurvivorTarget(); if not survivor then return end
     local shrp = survivor:FindFirstChild("HumanoidRootPart"); if not shrp then return end
     local mc = LP.Character; if not mc then return end
@@ -214,8 +228,10 @@ local function updateGuardian()
     end
     local finalLook = Vector3.new(lookAt.X, targetPos.Y, lookAt.Z)
     local distToSurv = (myhrp.Position - shrp.Position).Magnitude
-    if distToSurv > FH.fun.guardianRadius + 4 then
-        pcall(function() myhrp.CFrame = CFrame.lookAt(targetPos, finalLook) end)
+    -- Solo teleport si MUY lejos (>radio + 8)
+    if distToSurv > FH.fun.guardianRadius + 8 then
+        local newPos = myhrp.Position:Lerp(targetPos, 0.15)
+        pcall(function() myhrp.CFrame = CFrame.lookAt(newPos, finalLook) end)
         return
     end
     local params = RaycastParams.new()
@@ -237,8 +253,11 @@ local function updateGuardian()
             finalPos = origin + delta.Unit * (hd - 1)
         end
     end
-    pcall(function() myhrp.CFrame = CFrame.lookAt(finalPos, finalLook) end)
+    -- Movimiento suave con Lerp
+    local newPos = myhrp.Position:Lerp(finalPos, 0.15)
+    pcall(function() myhrp.CFrame = CFrame.lookAt(newPos, finalLook) end)
 end
+
 local function startGuardian()
     if guardianConn then return end
     local mc = LP.Character
@@ -259,7 +278,6 @@ local function stopGuardian()
 end
 
 -- ===== Broke Scientist Mini game =====
--- Dispara LeaveTask cuando el minijuego se abre = simula fallar
 local brokeConn = nil
 local function startBroke()
     if brokeConn then return end
@@ -385,6 +403,7 @@ FH.panel = function()
         if v then startGuardian() else stopGuardian() end
     end)
 
+    -- Slider distancia
     local holder = Instance.new("Frame", FH.oc)
     holder.Size = UDim2.new(1, 0, 0, 40)
     holder.BackgroundColor3 = C.bg_card
@@ -439,4 +458,4 @@ end
 
 if FH.pestana == "Fun" then FH.panel() end
 FH.p12 = true
-print("🎃 [12/12] Fun Tab OK (v6)")
+print("🎃 [12/12] Fun Tab OK (v7)")
