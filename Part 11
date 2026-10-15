@@ -1,0 +1,58 @@
+-- ============ PARTE 11/11 - Add Experiment Tab ============
+local FH = getgenv().FH
+if not FH or not FH.p10 then warn("[FH] Ejecuta Partes 1-10 primero") return end
+if FH.p11 then warn("[FH] Parte 11 ya ejecutada") return end
+local C = FH.C
+
+local t = Instance.new("TextButton", FH.sb)
+t.Size = UDim2.new(1,-6,0,32)
+t.BackgroundColor3 = C.bg_card
+t.BackgroundTransparency = 0.2
+t.Text = ""
+t.BorderSizePixel = 0
+t.AutoButtonColor = false
+Instance.new("UICorner", t).CornerRadius = UDim.new(0,10)
+
+local i = Instance.new("TextLabel", t)
+i.Size = UDim2.new(0,18,0,18)
+i.Position = UDim2.new(0,8,.5,-9)
+i.BackgroundTransparency = 1
+i.Text = "🧟"
+i.TextColor3 = C.text
+i.TextScaled = true
+i.Font = Enum.Font.GothamBold
+
+local l = Instance.new("TextLabel", t)
+l.Size = UDim2.new(1,-34,1,0)
+l.Position = UDim2.new(0,30,0,0)
+l.BackgroundTransparency = 1
+l.Text = "Experiment"
+l.TextColor3 = C.text
+l.TextScaled = true
+l.Font = Enum.Font.GothamBold
+l.TextXAlignment = Enum.TextXAlignment.Left
+
+local ck = false
+local function setSt(s)
+    if s == "sel" then
+        t.BackgroundColor3 = C.bg_card_hl
+        t.BackgroundTransparency = 0
+    else
+        t.BackgroundColor3 = C.bg_card
+        t.BackgroundTransparency = 0.2
+    end
+end
+t.MouseButton1Click:Connect(function()
+    if ck or FH.pestana == "Experiment" then return end
+    ck = true
+    FH.sfx("tab_switch", 2, 1)
+    if FH.tabs[FH.pestana] then FH.tabs[FH.pestana].S("dese") end
+    FH.pestana = "Experiment"
+    setSt("sel")
+    task.spawn(function() pcall(FH.panel) end)
+    task.delay(0.5, function() ck = false end)
+end)
+FH.tabs["Experiment"] = {S=setSt, CS=false}
+
+FH.p11 = true
+print("🎃 [11/11] Experiment Tab OK")
