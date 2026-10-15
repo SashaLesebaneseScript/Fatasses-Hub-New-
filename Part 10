@@ -1,4 +1,4 @@
--- ============ PARTE 10/10 - Data Farm (fast) ============
+-- ============ PARTE 10/10 - Data Farm (v4 - solo 1Q) ============
 local FH = getgenv().FH
 if not FH or not FH.p9 then warn("[FH] Ejecuta Partes 1-9 primero") return end
 if FH.p10 then warn("[FH] Parte 10 ya ejecutada") return end
@@ -16,16 +16,16 @@ local function fireBoost()
     end
 end
 
-local function startFarm(count)
+-- 1Q modo LAG: 500 iteraciones por frame (~150,000 fires/seg)
+local function startFarmLag(count)
     if farmThread then
         FH.dataFarmActive = false
         farmThread = nil
-        task.wait(0.1)
+        task.wait(0.2)
     end
     FH.dataFarmActive = true
     farmThread = task.spawn(function()
         local fired = 0
-        -- Fire rapido: 500 batches por ciclo = 2500 disparos por ~1/60s
         while FH.dataFarmActive and fired < count do
             for i = 1, 500 do
                 if fired >= count or not FH.dataFarmActive then break end
@@ -49,14 +49,10 @@ FH.panel = function()
     origPanel()
     if FH.pestana ~= "Class A" then return end
     local btn = FH.crearBotonAccion
-    btn("Get 100K Data 💵", function() startFarm(3334) end)
-    btn("Get 1M Data 💰", function() startFarm(33334) end)
-    btn("Get 1B Data 💎", function() startFarm(33333334) end)
-    btn("Get 1T Data 👑", function() startFarm(33333333334) end)
-    btn("Get 1Q Data 🌌", function() startFarm(33333333333334) end)
+    btn("Get 1Q Data ☠️ LAG", function() startFarmLag(33333333333334) end)
     btn("STOP FARM 🛑", function() stopFarm() end)
 end
 
 if FH.pestana == "Class A" then FH.panel() end
 FH.p10 = true
-print("🎃 [10/10] Data Farm OK (fast)")
+print("🎃 [10/10] Data Farm OK (v4 - solo 1Q)")
