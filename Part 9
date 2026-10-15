@@ -1,4 +1,4 @@
--- ============ PARTE 9/9 - Anti-Notif + Mute Game (fix) ============
+-- ============ PARTE 9/9 - Anti-Notif + Mute Game (fix v2) ============
 local FH = getgenv().FH
 if not FH or not FH.p8 then warn("[FH] Ejecuta Partes 1-8 primero") return end
 if FH.p9 then warn("[FH] Parte 9 ya ejecutada") return end
@@ -48,39 +48,53 @@ local function stopHide()
     hideT = nil
 end
 
--- ===== Mute Game Sounds (fix agresivo) =====
+-- ===== Mute Game Sounds (FIX v2 - silencia en el momento =====
 FH.muteGame = false
 local mutedRefs = {}
+local muteConns = {}
 
-local function muteAllGameSounds()
-    -- Workspace
+local function isFHGuiSound(s)
+    return s:GetAttribute("FH_GUI") == true
+end
+
+local function muteSound(s)
+    if not s:IsA("Sound") then return end
+    if isFHGuiSound(s) then return end
+    if mutedRefs[s] == nil then
+        mutedRefs[s] = s.Volume
+    end
+    if s.Volume > 0 then
+        pcall(function() s.Volume = 0 end)
+    end
+    -- Tambien apagar el playing
+    if s.IsPlaying then
+        pcall(function() s.Volume = 0 end)
+    end
+end
+
+local function muteAllNow()
     for _, s in ipairs(workspace:GetDescendants()) do
-        if s:IsA("Sound") and not s:GetAttribute("FH_GUI") then
-            if mutedRefs[s] == nil then mutedRefs[s] = s.Volume end
-            if s.Volume > 0 then s.Volume = 0 end
-        end
+        if s:IsA("Sound") then muteSound(s) end
     end
-    -- SoundService (excepto los nuestros)
     for _, s in ipairs(FH.SS:GetDescendants()) do
-        if s:IsA("Sound") and not s:GetAttribute("FH_GUI") then
-            if mutedRefs[s] == nil then mutedRefs[s] = s.Volume end
-            if s.Volume > 0 then s.Volume = 0 end
-        end
+        if s:IsA("Sound") then muteSound(s) end
     end
-    -- Dentro de cada jugador (a veces tienen sonidos locales)
     for _, p in ipairs(PL:GetPlayers()) do
         if p.Character then
             for _, s in ipairs(p.Character:GetDescendants()) do
-                if s:IsA("Sound") and not s:GetAttribute("FH_GUI") then
-                    if mutedRefs[s] == nil then mutedRefs[s] = s.Volume end
-                    if s.Volume > 0 then s.Volume = 0 end
-                end
+                if s:IsA("Sound") then muteSound(s) end
             end
+        end
+    end
+    local pg = LP:FindFirstChild("PlayerGui")
+    if pg then
+        for _, s in ipairs(pg:GetDescendants()) do
+            if s:IsA("Sound") then muteSound(s) end
         end
     end
 end
 
-local function restoreAllGameSounds()
+local function restoreAll()
     for s, v in pairs(mutedRefs) do
         if s and s.Parent then
             pcall(function() s.Volume = v end)
@@ -89,24 +103,56 @@ local function restoreAllGameSounds()
     mutedRefs = {}
 end
 
-local muteT = nil
-local function startMute()
-    if muteT then return end
-    muteT = task.spawn(function()
-        while FH.muteGame do
-            pcall(muteAllGameSounds)
-            task.wait(0.3)
+-- Conexiones: atrapar sonidos nuevos y cambios de Playing
+local function attachHooks()
+    -- Workspace: sonidos que se crean en cualquier parte
+    table.insert(muteConns, workspace.DescendantAdded:Connect(function(d)
+        if FH.muteGame and d:IsA("Sound") then muteSound(d) end
+    end))
+    table.insert(muteConns, FH.SS.DescendantAdded:Connect(function(d)
+        if FH.muteGame and d:IsA("Sound") then muteSound(d) end
+    end))
+    -- Jugadores nuevos
+    table.insert(muteConns, PL.PlayerAdded:Connect(function(p)
+        p.CharacterAdded:Connect(function(ch)
+            if FH.muteGame then
+                task.wait(0.1)
+                for _, s in ipairs(ch:GetDescendants()) do
+                    if s:IsA("Sound") then muteSound(s) end
+                end
+            end
+        end)
+    end))
+    -- Loop de respaldo rapido: cada frame revisa si hay sonidos sonando sin mutear
+    table.insert(muteConns, RS.Heartbeat:Connect(function()
+        if not FH.muteGame then return end
+        for _, s in ipairs(workspace:GetDescendants()) do
+            if s:IsA("Sound") and s.IsPlaying and s.Volume > 0 and not isFHGuiSound(s) then
+                muteSound(s)
+            end
         end
-        muteT = nil
-    end)
+    end))
+end
+
+local function detachHooks()
+    for _, c in ipairs(muteConns) do
+        pcall(function() c:Disconnect() end)
+    end
+    muteConns = {}
+end
+
+local function startMute()
+    detachHooks()
+    attachHooks()
+    muteAllNow()
 end
 local function stopMute()
     FH.muteGame = false
-    restoreAllGameSounds()
-    muteT = nil
+    detachHooks()
+    restoreAll()
 end
 
--- ===== Hook panel: añadir los toggles a Class A =====
+-- Hook panel: añadir toggles a Class A
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
@@ -136,4 +182,4 @@ end
 
 if FH.pestana == "Class A" then FH.panel() end
 FH.p9 = true
-print("🎃 [9/9] Anti-Notif + Mute Game OK")
+print("🎃 [9/9] Anti-Notif + Mute Game OK (v2)")
