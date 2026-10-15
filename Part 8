@@ -35,7 +35,7 @@ FH.showWarning = function(featureName, limit)
     txt.Size = UDim2.new(1, -50, 1, -20)
     txt.Position = UDim2.new(0, 14, 0, 10)
     txt.BackgroundTransparency = 1
-    txt.Text = string.format("You reached the limit of %s (%d).\nI recommend set it to %d so u don't lag.\nIt's unstable.", featureName, limit, limit)
+    txt.Text = "You reached the limit of " .. featureName .. " (" .. limit .. ").\nI recommend set it to " .. limit .. " so u don't lag.\nIt's unstable."
     txt.TextColor3 = Color3.fromRGB(255, 200, 200)
     txt.Font = Enum.Font.GothamBold
     txt.TextScaled = true
@@ -105,11 +105,10 @@ local function estoyStuneado()
     return false
 end
 
--- Helper: hay pared entre 2 puntos?
 local function hayPared(desde, hasta, ignorar)
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = ignorar or {LP.Character}
+    params.FilterDescendantsInstances = ignorar or {}
     local ray = WS:Raycast(desde, hasta - desde, params)
     return ray ~= nil
 end
@@ -316,7 +315,6 @@ task.spawn(function()
     end)
 end)
 
--- Always Max Speed
 local amsConn = nil
 local function startAMS()
     if amsConn then return end
@@ -336,10 +334,8 @@ local function stopAMS()
     if amsConn then amsConn:Disconnect(); amsConn = nil end
 end
 
--- ===== Kill All v2: con anti-pared =====
 local killAllConn = nil
 local savedSpeedKA, savedJumpKA = 16, 50
-local lastPosKA = nil
 
 local function getNearestSurvivor()
     local mc = LP.Character; if not mc then return nil end
@@ -374,16 +370,13 @@ local function updateKillAll()
     local dist = (myhrp.Position - shrp.Position).Magnitude
 
     if dist > 2.5 then
-        -- Calcular nueva posición
         local newPos = myhrp.Position:Lerp(targetPos, 0.1)
-        -- Chequear 2 rayos: HRP y cabeza
         local ignorar = {mc, survivor}
-        local midPoint = (myhrp.Position + newPos) / 2
         local hayPared1 = hayPared(myhrp.Position, newPos, ignorar)
-        local hayPared2 = hayPared(Vector3.new(myhrp.Position.X, myhrp.Position.Y+2, myhrp.Position.Z),
-                                    Vector3.new(newPos.X, newPos.Y+2, newPos.Z), ignorar)
+        local headA = Vector3.new(myhrp.Position.X, myhrp.Position.Y + 2, myhrp.Position.Z)
+        local headB = Vector3.new(newPos.X, newPos.Y + 2, newPos.Z)
+        local hayPared2 = hayPared(headA, headB, ignorar)
         if hayPared1 or hayPared2 then
-            -- Hay pared en el camino: no moverse. Solo girar hacia el target.
             local ry = math.atan2(-(shrp.Position.X - myhrp.Position.X), -(shrp.Position.Z - myhrp.Position.Z))
             myhrp.CFrame = CFrame.new(myhrp.Position) * CFrame.Angles(0, ry, 0)
             return
@@ -391,7 +384,6 @@ local function updateKillAll()
         pcall(function() myhrp.CFrame = CFrame.lookAt(newPos, finalLook) end)
         return
     end
-    -- Ya está cerca: solo girar
     pcall(function() myhrp.CFrame = CFrame.lookAt(myhrp.Position, finalLook) end)
 end
 
@@ -402,7 +394,6 @@ local function startKillAll()
         local hum = mc:FindFirstChildOfClass("Humanoid")
         if hum then savedSpeedKA = hum.WalkSpeed; savedJumpKA = hum.JumpPower end
     end
-    lastPosKA = nil
     killAllConn = RS.RenderStepped:Connect(function() pcall(updateKillAll) end)
 end
 local function stopKillAll()
@@ -415,7 +406,6 @@ local function stopKillAll()
     end
 end
 
--- Anti Stun
 local stunConns = {}
 local function nukeStun(val)
     if val:GetAttribute("FH_STUN") then return end
@@ -448,7 +438,6 @@ local function stopAntiStun()
     stunConns = {}
 end
 
--- Panel
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
@@ -480,23 +469,33 @@ FH.panel = function()
         holder.BorderSizePixel = 0
         Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 10)
         local hs = Instance.new("UIStroke", holder)
-        hs.Color = C.border; hs.Thickness = 1; hs.Transparency = 0.5
+        hs.Color = C.border
+        hs.Thickness = 1
+        hs.Transparency = 0.5
         local lbl = Instance.new("TextLabel", holder)
-        lbl.Size = UDim2.new(1, -100, 1, 0); lbl.Position = UDim2.new(0, 12, 0, 0)
-        lbl.BackgroundTransparency = 1; lbl.Text = labelTxt
-        lbl.TextColor3 = C.text; lbl.TextScaled = true
-        lbl.Font = Enum.Font.GothamBold; lbl.TextXAlignment = Enum.TextXAlignment.Left
+        lbl.Size = UDim2.new(1, -100, 1, 0)
+        lbl.Position = UDim2.new(0, 12, 0, 0)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = labelTxt
+        lbl.TextColor3 = C.text
+        lbl.TextScaled = true
+        lbl.Font = Enum.Font.GothamBold
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
         local inputBg = Instance.new("Frame", holder)
-        inputBg.Size = UDim2.new(0, 76, 0, 30); inputBg.Position = UDim2.new(1, -88, 0.5, -15)
+        inputBg.Size = UDim2.new(0, 76, 0, 30)
+        inputBg.Position = UDim2.new(1, -88, 0.5, -15)
         inputBg.BackgroundColor3 = Color3.fromRGB(35, 15, 45)
         inputBg.BorderSizePixel = 0
         Instance.new("UICorner", inputBg).CornerRadius = UDim.new(0, 6)
         local tb = Instance.new("TextBox", inputBg)
-        tb.Size = UDim2.new(1, -8, 1, -8); tb.Position = UDim2.new(0, 4, 0, 4)
+        tb.Size = UDim2.new(1, -8, 1, -8)
+        tb.Position = UDim2.new(0, 4, 0, 4)
         tb.BackgroundTransparency = 1
         tb.Text = tostring(math.floor(getV()))
-        tb.TextColor3 = C.accent; tb.TextScaled = true
-        tb.Font = Enum.Font.GothamBold; tb.ClearTextOnFocus = false
+        tb.TextColor3 = C.accent
+        tb.TextScaled = true
+        tb.Font = Enum.Font.GothamBold
+        tb.ClearTextOnFocus = false
         tb.FocusLost:Connect(function()
             local n = tonumber(tb.Text)
             if not n then tb.Text = tostring(math.floor(getV())); return end
@@ -511,4 +510,6 @@ FH.panel = function()
     end
 
     mkNumInput("Rango", 1, LIMITS.range, function() return K.range end, function(v) K.range = v end)
-    mkNumInput("360 Radio", 1, LIMITS.hbRang
+    mkNumInput("360 Radio", 1, LIMITS.hbRange, function() return K.hbRange end, function(v) K.hbRange = v end)
+    mkNumInput("Expander Largo", 1, LIMITS.expanderRange, function() return K.expanderRange end, function(v) K.expanderRange = v end)
+    mkNumInput("Expander Ancho", 1, LIMITS.expanderWidth, function() return K.expanderWidth end, function(v) K.expanderWid
