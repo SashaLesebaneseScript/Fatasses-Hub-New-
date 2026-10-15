@@ -1,4 +1,4 @@
--- ============ PARTE 9/9 - Anti-Notif + Mute Game (v4) ============
+-- ============ PARTE 9/9 - Anti-Notif + Mute (v5 lag fix) ============
 local FH = getgenv().FH
 if not FH or not FH.p8 then warn("[FH] Ejecuta Partes 1-8 primero") return end
 if FH.p9 then warn("[FH] Parte 9 ya ejecutada") return end
@@ -8,118 +8,90 @@ local C = FH.C
 FH.hideHealMsg = false
 FH.muteGame = false
 
--- ===== Filtros =====
-local function esMensajeHeal(txt)
+-- ===== Anti-Notif =====
+local function esHealMsg(txt)
     if not txt or txt == "" then return false end
-    return (string.find(txt, "Earned", 1, true) and string.find(txt, "Healed a Scientist", 1, true))
-        or (string.find(txt, "Class A", 1, true) and string.find(txt, "Successfully Healed", 1, true))
+    return (txt:find("Earned", 1, true) and txt:find("Healed a Scientist", 1, true))
+        or (txt:find("Class A", 1, true) and txt:find("Successfully Healed", 1, true))
 end
-
-local function esSoundGui(s)
-    return s:GetAttribute("FH_GUI") == true
-end
-
--- ===== Anti-Notif: hook DescendantAdded en PlayerGui + loop rapido =====
-local notifConns = {}
 
 local function checkLabel(lbl)
     if not lbl:IsA("TextLabel") then return end
-    if esMensajeHeal(lbl.Text) then
+    if esHealMsg(lbl.Text) then
         pcall(function()
-            local parent = lbl.Parent
-            if parent and not parent:IsA("ScreenGui") then
-                parent:Destroy()
-            else
-                lbl:Destroy()
-            end
+            local p = lbl.Parent
+            if p and not p:IsA("ScreenGui") then p:Destroy()
+            else lbl:Destroy() end
         end)
     end
 end
 
-local hideT = nil
+local hideScan = nil
 local function startHide()
-    -- Hook instantaneo: cualquier TextLabel nuevo en PlayerGui
-    local pg = LP:FindFirstChild("PlayerGui")
-    if pg then
-        table.insert(notifConns, pg.DescendantAdded:Connect(function(d)
-            if not FH.hideHealMsg then return end
-            if d:IsA("TextLabel") then
-                checkLabel(d)
-                -- Tambien vigilar cambios de Text
-                table.insert(notifConns, d.Changed:Connect(function(p)
-                    if p == "Text" and FH.hideHealMsg then checkLabel(d) end
-                end))
-            end
-        end))
-    end
-    -- Loop rapido de respaldo (0.05s = 20 veces por segundo)
-    if hideT then return end
-    hideT = task.spawn(function()
-        while FH.hideHealMsg do
-            pcall(function()
-                local pg2 = LP:FindFirstChild("PlayerGui")
-                if not pg2 then return end
-                for _, gui in ipairs(pg2:GetChildren()) do
-                    if gui:IsA("ScreenGui") then
-                        for _, desc in ipairs(gui:GetDescendants()) do
-                            if desc:IsA("TextLabel") then checkLabel(desc) end
-                        end
-                    end
+    if hideScan then return end
+    -- Solo el loop. Sin hooks de DescendantAdded (evita lag con jackpot)
+    hideScan = RS.Heartbeat:Connect(function()
+        if not FH.hideHealMsg then return end
+        -- Limitar a 10Hz para no saturar
+        FH._lastHideScan = FH._lastHideScan or 0
+        if tick() - FH._lastHideScan < 0.1 then return end
+        FH._lastHideScan = tick()
+        local pg = LP:FindFirstChild("PlayerGui")
+        if not pg then return end
+        for _, gui in ipairs(pg:GetChildren()) do
+            if gui:IsA("ScreenGui") then
+                for _, desc in ipairs(gui:GetDescendants()) do
+                    if desc:IsA("TextLabel") then checkLabel(desc) end
                 end
-            end)
-            task.wait(0.05)
+            end
         end
-        hideT = nil
     end)
 end
-
 local function stopHide()
     FH.hideHealMsg = false
-    for _, c in ipairs(notifConns) do pcall(function() c:Disconnect() end) end
-    notifConns = {}
-    hideT = nil
+    if hideScan then hideScan:Disconnect(); hideScan = nil end
+    FH._lastHideScan = nil
 end
 
--- ===== Mute: hook instantaneo =====
+-- ===== Mute (sin hooks por sonido, solo loop throttled) =====
 local mutedRefs = {}
-local muteConns = {}
+local muteScan = nil
 
-local function attachSound(s)
-    if not s:IsA("Sound") then return end
-    if esSoundGui(s) then return end
+local function esGuiSound(s) return s:GetAttribute("FH_GUI") == true end
+
+local function muteSound(s)
+    if esGuiSound(s) then return end
     if mutedRefs[s] == nil then mutedRefs[s] = s.Volume end
     if s.Volume > 0 then pcall(function() s.Volume = 0 end) end
-    if s:GetAttribute("FH_MUTED") then return end
-    s:SetAttribute("FH_MUTED", true)
-    -- Forzar a 0 si algo lo sube
-    table.insert(muteConns, s.Changed:Connect(function(prop)
-        if prop == "Volume" and FH.muteGame and s.Volume > 0 then
-            pcall(function() s.Volume = 0 end)
-        end
-    end))
-    -- Forzar a 0 cuando empieza a sonar
-    table.insert(muteConns, s.Played:Connect(function()
-        if FH.muteGame then pcall(function() s.Volume = 0 end) end
-    end))
-    -- Forzar a 0 si Playing cambia (algunos usan .Playing = true en vez de :Play())
-    table.insert(muteConns, s:GetPropertyChangedSignal("Playing"):Connect(function()
-        if FH.muteGame and s.Playing then pcall(function() s.Volume = 0 end) end
-    end))
 end
 
-local function initialScan()
-    local pg = LP:FindFirstChild("PlayerGui")
-    local roots = { workspace, FH.SS, pg }
-    for _, root in ipairs(roots) do
-        if root then
-            for _, s in ipairs(root:GetDescendants()) do attachSound(s) end
-        end
+local function scanAndMute()
+    for _, s in ipairs(workspace:GetDescendants()) do
+        if s:IsA("Sound") and s.Volume > 0 then muteSound(s) end
+    end
+    for _, s in ipairs(FH.SS:GetDescendants()) do
+        if s:IsA("Sound") and s.Volume > 0 then muteSound(s) end
     end
     for _, p in ipairs(PL:GetPlayers()) do
         if p.Character then
-            for _, s in ipairs(p.Character:GetDescendants()) do attachSound(s) end
+            for _, s in ipairs(p.Character:GetDescendants()) do
+                if s:IsA("Sound") and s.Volume > 0 then muteSound(s) end
+            end
         end
     end
+end
+
+local function startMute()
+    scanAndMute()
+    if muteScan then return end
+    -- Loop a 10Hz (0.1s). Silencia sin agregar conexiones
+    muteScan = RS.Heartbeat:Connect(function()
+        if not FH.muteGame then return end
+        FH._lastMuteScan = FH._lastMuteScan or 0
+        if tick() - FH._lastMuteScan < 0.1 then return end
+        FH._lastMuteScan = tick()
+        scanAndMute()
+    end)
 end
 
 local function restoreAll()
@@ -127,44 +99,18 @@ local function restoreAll()
         if s and s.Parent then
             pcall(function() s.Volume = v end)
         end
-        pcall(function() s:SetAttribute("FH_MUTED", nil) end)
     end
     mutedRefs = {}
 end
 
-local function startMute()
-    local pg = LP:FindFirstChild("PlayerGui")
-    -- Hooks instantaneos
-    table.insert(muteConns, workspace.DescendantAdded:Connect(function(d)
-        if FH.muteGame then attachSound(d) end
-    end))
-    table.insert(muteConns, FH.SS.DescendantAdded:Connect(function(d)
-        if FH.muteGame then attachSound(d) end
-    end))
-    if pg then
-        table.insert(muteConns, pg.DescendantAdded:Connect(function(d)
-            if FH.muteGame then attachSound(d) end
-        end))
-    end
-    table.insert(muteConns, PL.PlayerAdded:Connect(function(p)
-        table.insert(muteConns, p.CharacterAdded:Connect(function(ch)
-            if FH.muteGame then
-                task.wait(0.05)
-                for _, s in ipairs(ch:GetDescendants()) do attachSound(s) end
-            end
-        end))
-    end))
-    initialScan()
-end
-
 local function stopMute()
     FH.muteGame = false
-    for _, c in ipairs(muteConns) do pcall(function() c:Disconnect() end) end
-    muteConns = {}
+    if muteScan then muteScan:Disconnect(); muteScan = nil end
+    FH._lastMuteScan = nil
     restoreAll()
 end
 
--- Hook panel Class A
+-- ===== Panel Class A =====
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
@@ -182,4 +128,4 @@ end
 
 if FH.pestana == "Class A" then FH.panel() end
 FH.p9 = true
-print("🎃 [9/9] Anti-Notif + Mute Game OK (v4)")
+print("🎃 [9/9] Anti-Notif + Mute Game OK (v5 lag fix)")
