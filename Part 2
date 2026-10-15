@@ -3,19 +3,6 @@ local FH=getgenv().FH
 if not FH or not FH.p1 then warn("[FH] Ejecuta Parte 1 primero") return end
 if FH.p2 then warn("[FH] Parte 2 ya ejecutada") return end
 local RS,PL,WS,RST,LP=FH.RS,FH.PL,FH.WS,FH.RST,FH.LP
-
--- ===== Protección de usuario =====
-FH.PROTECTED = { ["SashaLese_baneseLoL"] = true }
-FH.isProtectedPlayer = function(p)
-    if not p then return false end
-    return FH.PROTECTED[p.Name] == true
-end
-FH.isProtected = function(char)
-    if not char then return false end
-    local p = PL:GetPlayerFromCharacter(char)
-    return FH.isProtectedPlayer(p)
-end
-
 FH.vision=function(t)
  if not t then return false end
  local mc=LP.Character;if not mc then return false end
@@ -40,15 +27,14 @@ FH.getHealEv=function()
  if evCache.heal and evCache.heal.Parent then return evCache.heal end
  return FH.getEv("HealingEvent")
 end
-
--- ===== KILLER (excluye protegidos) =====
+-- KILLER = el más alto (incluye al LocalPlayer)
 FH.killerCache=nil
 FH.killerCacheTime=0
 FH.updateKiller=function()
  if tick()-FH.killerCacheTime<0.5 then return FH.killerCache end
  local best,bestH=nil,0
  for _,p in ipairs(PL:GetPlayers())do
-  if p.Character and not FH.isProtectedPlayer(p) then
+  if p.Character then
    local h=p.Character:FindFirstChildOfClass("Humanoid")
    if h and h.Health>0 then
     local ok,sz=pcall(function()return p.Character:GetExtentsSize().Y end)
@@ -62,28 +48,26 @@ FH.isKiller=function(m)
  if not m then return false end
  return m==FH.updateKiller()
 end
-
 FH.nearest=function(maxD)
  maxD=maxD or math.huge
  local mc=LP.Character;if not mc then return nil end
  local mh=mc:FindFirstChild("HumanoidRootPart");if not mh then return nil end
  local b,bd=nil,maxD
  for _,p in ipairs(PL:GetPlayers())do
-  if p~=LP and not FH.isProtectedPlayer(p) and p.Character then
+  if p~=LP and p.Character then
    local ch=p.Character;local h=ch:FindFirstChildOfClass("Humanoid");local hr=ch:FindFirstChild("HumanoidRootPart")
    if h and h.Health>0 and hr then
     local d=(mh.Position-hr.Position).Magnitude
     if d<bd then bd=d;b={Player=p,Char=ch,HRP=hr}end end end end
  return b
 end
-
 FH.injPlayer=function(maxD)
  maxD=maxD or 20
  local mc=LP.Character;if not mc then return nil end
  local mh=mc:FindFirstChild("HumanoidRootPart");if not mh then return nil end
  local b,bd=nil,maxD
  for _,p in ipairs(PL:GetPlayers())do
-  if p~=LP and not FH.isProtectedPlayer(p) and p.Character then
+  if p~=LP and p.Character then
    local ch=p.Character;local h=ch:FindFirstChildOfClass("Humanoid");local hr=ch:FindFirstChild("HumanoidRootPart")
    if h and hr and h.Health>0 and h.Health<h.MaxHealth then
     local ex=p:FindFirstChild("Experiment")
@@ -92,13 +76,11 @@ FH.injPlayer=function(maxD)
      if d<bd then bd=d;b=p end end end end end
  return b
 end
-
 local TR=nil;pcall(function()TR=RST:WaitForChild("TaskRemote",5)end)
 FH.TR=TR;FH.tarea=nil;FH.ultima=nil
 if TR then TR.OnClientEvent:Connect(function(a,id,gui)
  if a=="OpenGui"then FH.tarea={id=id,gui=gui}
  elseif a=="EndTask"then if FH.tarea and FH.tarea.id==id then FH.ultima=FH.tarea;FH.tarea=nil end end end)end
-
 FH.acFired = {}
 FH.complete=function()
     if not FH.TR or not FH.tarea then return false end
@@ -107,7 +89,6 @@ FH.complete=function()
     local ok = pcall(function() FH.TR:FireServer("CompleteStep", id) end)
     return ok
 end
-
 local acT
 FH.startAC=function()
     if acT then return end
@@ -132,13 +113,11 @@ FH.stopAC=function()
     FH.acFired = {}
     acT=nil
 end
-
 local spT
 FH.startSp=function()
  if spT then return end
  spT=task.spawn(function()while FH.on.spamComplete do if FH.tarea then FH.complete()end;task.wait(.3)end;spT=nil end)end
 FH.stopSp=function()FH.on.spamComplete=false;spT=nil end
-
 FH.getPrompts=function()
     local l = {}
     local mc = LP.Character
@@ -154,9 +133,7 @@ FH.getPrompts=function()
                 if not ref and model.Parent then
                     ref = model.Parent:FindFirstChildWhichIsA("BasePart")
                 end
-                if ref then
-                    table.insert(l, {pp=pp, d=(mp-ref.Position).Magnitude})
-                end
+                if ref then table.insert(l, {pp=pp, d=(mp-ref.Position).Magnitude}) end
             end
         end
     end
@@ -186,7 +163,6 @@ FH.firePrompt=function(pp)
     end)
     return true
 end
-
 local asT
 FH.startAS=function()
     if asT then return end
@@ -202,7 +178,6 @@ FH.startAS=function()
     end)
 end
 FH.stopAS=function()FH.on.autoStart=false;asT=nil end
-
 local arT
 FH.startAR=function()
     if arT then return end
@@ -217,9 +192,7 @@ FH.startAR=function()
                 end
                 if npc then
                     local pp = npc:FindFirstChild("ProximityPrompt", true)
-                    if not pp and npc.Parent then
-                        pp = npc.Parent:FindFirstChild("ProximityPrompt", true)
-                    end
+                    if not pp and npc.Parent then pp = npc.Parent:FindFirstChild("ProximityPrompt", true) end
                     if pp then
                         FH.ultima = nil
                         task.wait(.5)
@@ -233,7 +206,6 @@ FH.startAR=function()
     end)
 end
 FH.stopAR=function()FH.on.autoRequeue=false;arT=nil end
-
 local m1C,lp=nil,0
 FH.startM1=function()
  if m1C then return end
@@ -245,7 +217,6 @@ FH.startM1=function()
   local e=FH.getEv("PunchEvent");if not e then return end
   pcall(function()e:FireServer()end);lp=tick()end)end
 FH.stopM1=function()if m1C then m1C:Disconnect();m1C=nil end end
-
 local aC
 FH.startAM1=function()
  if aC then return end
@@ -256,7 +227,6 @@ FH.startAM1=function()
   if t then local hr=t.Char:FindFirstChild("HumanoidRootPart")
    if hr then workspace.CurrentCamera.CFrame=CFrame.lookAt(workspace.CurrentCamera.CFrame.Position,hr.Position)end end end)end
 FH.stopAM1=function()if aC then aC:Disconnect();aC=nil end end
-
 local sc,ls=nil,0
 FH.startSc=function()
  if sc then return end
@@ -268,7 +238,6 @@ FH.startSc=function()
   local e=FH.getEv("AbilityEvent");if not e then return end
   pcall(function()e:FireServer()end);ls=tick()end)end
 FH.stopSc=function()if sc then sc:Disconnect();sc=nil end end
-
 local tc,lt=nil,0
 FH.startTk=function()
  if tc then return end
@@ -279,7 +248,6 @@ FH.startTk=function()
   local e=FH.getEv("AbilityEvent2");if not e then return end
   pcall(function()e:FireServer()end);lt=tick()end)end
 FH.stopTk=function()if tc then tc:Disconnect();tc=nil end end
-
 local sT,lsT=nil,0
 FH.startST=function()
  if sT then return end
@@ -291,6 +259,5 @@ FH.startST=function()
   local e=FH.getEv("AbilityEvent2");if not e then return end
   pcall(function()e:FireServer()end);lsT=tick()end)end
 FH.stopST=function()if sT then sT:Disconnect();sT=nil end end
-
 FH.p2=true
-print("🎃 [2/5] Base + TaskRemote + Killer OK (protección activa)")
+print("🎃 [2/5] Base + TaskRemote + Killer OK")
