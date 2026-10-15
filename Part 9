@@ -1,0 +1,139 @@
+-- ============ PARTE 9/9 - Anti-Notif + Mute Game (fix) ============
+local FH = getgenv().FH
+if not FH or not FH.p8 then warn("[FH] Ejecuta Partes 1-8 primero") return end
+if FH.p9 then warn("[FH] Parte 9 ya ejecutada") return end
+local RS,PL,LP = FH.RS,FH.PL,FH.LP
+local C = FH.C
+
+-- ===== Borrar mensajes de curación en pantalla =====
+FH.hideHealMsg = false
+
+local function scanHealNotifs()
+    local pg = LP:FindFirstChild("PlayerGui")
+    if not pg then return end
+    for _, gui in ipairs(pg:GetChildren()) do
+        if gui:IsA("ScreenGui") then
+            for _, desc in ipairs(gui:GetDescendants()) do
+                if desc:IsA("TextLabel") and desc.Text then
+                    local t = desc.Text
+                    if string.find(t, "Earned") and string.find(t, "Healed a Scientist") then
+                        pcall(function()
+                            local parent = desc.Parent
+                            if parent and parent ~= gui then
+                                parent:Destroy()
+                            else
+                                desc:Destroy()
+                            end
+                        end)
+                    end
+                end
+            end
+        end
+    end
+end
+
+local hideT = nil
+local function startHide()
+    if hideT then return end
+    hideT = task.spawn(function()
+        while FH.hideHealMsg do
+            pcall(scanHealNotifs)
+            task.wait(0.2)
+        end
+        hideT = nil
+    end)
+end
+local function stopHide()
+    FH.hideHealMsg = false
+    hideT = nil
+end
+
+-- ===== Mute Game Sounds (fix agresivo) =====
+FH.muteGame = false
+local mutedRefs = {}
+
+local function muteAllGameSounds()
+    -- Workspace
+    for _, s in ipairs(workspace:GetDescendants()) do
+        if s:IsA("Sound") and not s:GetAttribute("FH_GUI") then
+            if mutedRefs[s] == nil then mutedRefs[s] = s.Volume end
+            if s.Volume > 0 then s.Volume = 0 end
+        end
+    end
+    -- SoundService (excepto los nuestros)
+    for _, s in ipairs(FH.SS:GetDescendants()) do
+        if s:IsA("Sound") and not s:GetAttribute("FH_GUI") then
+            if mutedRefs[s] == nil then mutedRefs[s] = s.Volume end
+            if s.Volume > 0 then s.Volume = 0 end
+        end
+    end
+    -- Dentro de cada jugador (a veces tienen sonidos locales)
+    for _, p in ipairs(PL:GetPlayers()) do
+        if p.Character then
+            for _, s in ipairs(p.Character:GetDescendants()) do
+                if s:IsA("Sound") and not s:GetAttribute("FH_GUI") then
+                    if mutedRefs[s] == nil then mutedRefs[s] = s.Volume end
+                    if s.Volume > 0 then s.Volume = 0 end
+                end
+            end
+        end
+    end
+end
+
+local function restoreAllGameSounds()
+    for s, v in pairs(mutedRefs) do
+        if s and s.Parent then
+            pcall(function() s.Volume = v end)
+        end
+    end
+    mutedRefs = {}
+end
+
+local muteT = nil
+local function startMute()
+    if muteT then return end
+    muteT = task.spawn(function()
+        while FH.muteGame do
+            pcall(muteAllGameSounds)
+            task.wait(0.3)
+        end
+        muteT = nil
+    end)
+end
+local function stopMute()
+    FH.muteGame = false
+    restoreAllGameSounds()
+    muteT = nil
+end
+
+-- ===== Hook panel: añadir los toggles a Class A =====
+local origPanel = FH.panel
+FH.panel = function()
+    origPanel()
+    if FH.pestana ~= "Class A" then return end
+    local opt = FH.crearOpcion
+    local hdr = function(t)
+        local h = Instance.new("TextLabel", FH.oc)
+        h.Size = UDim2.new(1,0,0,22)
+        h.BackgroundTransparency = 1
+        h.Text = t
+        h.TextColor3 = C.accent
+        h.Font = Enum.Font.GothamBold
+        h.TextScaled = true
+        h.TextXAlignment = Enum.TextXAlignment.Left
+    end
+    hdr("── Notificaciones ──")
+    opt("Delete Healed Msg 🚫", function(v)
+        FH.hideHealMsg = v
+        if v then startHide() else stopHide() end
+    end)
+    hdr("── Sonido ──")
+    opt("Mute Game Sounds 🔇", function(v)
+        FH.muteGame = v
+        if v then startMute() else stopMute() end
+    end)
+end
+
+if FH.pestana == "Class A" then FH.panel() end
+FH.p9 = true
+print("🎃 [9/9] Anti-Notif + Mute Game OK")
