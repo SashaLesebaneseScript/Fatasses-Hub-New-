@@ -27,7 +27,6 @@ FH.getHealEv=function()
  if evCache.heal and evCache.heal.Parent then return evCache.heal end
  return FH.getEv("HealingEvent")
 end
--- KILLER = el más alto (incluye al LocalPlayer)
 FH.killerCache=nil
 FH.killerCacheTime=0
 FH.updateKiller=function()
