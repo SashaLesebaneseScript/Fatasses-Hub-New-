@@ -1,4 +1,4 @@
--- ============ PARTE 8/8 - Killer Punch (v10) ============
+-- ============ PARTE 8/8 - Killer Punch (v11) ============
 local FH = getgenv().FH
 if not FH or not FH.p7 then warn("[FH] Ejecuta Partes 1-7 primero") return end
 if FH.p8 then warn("[FH] Parte 8 ya ejecutada") return end
@@ -69,10 +69,8 @@ FH.k8 = {
 local K = FH.k8
 
 local LIMITS = {
-    range = 100,
-    hbRange = 500,
-    expanderRange = 500,
-    expanderWidth = 50,
+    range = 100, hbRange = 500,
+    expanderRange = 500, expanderWidth = 50,
     tpBoxSize = 20,
 }
 
@@ -97,6 +95,15 @@ do
 end
 
 local function soyKiller() return FH.isKiller(LP.Character) end
+
+local function estoyStuneado()
+    local mc = LP.Character; if not mc then return false end
+    local s = mc:FindFirstChild("Stun")
+    if s and s:IsA("BoolValue") then return s.Value == true end
+    local hum = mc:FindFirstChildOfClass("Humanoid")
+    if hum and hum.PlatformStand then return true end
+    return false
+end
 
 local function enemigoCercano(radio)
     radio = radio or K.range
@@ -144,6 +151,7 @@ end
 local function triggerExtras()
     if EXTRA_MODE then return end
     if not soyKiller() then return end
+    if estoyStuneado() then return end
     local ev = getPunchEv(); if not ev then return end
     local mc = LP.Character
     local mh = mc and mc:FindFirstChild("HumanoidRootPart"); if not mh then return end
@@ -154,6 +162,7 @@ local function triggerExtras()
         local id = K.attackId
         local startT = tick()
         while tick() - startT <= 0.4 do
+            if estoyStuneado() then break end
             local c = LP.Character; if not c then break end
             local h = c:FindFirstChild("HumanoidRootPart"); if not h then break end
             for i = 1, 5 do
@@ -180,6 +189,7 @@ local function triggerExtras()
                 local boxSize = K.tpBoxSize
                 local startT = tick()
                 while tick() - startT <= 0.4 do
+                    if estoyStuneado() then break end
                     local t2 = t and (t:FindFirstChild("Head") or t:FindFirstChild("HumanoidRootPart"))
                     if not t2 then break end
                     local center = t2.Position
@@ -212,6 +222,7 @@ local function triggerExtras()
         local R = K.hbRange
         local startT = tick()
         while tick() - startT <= 0.4 do
+            if estoyStuneado() then break end
             local c = LP.Character; if not c then break end
             local h = c:FindFirstChild("HumanoidRootPart"); if not h then break end
             local origin = h.Position
@@ -240,6 +251,7 @@ local function triggerExtras()
         local width = K.expanderWidth
         local startT = tick()
         while tick() - startT <= 0.4 do
+            if estoyStuneado() then break end
             local c = LP.Character; if not c then break end
             local h = c:FindFirstChild("HumanoidRootPart"); if not h then break end
             local look = h.CFrame.LookVector
@@ -295,12 +307,14 @@ task.spawn(function()
     end)
 end)
 
+-- Always Max Speed (pausa si stuneado)
 local amsConn = nil
 local function startAMS()
     if amsConn then return end
     amsConn = RS.Heartbeat:Connect(function()
         if not K.alwaysMaxSpeed then return end
         if not soyKiller() then return end
+        if estoyStuneado() then return end
         local mc = LP.Character; if not mc then return end
         local hum = mc:FindFirstChildOfClass("Humanoid")
         if hum and hum.WalkSpeed ~= 27 then
@@ -313,6 +327,7 @@ local function stopAMS()
     if amsConn then amsConn:Disconnect(); amsConn = nil end
 end
 
+-- Kill All (pausa si stuneado, se mueve suave)
 local killAllConn = nil
 local savedSpeedKA, savedJumpKA = 16, 50
 local function getNearestSurvivor()
@@ -333,6 +348,8 @@ local function getNearestSurvivor()
 end
 local function updateKillAll()
     if not K.killAll then return end
+    -- Si stuneado, no hacer nada (evita kick por TP stuneado)
+    if estoyStuneado() then return end
     local survivor = getNearestSurvivor()
     if not survivor then return end
     local shrp = survivor:FindFirstChild("HumanoidRootPart"); if not shrp then return end
@@ -343,29 +360,14 @@ local function updateKillAll()
     local targetPos = shrp.Position + Vector3.new(2.5, 1, 0)
     local finalLook = Vector3.new(shrp.Position.X, targetPos.Y, shrp.Position.Z)
     local dist = (myhrp.Position - shrp.Position).Magnitude
-    if dist > 6 then
-        pcall(function() myhrp.CFrame = CFrame.lookAt(targetPos, finalLook) end)
+    -- Movimiento suave (lerp), no teleport
+    if dist > 2.5 then
+        local newPos = myhrp.Position:Lerp(targetPos, 0.12)
+        pcall(function() myhrp.CFrame = CFrame.lookAt(newPos, finalLook) end)
         return
     end
-    local params = RaycastParams.new()
-    params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = {mc, survivor}
-    local origin = myhrp.Position
-    local delta = targetPos - origin
-    local finalPos = targetPos
-    if delta.Magnitude > 0.1 then
-        local ray = WS:Raycast(origin, delta, params)
-        if ray then
-            local hd = (ray.Position - origin).Magnitude
-            if hd < 1.5 then
-                local ry = math.atan2(-(shrp.Position.X - origin.X), -(shrp.Position.Z - origin.Z))
-                myhrp.CFrame = CFrame.new(origin) * CFrame.Angles(0, ry, 0)
-                return
-            end
-            finalPos = origin + delta.Unit * (hd - 1)
-        end
-    end
-    pcall(function() myhrp.CFrame = CFrame.lookAt(finalPos, finalLook) end)
+    -- Cerca: solo girar mirando
+    pcall(function() myhrp.CFrame = CFrame.lookAt(myhrp.Position, finalLook) end)
 end
 local function startKillAll()
     if killAllConn then return end
@@ -386,6 +388,7 @@ local function stopKillAll()
     end
 end
 
+-- Anti Stun
 local stunConns = {}
 local function nukeStun(val)
     if val:GetAttribute("FH_STUN") then return end
@@ -418,6 +421,7 @@ local function stopAntiStun()
     stunConns = {}
 end
 
+-- Panel
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
@@ -470,12 +474,9 @@ FH.panel = function()
             local n = tonumber(tb.Text)
             if not n then tb.Text = tostring(math.floor(getV())); return end
             if n > maxV then
-                tb.Text = tostring(maxV)
-                setV(maxV)
-                FH.showWarning(labelTxt, maxV)
+                tb.Text = tostring(maxV); setV(maxV); FH.showWarning(labelTxt, maxV)
             elseif n < minV then
-                tb.Text = tostring(minV)
-                setV(minV)
+                tb.Text = tostring(minV); setV(minV)
             else
                 n = math.floor(n); tb.Text = tostring(n); setV(n)
             end
@@ -491,4 +492,4 @@ end
 
 if FH.pestana == "Experiment" then FH.panel() end
 FH.p8 = true
-print("🎃 [8/8] Killer Punch OK (v10)")
+print("🎃 [8/8] Killer Punch OK (v11)")
