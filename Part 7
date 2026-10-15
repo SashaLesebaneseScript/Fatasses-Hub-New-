@@ -8,27 +8,51 @@ local fr = FH.fr
 local sg = FH.sg
 local TW = FH.TW
 
--- ===== Sonidos extra =====
+-- ===== Sonidos UI =====
 FH.SND.button = "rbxassetid://9119717523"
 FH.SND.open   = "rbxassetid://9119717523"
-FH.SND.music  = "rbxassetid://1837879082"  -- cambia si no suena
 
--- ===== Musica de fondo =====
+-- ===== Catalogo de musica =====
+FH.MUSIC_LIST = {
+    {name="Mesmerizer",       id="rbxassetid://71934965392436"},
+    {name="F-L-Y",            id="rbxassetid://76819270320985"},
+    {name="Signaling",        id="rbxassetid://111806697876232"},
+    {name="Birdbrain",        id="rbxassetid://139924511923380"},
+    {name="Execution Clap",   id="rbxassetid://91472362989961"},
+    {name="Spoken For",       id="rbxassetid://72478420140778"},
+    {name="Looping The Rooms",id="rbxassetid://116273924154778"},
+}
+FH.musicIndex = 1
+FH.musicOn = false
+FH.keepPlaying = false  -- toggle: seguir sonando con GUI cerrada
 local music = nil
+
 FH.startMusic = function()
-    if music and music.Parent then return end
+    if music and music.Parent then
+        if not music.IsPlaying then music:Play() end
+        FH.musicOn = true
+        return
+    end
     music = Instance.new("Sound")
-    music.SoundId = FH.SND.music
+    music.SoundId = FH.MUSIC_LIST[FH.musicIndex].id
     music.Volume = 0.15
     music.Looped = true
     music.Parent = sg
     music:Play()
+    FH.musicOn = true
 end
 FH.stopMusic = function()
-    if music then
-        music:Stop()
-        music:Destroy()
-        music = nil
+    if music then music:Stop(); music:Destroy(); music = nil end
+    FH.musicOn = false
+end
+FH.setMusic = function(idx)
+    if not FH.MUSIC_LIST[idx] then return end
+    FH.musicIndex = idx
+    if music and music.Parent then
+        music.SoundId = FH.MUSIC_LIST[idx].id
+        music:Play()
+    elseif FH.musicOn then
+        FH.startMusic()
     end
 end
 
@@ -38,9 +62,7 @@ local function hookAll()
         if d:IsA("TextButton") and not d:GetAttribute("FH_S") then
             local p = d.Parent
             local skip = false
-            -- No añadir a toggles (ya tienen su sonido propio)
             if p and p.Name and string.find(p.Name, "Opt_") then skip = true end
-            -- No añadir a tabs (ya tienen tab_switch)
             if p == FH.sb then skip = true end
             if not skip then
                 d:SetAttribute("FH_S", true)
@@ -53,25 +75,50 @@ local function hookAll()
 end
 hookAll()
 
--- Re-hook cuando el panel cambia (nuevos botones al cambiar de tab)
+-- ===== Hook panel: musica en Extra Stuff =====
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
     hookAll()
+    if FH.pestana ~= "Extra Stuff" then return end
+
+    local opt = FH.crearOpcion
+    local btn = FH.crearBotonAccion
+
+    local h = Instance.new("TextLabel", FH.oc)
+    h.Size = UDim2.new(1,0,0,22)
+    h.BackgroundTransparency = 1
+    h.Text = "── Música ──"
+    h.TextColor3 = C.accent
+    h.Font = Enum.Font.GothamBold
+    h.TextScaled = true
+    h.TextXAlignment = Enum.TextXAlignment.Left
+
+    opt("Music ON/OFF 🎵", function(v)
+        if v then FH.startMusic() else FH.stopMusic() end
+    end)
+
+    opt("Keep Playing 🎧", function(v)
+        FH.keepPlaying = v
+    end)
+
+    for i, song in ipairs(FH.MUSIC_LIST) do
+        btn("▶ " .. song.name, function()
+            FH.setMusic(i)
+            FH.musicOn = true
+            if not music or not music.Parent then FH.startMusic() end
+        end)
+    end
 end
 
--- ===== Animacion apertura/cierre + sonido + musica =====
+-- ===== Animacion apertura/cierre =====
 local lastVisible = fr.Visible
--- Trigger inicial (arranca musica si ya está visible)
-if fr.Visible then
-    FH.startMusic()
-end
+if fr.Visible and FH.musicOn then FH.startMusic() end
 
 RS.Heartbeat:Connect(function()
     local v = fr.Visible
     if v ~= lastVisible then
         if v then
-            -- APERTURA: efecto "pop"
             fr.Size = UDim2.new(0, FH.BW * 0.6, 0, FH.BH * 0.6)
             fr.BackgroundTransparency = 0.5
             TW:Create(fr, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
@@ -81,11 +128,14 @@ RS.Heartbeat:Connect(function()
                 BackgroundTransparency = 0.05
             }):Play()
             FH.sfx("open", 2, 1)
-            FH.startMusic()
+            if FH.musicOn then FH.startMusic() end
         else
-            -- CIERRE: fade rápido + parar musica
             FH.sfx("close", 2.5, 1)
-            FH.stopMusic()
+            -- Solo parar musica si Keep Playing esta OFF
+            if not FH.keepPlaying then
+                FH.stopMusic()
+                FH.musicOn = false
+            end
         end
         lastVisible = v
     end
