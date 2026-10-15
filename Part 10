@@ -1,58 +1,6 @@
--- ============ PARTE 10/10 - Data Farm (v4 - solo 1Q) ============
+-- ============ PARTE 10/10 - Vacía (Get 1Q eliminado) ============
 local FH = getgenv().FH
 if not FH or not FH.p9 then warn("[FH] Ejecuta Partes 1-9 primero") return end
 if FH.p10 then warn("[FH] Parte 10 ya ejecutada") return end
-local RS,PL,LP = FH.RS,FH.PL,FH.LP
-local C = FH.C
-
-FH.dataFarmActive = false
-local farmThread = nil
-
-local function fireBoost()
-    local ev = FH.getHealEv()
-    if not ev then return end
-    for i = 1, 5 do
-        pcall(function() ev:FireServer("GiveSpeedBoost") end)
-    end
-end
-
--- 1Q modo LAG: 500 iteraciones por frame (~150,000 fires/seg)
-local function startFarmLag(count)
-    if farmThread then
-        FH.dataFarmActive = false
-        farmThread = nil
-        task.wait(0.2)
-    end
-    FH.dataFarmActive = true
-    farmThread = task.spawn(function()
-        local fired = 0
-        while FH.dataFarmActive and fired < count do
-            for i = 1, 500 do
-                if fired >= count or not FH.dataFarmActive then break end
-                fireBoost()
-                fired = fired + 1
-            end
-            task.wait()
-        end
-        FH.dataFarmActive = false
-        farmThread = nil
-    end)
-end
-
-local function stopFarm()
-    FH.dataFarmActive = false
-    farmThread = nil
-end
-
-local origPanel = FH.panel
-FH.panel = function()
-    origPanel()
-    if FH.pestana ~= "Class A" then return end
-    local btn = FH.crearBotonAccion
-    btn("Get 1Q Data ☠️ LAG", function() startFarmLag(33333333333334) end)
-    btn("STOP FARM 🛑", function() stopFarm() end)
-end
-
-if FH.pestana == "Class A" then FH.panel() end
 FH.p10 = true
-print("🎃 [10/10] Data Farm OK (v4 - solo 1Q)")
+print("🎃 [10/10] Part 10 skip (Get 1Q removed)")
