@@ -1,4 +1,4 @@
--- ============ PARTE 8/8 - Killer Punch (v11) ============
+-- ============ PARTE 8/8 - Killer Punch (v12) ============
 local FH = getgenv().FH
 if not FH or not FH.p7 then warn("[FH] Ejecuta Partes 1-7 primero") return end
 if FH.p8 then warn("[FH] Parte 8 ya ejecutada") return end
@@ -103,6 +103,15 @@ local function estoyStuneado()
     local hum = mc:FindFirstChildOfClass("Humanoid")
     if hum and hum.PlatformStand then return true end
     return false
+end
+
+-- Helper: hay pared entre 2 puntos?
+local function hayPared(desde, hasta, ignorar)
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = ignorar or {LP.Character}
+    local ray = WS:Raycast(desde, hasta - desde, params)
+    return ray ~= nil
 end
 
 local function enemigoCercano(radio)
@@ -307,7 +316,7 @@ task.spawn(function()
     end)
 end)
 
--- Always Max Speed (pausa si stuneado)
+-- Always Max Speed
 local amsConn = nil
 local function startAMS()
     if amsConn then return end
@@ -327,9 +336,11 @@ local function stopAMS()
     if amsConn then amsConn:Disconnect(); amsConn = nil end
 end
 
--- Kill All (pausa si stuneado, se mueve suave)
+-- ===== Kill All v2: con anti-pared =====
 local killAllConn = nil
 local savedSpeedKA, savedJumpKA = 16, 50
+local lastPosKA = nil
+
 local function getNearestSurvivor()
     local mc = LP.Character; if not mc then return nil end
     local mh = mc:FindFirstChild("HumanoidRootPart"); if not mh then return nil end
@@ -346,9 +357,9 @@ local function getNearestSurvivor()
     end
     return best
 end
+
 local function updateKillAll()
     if not K.killAll then return end
-    -- Si stuneado, no hacer nada (evita kick por TP stuneado)
     if estoyStuneado() then return end
     local survivor = getNearestSurvivor()
     if not survivor then return end
@@ -357,18 +368,33 @@ local function updateKillAll()
     local myhrp = mc:FindFirstChild("HumanoidRootPart"); if not myhrp then return end
     local myhum = mc:FindFirstChildOfClass("Humanoid")
     if myhum then myhum.WalkSpeed = 0; myhum.JumpPower = 0 end
+
     local targetPos = shrp.Position + Vector3.new(2.5, 1, 0)
     local finalLook = Vector3.new(shrp.Position.X, targetPos.Y, shrp.Position.Z)
     local dist = (myhrp.Position - shrp.Position).Magnitude
-    -- Movimiento suave (lerp), no teleport
+
     if dist > 2.5 then
-        local newPos = myhrp.Position:Lerp(targetPos, 0.12)
+        -- Calcular nueva posición
+        local newPos = myhrp.Position:Lerp(targetPos, 0.1)
+        -- Chequear 2 rayos: HRP y cabeza
+        local ignorar = {mc, survivor}
+        local midPoint = (myhrp.Position + newPos) / 2
+        local hayPared1 = hayPared(myhrp.Position, newPos, ignorar)
+        local hayPared2 = hayPared(Vector3.new(myhrp.Position.X, myhrp.Position.Y+2, myhrp.Position.Z),
+                                    Vector3.new(newPos.X, newPos.Y+2, newPos.Z), ignorar)
+        if hayPared1 or hayPared2 then
+            -- Hay pared en el camino: no moverse. Solo girar hacia el target.
+            local ry = math.atan2(-(shrp.Position.X - myhrp.Position.X), -(shrp.Position.Z - myhrp.Position.Z))
+            myhrp.CFrame = CFrame.new(myhrp.Position) * CFrame.Angles(0, ry, 0)
+            return
+        end
         pcall(function() myhrp.CFrame = CFrame.lookAt(newPos, finalLook) end)
         return
     end
-    -- Cerca: solo girar mirando
+    -- Ya está cerca: solo girar
     pcall(function() myhrp.CFrame = CFrame.lookAt(myhrp.Position, finalLook) end)
 end
+
 local function startKillAll()
     if killAllConn then return end
     local mc = LP.Character
@@ -376,6 +402,7 @@ local function startKillAll()
         local hum = mc:FindFirstChildOfClass("Humanoid")
         if hum then savedSpeedKA = hum.WalkSpeed; savedJumpKA = hum.JumpPower end
     end
+    lastPosKA = nil
     killAllConn = RS.RenderStepped:Connect(function() pcall(updateKillAll) end)
 end
 local function stopKillAll()
@@ -484,12 +511,4 @@ FH.panel = function()
     end
 
     mkNumInput("Rango", 1, LIMITS.range, function() return K.range end, function(v) K.range = v end)
-    mkNumInput("360 Radio", 1, LIMITS.hbRange, function() return K.hbRange end, function(v) K.hbRange = v end)
-    mkNumInput("Expander Largo", 1, LIMITS.expanderRange, function() return K.expanderRange end, function(v) K.expanderRange = v end)
-    mkNumInput("Expander Ancho", 1, LIMITS.expanderWidth, function() return K.expanderWidth end, function(v) K.expanderWidth = v end)
-    mkNumInput("TP Caja", 1, LIMITS.tpBoxSize, function() return K.tpBoxSize end, function(v) K.tpBoxSize = v end)
-end
-
-if FH.pestana == "Experiment" then FH.panel() end
-FH.p8 = true
-print("🎃 [8/8] Killer Punch OK (v11)")
+    mkNumInput("360 Radio", 1, LIMITS.hbRang
