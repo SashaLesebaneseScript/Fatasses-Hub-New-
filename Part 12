@@ -1,4 +1,4 @@
--- ============ PARTE 12/12 - Fun Tab (jump fix) ============
+-- ============ PARTE 12/12 - Fun Tab (v4) ============
 local FH = getgenv().FH
 if not FH or not FH.p11 then warn("[FH] Ejecuta Partes 1-11 primero") return end
 if FH.p12 then warn("[FH] Parte 12 ya ejecutada") return end
@@ -12,14 +12,63 @@ FH.fun = {
     guardian=false, guardianRadius=4,
 }
 
--- Ragdoll
+-- ===== Emotes packs =====
+FH.EMOTE_PACKS = {
+    {name="Clásicos", emotes={
+        {name="Wave", id="rbxassetid://507770239"},
+        {name="Point", id="rbxassetid://507770453"},
+        {name="Dance", id="rbxassetid://507771019"},
+        {name="Laugh", id="rbxassetid://507770818"},
+        {name="Cheer", id="rbxassetid://507770677"},
+    }},
+    {name="Bailes", emotes={
+        {name="Dance 2", id="rbxassetid://507771379"},
+        {name="Dance 3", id="rbxassetid://507776043"},
+        {name="Floss", id="rbxassetid://5913582644"},
+        {name="Orange Justice", id="rbxassetid://5153912506"},
+        {name="Breakdance", id="rbxassetid://5912641340"},
+    }},
+    {name="Otros", emotes={
+        {name="Sit", id="rbxassetid://2506281703"},
+        {name="Lay", id="rbxassetid://2825746228"},
+        {name="Salute", id="rbxassetid://507770677"},
+        {name="Gangnam", id="rbxassetid://4865529790"},
+    }},
+}
+FH.currentEmoteTrack = nil
+
+local function playEmoteId(animId)
+    local mc = LP.Character; if not mc then return end
+    local hum = mc:FindFirstChildOfClass("Humanoid"); if not hum then return end
+    local animator = hum:FindFirstChildOfClass("Animator")
+    if not animator then animator = Instance.new("Animator"); animator.Parent = hum end
+    if FH.currentEmoteTrack then
+        pcall(function() FH.currentEmoteTrack:Stop() end)
+        FH.currentEmoteTrack = nil
+    end
+    local a = Instance.new("Animation")
+    a.AnimationId = animId
+    local track = animator:LoadAnimation(a)
+    track.Looped = false
+    track.Priority = Enum.AnimationPriority.Action
+    pcall(function() track:Play() end)
+    FH.currentEmoteTrack = track
+end
+
+local function stopEmote()
+    if FH.currentEmoteTrack then
+        pcall(function() FH.currentEmoteTrack:Stop() end)
+        FH.currentEmoteTrack = nil
+    end
+end
+
+-- ===== Ragdoll / Dance / Swim / Fall =====
 local function setRagdoll(on)
     local mc = LP.Character; if not mc then return end
     local hum = mc:FindFirstChildOfClass("Humanoid"); if not hum then return end
     hum.PlatformStand = on
 end
 
--- Dance
 local danceTrack = nil
 local function setDance(on)
     local mc = LP.Character; if not mc then return end
@@ -39,7 +88,6 @@ local function setDance(on)
     end
 end
 
--- Swim
 local swimConn = nil
 local function setSwim(on)
     local mc = LP.Character; if not mc then return end
@@ -65,67 +113,73 @@ local function setSwim(on)
     end
 end
 
--- Fall
 local function doFall()
     local mc = LP.Character; if not mc then return end
     local hum = mc:FindFirstChildOfClass("Humanoid"); if not hum then return end
     pcall(function() hum:ChangeState(Enum.HumanoidStateType.FallingDown) end)
 end
 
--- ===== Enable Jump (arreglado) =====
-local jumpConn = nil
-local function doJump()
+-- ===== Enable Jump (fix v2) =====
+local jumpLoopConn = nil
+local spaceConn = nil
+
+local function doJumpNow()
     local mc = LP.Character; if not mc then return end
     local hum = mc:FindFirstChildOfClass("Humanoid")
-    if hum then pcall(function() hum:ChangeState(Enum.HumanoidStateType.Jumping) end) end
-end
-local function startEnableJump()
-    if jumpConn then return end
-    jumpConn = RS.Heartbeat:Connect(function()
-        if not FH.fun.enableJump then return end
-        -- Re-hacer visible el boton de salto en movil
-        local pg = LP:FindFirstChild("PlayerGui")
-        if pg then
-            local tg = pg:FindFirstChild("TouchGui")
-            if tg then
-                local jb = tg:FindFirstChild("JumpButton", true)
-                if jb then
-                    if not jb.Visible then jb.Visible = true end
-                    if not jb.Active then jb.Active = true end
-                    if not jb:GetAttribute("FH_HOOKED") then
-                        jb:SetAttribute("FH_HOOKED", true)
-                        jb.MouseButton1Click:Connect(function()
-                            if FH.fun.enableJump then doJump() end
-                        end)
-                        jb.MouseButton1Down:Connect(function()
-                            if FH.fun.enableJump then doJump() end
-                        end)
-                    end
-                end
-            end
-        end
-    end)
-    -- Hook Space key
-    if not FH.fun._spaceConn then
-        FH.fun._spaceConn = FH.UI.InputBegan:Connect(function(inp, proc)
-            if proc then return end
-            if not FH.fun.enableJump then return end
-            if inp.KeyCode == Enum.KeyCode.Space then doJump() end
-        end)
-    end
-end
-local function stopEnableJump()
-    FH.fun.enableJump = false
-    if jumpConn then jumpConn:Disconnect(); jumpConn = nil end
-    if FH.fun._spaceConn then FH.fun._spaceConn:Disconnect(); FH.fun._spaceConn = nil end
+    if not hum then return end
+    -- Probar todos los metodos
+    pcall(function() hum:ChangeState(Enum.HumanoidStateType.Jumping) end)
+    pcall(function() hum.Jump = true end)
 end
 
--- Inf Jump
+local function startEnableJump()
+    if jumpLoopConn then return end
+    -- Hook Space
+    if not spaceConn then
+        spaceConn = FH.UI.InputBegan:Connect(function(inp, proc)
+            if proc then return end
+            if not FH.fun.enableJump then return end
+            if inp.KeyCode == Enum.KeyCode.Space then doJumpNow() end
+        end)
+    end
+    -- Loop para forzar boton visible + hook clicks
+    jumpLoopConn = RS.Heartbeat:Connect(function()
+        if not FH.fun.enableJump then return end
+        local pg = LP:FindFirstChild("PlayerGui")
+        if not pg then return end
+        local tg = pg:FindFirstChild("TouchGui")
+        if not tg then return end
+        local jb = tg:FindFirstChild("JumpButton", true)
+        if not jb then return end
+        if not jb.Visible then jb.Visible = true end
+        if not jb.Active then jb.Active = true end
+        if not jb:GetAttribute("FH_HOOKED") then
+            jb:SetAttribute("FH_HOOKED", true)
+            jb.MouseButton1Click:Connect(function()
+                if FH.fun.enableJump then doJumpNow() end
+            end)
+            jb.MouseButton1Down:Connect(function()
+                if FH.fun.enableJump then doJumpNow() end
+            end)
+            jb.TouchTap:Connect(function()
+                if FH.fun.enableJump then doJumpNow() end
+            end)
+        end
+    end)
+end
+
+local function stopEnableJump()
+    FH.fun.enableJump = false
+    if jumpLoopConn then jumpLoopConn:Disconnect(); jumpLoopConn = nil end
+    if spaceConn then spaceConn:Disconnect(); spaceConn = nil end
+end
+
+-- ===== Inf Jump =====
 local infConn = nil
 local function startInfJump()
     if infConn then return end
     infConn = FH.UI.JumpRequest:Connect(function()
-        if FH.fun.infJump then doJump() end
+        if FH.fun.infJump then doJumpNow() end
     end)
 end
 local function stopInfJump()
@@ -133,7 +187,7 @@ local function stopInfJump()
     if infConn then infConn:Disconnect(); infConn = nil end
 end
 
--- Guardian v3 (sin cambios - funciona)
+-- ===== Guardian (igual que antes) =====
 local guardianConn = nil
 local savedSpeed, savedJump = 16, 50
 local function getSurvivorTarget()
@@ -143,7 +197,7 @@ local function getSurvivorTarget()
         if not khrp then return nil end
         local best, bd = nil, math.huge
         for _, p in ipairs(PL:GetPlayers()) do
-            if p.Character and p.Character ~= killer and p ~= LP then
+            if p.Character and p.Character ~= killer and p ~= LP and not FH.isProtectedPlayer(p) then
                 local h = p.Character:FindFirstChildOfClass("Humanoid")
                 local hrp = p.Character:FindFirstChild("HumanoidRootPart")
                 if h and h.Health > 0 and hrp then
@@ -154,20 +208,7 @@ local function getSurvivorTarget()
         end
         return best
     end
-    local myhrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-    if not myhrp then return nil end
-    local best, bd = nil, math.huge
-    for _, p in ipairs(PL:GetPlayers()) do
-        if p ~= LP and p.Character then
-            local h = p.Character:FindFirstChildOfClass("Humanoid")
-            local hrp = p.Character:FindFirstChild("HumanoidRootPart")
-            if h and h.Health > 0 and hrp then
-                local d = (myhrp.Position - hrp.Position).Magnitude
-                if d < bd then bd = d; best = p.Character end
-            end
-        end
-    end
-    return best
+    return nil
 end
 local function updateGuardian()
     if not FH.fun.guardian then return end
@@ -239,8 +280,8 @@ local function stopGuardian()
     end
 end
 
--- Re-aplicar al respawnear
-LP.CharacterAdded:Connect(function(ch)
+-- Re-aplicar al respawn
+LP.CharacterAdded:Connect(function()
     task.wait(1.5)
     if FH.fun.ragdoll then setRagdoll(true) end
     if FH.fun.dance then setDance(true) end
@@ -250,7 +291,7 @@ LP.CharacterAdded:Connect(function(ch)
     if FH.fun.guardian then startGuardian() end
 end)
 
--- Tab Fun
+-- ===== Tab Fun =====
 local t = Instance.new("TextButton", FH.sb)
 t.Size = UDim2.new(1, -6, 0, 32)
 t.BackgroundColor3 = C.bg_card
@@ -285,11 +326,43 @@ t.MouseButton1Click:Connect(function()
 end)
 FH.tabs["Fun"] = {S = setSt, CS = false}
 
+-- ===== Panel Fun =====
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
     if FH.pestana ~= "Fun" then return end
     local opt = FH.crearOpcion
+    local btn = FH.crearBotonAccion
+
+    -- Emotes section
+    local hdr = function(txt)
+        local h = Instance.new("TextLabel", FH.oc)
+        h.Size = UDim2.new(1,0,0,22)
+        h.BackgroundTransparency = 1
+        h.Text = txt
+        h.TextColor3 = C.accent
+        h.Font = Enum.Font.GothamBold
+        h.TextScaled = true
+        h.TextXAlignment = Enum.TextXAlignment.Left
+    end
+
+    hdr("── Emotes ──")
+    for _, pack in ipairs(FH.EMOTE_PACKS) do
+        local ph = Instance.new("TextLabel", FH.oc)
+        ph.Size = UDim2.new(1, 0, 0, 18)
+        ph.BackgroundTransparency = 1
+        ph.Text = "  " .. pack.name
+        ph.TextColor3 = C.text_sub or C.text
+        ph.Font = Enum.Font.GothamBold
+        ph.TextScaled = true
+        ph.TextXAlignment = Enum.TextXAlignment.Left
+        for _, em in ipairs(pack.emotes) do
+            btn("▶ " .. em.name, function() playEmoteId(em.id) end)
+        end
+    end
+    btn("⏹ Stop Emote", function() stopEmote() end)
+
+    hdr("── Acciones ──")
     opt("Ragdoll 🕺", function(v) FH.fun.ragdoll = v; setRagdoll(v) end)
     opt("Dance 💃", function(v) FH.fun.dance = v; setDance(v) end)
     opt("Swim 🏊", function(v) FH.fun.swim = v; setSwim(v) end)
@@ -310,6 +383,7 @@ FH.panel = function()
         if v then startGuardian() else stopGuardian() end
     end)
 
+    -- Slider distancia Guardian
     local holder = Instance.new("Frame", FH.oc)
     holder.Size = UDim2.new(1, 0, 0, 40)
     holder.BackgroundColor3 = C.bg_card
@@ -364,4 +438,4 @@ end
 
 if FH.pestana == "Fun" then FH.panel() end
 FH.p12 = true
-print("🎃 [12/12] Fun Tab OK")
+print("🎃 [12/12] Fun Tab OK (v4)")
