@@ -1,41 +1,45 @@
--- ============ PARTE 8/8 - Killer Punch ============
+-- ============ PARTE 8/8 - Killer Punch (v3 fixed) ============
 local FH = getgenv().FH
 if not FH or not FH.p7 then warn("[FH] Ejecuta Partes 1-7 primero") return end
 if FH.p8 then warn("[FH] Parte 8 ya ejecutada") return end
 local RS,PL,WS,RST,LP = FH.RS,FH.PL,FH.WS,FH.RST,FH.LP
 local C = FH.C
 
-local PunchEvent = RST:FindFirstChild("PunchEvent")
+-- PunchEvent cache
+local PunchEvent = nil
+local function getPunchEv()
+    if PunchEvent and PunchEvent.Parent then return PunchEvent end
+    PunchEvent = RST:FindFirstChild("PunchEvent")
+    if not PunchEvent then
+        for _, v in ipairs(RST:GetDescendants()) do
+            if v:IsA("RemoteEvent") and v.Name == "PunchEvent" then
+                PunchEvent = v; break
+            end
+        end
+    end
+    return PunchEvent
+end
 
 FH.k8 = {
-    alwaysMaxVel = false,
-    noCooldown   = false,
-    autoPunch    = false,
-    antiStun     = false,
-    silentAim    = false,
-    multiPunch   = false,
-    maxSpeed     = 25,
-    range        = 12,
-    attackId     = 0,
+    noCooldown=false, autoPunch=false, antiStun=false,
+    silentAim=false, hitboxExpander=false,
+    range=12, hbRange=12, attackId=0,
 }
 local K = FH.k8
-local velConn, punchT = nil, nil
 
 local function soyKiller() return FH.isKiller(LP.Character) end
 
 local function estoyStuneado()
-    local mc = LP.Character
-    if not mc then return false end
+    local mc = LP.Character; if not mc then return false end
     local s = mc:FindFirstChild("Stun")
-    return s and s.Value == true
+    if s and s:IsA("BoolValue") then return s.Value == true end
+    return false
 end
 
 local function enemigoCercano(radio)
     radio = radio or K.range
-    local mc = LP.Character
-    if not mc then return nil end
-    local mh = mc:FindFirstChild("HumanoidRootPart")
-    if not mh then return nil end
+    local mc = LP.Character; if not mc then return nil end
+    local mh = mc:FindFirstChild("HumanoidRootPart"); if not mh then return nil end
     local best, bd = nil, radio
     for _, p in ipairs(PL:GetPlayers()) do
         if p ~= LP and p.Character then
@@ -50,174 +54,336 @@ local function enemigoCercano(radio)
     return best
 end
 
-local function firePunch()
-    if not PunchEvent then return false end
+-- ===== Fire burst (loop 0.4s actualizando posicion cada frame) =====
+-- useTargetPos = true → la hitbox se genera en la posicion del target (silent aim)
+-- useTargetPos = false → la hitbox sigue al jugador (auto punch normal)
+local function fireBurst(targetChar, useTargetPos)
+    local ev = getPunchEv()
+    if not ev then return end
     local mc = LP.Character
-    if not mc then return false end
+    if not mc then return end
     local hrp = mc:FindFirstChild("HumanoidRootPart")
-    if not hrp then return false end
+    if not hrp then return end
     K.attackId = K.attackId + 1
-    local pos = hrp.Position
-    local dir = hrp.CFrame.LookVector
-    if K.silentAim then
-        local t = enemigoCercano(K.range)
-        if t then
-            local th = t:FindFirstChild("HumanoidRootPart")
-            if th then
-                dir = (th.Position - hrp.Position).Unit
-                if K.multiPunch then pos = th.Position end
+    local thisId = K.attackId
+    local startT = tick()
+    task.spawn(function()
+        while tick() - startT <= 0.4 do
+            local c = LP.Character
+            if not c then break end
+            local h = c:FindFirstChild("HumanoidRootPart")
+            if not h then break end
+            local pos = h.Position
+            local dir = h.CFrame.LookVector
+            if useTargetPos and targetChar and targetChar.Parent then
+                local th = targetChar:FindFirstChild("Head") or targetChar:FindFirstChild("HumanoidRootPart")
+                if th then
+                    pos = th.Position
+                    local diff = th.Position - h.Position
+                    if diff.Magnitude > 0.1 then
+                        dir = diff.Unit
+                    end
+                end
+            end
+            pcall(function()
+                ev:FireServer({
+                    AttackId = thisId,
+                    Position = pos,
+                    Velocity = h.AssemblyLinearVelocity,
+                    Direction = dir,
+                })
+            end)
+            task.wait(0.02)
+        end
+    end)
+end
+
+-- ===== 1. No Cooldown (solo quita cooldown, NO dispara) =====
+local function findPunchScript()
+    local pg = LP:FindFirstChild("PlayerGui")
+    if not pg then return nil end
+    local punch = pg:FindFirstChild("Punch")
+    if not punch then return nil end
+    local ab = punch:FindFirstChild("Ability1")
+    if not ab then return nil end
+    local ls = ab:FindFirstChild("LocalScript")
+    return ls
+end
+
+local function findTryPunch()
+    local ls = findPunchScript()
+    if not ls then return nil end
+    local mainFn
+    pcall(function() mainFn = getscriptclosure(ls) end)
+    if not mainFn then
+        for _, obj in pairs(getgc(true)) do
+            if type(obj) == "function" and islclosure(obj) then
+                local env = getfenv(obj)
+                if env and env.script == ls then mainFn = obj; break end
             end
         end
     end
-    return pcall(function()
-        PunchEvent:FireServer({
-            AttackId = K.attackId,
-            Position = pos,
-            Velocity = hrp.AssemblyLinearVelocity,
-            Direction = dir,
-        })
-    end)
-end
-
--- Always Max Velocity + Anti Stun (comparten loop)
-local function startVelLoop()
-    if velConn then return end
-    velConn = RS.Heartbeat:Connect(function()
-        if not (K.alwaysMaxVel or K.antiStun) then return end
-        if not soyKiller() then return end
-        local mc = LP.Character
-        if not mc then return end
-        local h = mc:FindFirstChildOfClass("Humanoid")
-        if K.antiStun then
-            local s = mc:FindFirstChild("Stun")
-            if s and s.Value == true then
-                pcall(function() s.Value = false end)
+    if not mainFn then return nil end
+    for i = 1, 200 do
+        local name, val = debug.getupvalue(mainFn, i)
+        if not name then break end
+        if type(val) == "function" and islclosure(val) then
+            for j = 1, 100 do
+                local n2 = debug.getupvalue(val, j)
+                if not n2 then break end
+                if n2 == "v_u_7" then return val end
             end
         end
-        if h and not estoyStuneado() then
-            if h.WalkSpeed ~= K.maxSpeed then h.WalkSpeed = K.maxSpeed end
-        end
-    end)
-end
-local function stopVelLoop()
-    K.alwaysMaxVel = false
-    K.antiStun = false
-    if velConn then velConn:Disconnect(); velConn = nil end
+    end
+    return nil
 end
 
--- No Cooldown + Auto Punch (comparten loop)
-local function startPunchLoop()
-    if punchT then return end
-    punchT = task.spawn(function()
-        while K.noCooldown or K.autoPunch do
+local function setUv(fn, name, value)
+    for i = 1, 100 do
+        local n = debug.getupvalue(fn, i)
+        if not n then break end
+        if n == name then
+            pcall(function() debug.setupvalue(fn, i, value) end)
+            return true
+        end
+    end
+    return false
+end
+
+local ncLoop = nil
+local tryPunchRef = nil
+local function startNoCooldown()
+    tryPunchRef = findTryPunch()
+    if not tryPunchRef then warn("No Cooldown: no se encontro script") end
+    if ncLoop then return end
+    ncLoop = RS.Heartbeat:Connect(function()
+        if not K.noCooldown then return end
+        if not tryPunchRef then
+            tryPunchRef = findTryPunch()
+            if not tryPunchRef then return end
+        end
+        setUv(tryPunchRef, "v_u_7", true)
+        setUv(tryPunchRef, "v_u_6", 0)
+    end)
+end
+local function stopNoCooldown()
+    K.noCooldown = false
+    if ncLoop then ncLoop:Disconnect(); ncLoop = nil end
+end
+
+-- ===== 2. Auto Punch (hitbox sigue al jugador) =====
+local apLoop = nil
+local function startAutoPunch()
+    if apLoop then return end
+    apLoop = task.spawn(function()
+        while K.autoPunch do
             if soyKiller() then
-                if K.noCooldown then
-                    firePunch()
-                    task.wait(0.05)
-                elseif K.autoPunch then
-                    if enemigoCercano(K.range) then firePunch() end
-                    task.wait(0.3)
+                local t = enemigoCercano(K.range)
+                if t then
+                    fireBurst(t, false)
+                    task.wait(0.45)
+                else
+                    task.wait(0.1)
                 end
             else
                 task.wait(0.3)
             end
         end
-        punchT = nil
+        apLoop = nil
     end)
 end
-local function stopPunchLoop()
-    K.noCooldown = false
+local function stopAutoPunch()
     K.autoPunch = false
-    punchT = nil
+    apLoop = nil
 end
 
--- Panel (añadido a la pestaña Experiment)
+-- ===== 3. Anti Stun =====
+local stunConn = nil
+local function startAntiStun()
+    if stunConn then return end
+    stunConn = RS.Heartbeat:Connect(function()
+        if not K.antiStun then return end
+        local mc = LP.Character
+        if not mc then return end
+        for _, d in ipairs(mc:GetDescendants()) do
+            if d.Name:lower():find("stun") then
+                if d:IsA("BoolValue") and d.Value == true then
+                    pcall(function() d.Value = false end)
+                elseif (d:IsA("NumberValue") or d:IsA("IntValue")) and d.Value > 0 then
+                    pcall(function() d.Value = 0 end)
+                end
+            end
+        end
+    end)
+end
+local function stopAntiStun()
+    K.antiStun = false
+    if stunConn then stunConn:Disconnect(); stunConn = nil end
+end
+
+-- ===== 4. Silent Aim Punch (hitbox sigue al target) =====
+local sapLoop = nil
+local function startSilentAim()
+    if sapLoop then return end
+    sapLoop = task.spawn(function()
+        while K.silentAim do
+            if soyKiller() then
+                local t = enemigoCercano(K.range)
+                if t then
+                    fireBurst(t, true)
+                    task.wait(0.45)
+                else
+                    task.wait(0.1)
+                end
+            else
+                task.wait(0.3)
+            end
+        end
+        sapLoop = nil
+    end)
+end
+local function stopSilentAim()
+    K.silentAim = false
+    sapLoop = nil
+end
+
+-- ===== 5. Hitbox Expander (fire en circulo, sigue al jugador) =====
+local hbLoop = nil
+local function startHitboxExpander()
+    if hbLoop then return end
+    hbLoop = task.spawn(function()
+        while K.hitboxExpander do
+            if soyKiller() then
+                local t = enemigoCercano(K.hbRange)
+                if t then
+                    local ev = getPunchEv()
+                    local mc = LP.Character
+                    local mh = mc and mc:FindFirstChild("HumanoidRootPart")
+                    if ev and mh then
+                        K.attackId = K.attackId + 1
+                        local id = K.attackId
+                        local startT = tick()
+                        task.spawn(function()
+                            while tick() - startT <= 0.4 do
+                                local c = LP.Character
+                                if not c then break end
+                                local h = c:FindFirstChild("HumanoidRootPart")
+                                if not h then break end
+                                -- Fire en 6 direcciones para cubrir area
+                                for ang = 0, 300, 60 do
+                                    local rad = math.rad(ang)
+                                    local dir = Vector3.new(math.cos(rad), 0, math.sin(rad))
+                                    pcall(function()
+                                        ev:FireServer({
+                                            AttackId = id,
+                                            Position = h.Position,
+                                            Velocity = h.AssemblyLinearVelocity,
+                                            Direction = dir,
+                                        })
+                                    end)
+                                end
+                                task.wait(0.05)
+                            end
+                        end)
+                    end
+                    task.wait(0.45)
+                else
+                    task.wait(0.1)
+                end
+            else
+                task.wait(0.3)
+            end
+        end
+        hbLoop = nil
+    end)
+end
+local function stopHitboxExpander()
+    K.hitboxExpander = false
+    hbLoop = nil
+end
+
+-- ===== Panel =====
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
     if FH.pestana ~= "Experiment" then return end
     local opt = FH.crearOpcion
-    local hdr = function(t)
-        local h = Instance.new("TextLabel", FH.oc)
-        h.Size = UDim2.new(1,0,0,22)
-        h.BackgroundTransparency = 1
-        h.Text = t
-        h.TextColor3 = C.accent
-        h.Font = Enum.Font.GothamBold
-        h.TextScaled = true
-        h.TextXAlignment = Enum.TextXAlignment.Left
-    end
-    hdr("── Killer Punch ──")
-    opt("Always Max Velocity 🏃", function(v)
-        K.alwaysMaxVel = v
-        if v then startVelLoop() elseif not K.antiStun then stopVelLoop() end
-    end)
     opt("No Cooldown ⚡", function(v)
         K.noCooldown = v
-        if v then startPunchLoop() elseif not K.autoPunch then stopPunchLoop() end
+        if v then startNoCooldown() else stopNoCooldown() end
     end)
     opt("Auto Punch 👊", function(v)
         K.autoPunch = v
-        if v then startPunchLoop() elseif not K.noCooldown then stopPunchLoop() end
+        if v then startAutoPunch() else stopAutoPunch() end
     end)
     opt("Anti Stun 🛡", function(v)
         K.antiStun = v
-        if v then startVelLoop() elseif not K.alwaysMaxVel then stopVelLoop() end
+        if v then startAntiStun() else stopAntiStun() end
     end)
-    opt("Silent Aim Punch 👻", function(v) K.silentAim = v end)
-    opt("Multi-Punch (hitbox area) 💥", function(v) K.multiPunch = v end)
+    opt("Silent Aim Punch 👻", function(v)
+        K.silentAim = v
+        if v then startSilentAim() else stopSilentAim() end
+    end)
+    opt("Hitbox Expander 💥", function(v)
+        K.hitboxExpander = v
+        if v then startHitboxExpander() else stopHitboxExpander() end
+    end)
 
-    -- Slider de rango
-    local holder = Instance.new("Frame", FH.oc)
-    holder.Size = UDim2.new(1, 0, 0, 40)
-    holder.BackgroundColor3 = C.bg_card
-    holder.BackgroundTransparency = 0.2
-    holder.BorderSizePixel = 0
-    Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 10)
-    local hs = Instance.new("UIStroke", holder)
-    hs.Color = C.border; hs.Thickness = 1; hs.Transparency = 0.5
-    local lbl = Instance.new("TextLabel", holder)
-    lbl.Size = UDim2.new(0, 90, 1, 0); lbl.Position = UDim2.new(0, 12, 0, 0)
-    lbl.BackgroundTransparency = 1; lbl.Text = "Rango"
-    lbl.TextColor3 = C.text; lbl.TextScaled = true
-    lbl.Font = Enum.Font.GothamBold; lbl.TextXAlignment = Enum.TextXAlignment.Left
-    local valL = Instance.new("TextLabel", holder)
-    valL.Size = UDim2.new(0, 40, 1, 0); valL.Position = UDim2.new(1, -50, 0, 0)
-    valL.BackgroundTransparency = 1; valL.Text = tostring(K.range)
-    valL.TextColor3 = C.accent; valL.TextScaled = true
-    valL.Font = Enum.Font.GothamBold
-    local bar = Instance.new("Frame", holder)
-    bar.Size = UDim2.new(1, -190, 0, 14); bar.Position = UDim2.new(0, 100, 0.5, -7)
-    bar.BackgroundColor3 = Color3.fromRGB(20, 10, 28); bar.BorderSizePixel = 0
-    Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
-    local fill = Instance.new("Frame", bar)
-    fill.Size = UDim2.new((K.range - 1) / 99, 0, 1, 0)
-    fill.BackgroundColor3 = C.accent; fill.BorderSizePixel = 0
-    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
-    local drag = false
-    local function upd(x)
-        local rel = math.clamp((x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
-        fill.Size = UDim2.new(rel, 0, 1, 0)
-        local v = math.floor(1 + rel * 99)
-        K.range = v; valL.Text = tostring(v)
+    local function mkSlider(labelTxt, minV, maxV, getV, setV)
+        local holder = Instance.new("Frame", FH.oc)
+        holder.Size = UDim2.new(1, 0, 0, 40)
+        holder.BackgroundColor3 = C.bg_card
+        holder.BackgroundTransparency = 0.2
+        holder.BorderSizePixel = 0
+        Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 10)
+        local hs = Instance.new("UIStroke", holder)
+        hs.Color = C.border; hs.Thickness = 1; hs.Transparency = 0.5
+        local lbl = Instance.new("TextLabel", holder)
+        lbl.Size = UDim2.new(0, 84, 1, 0); lbl.Position = UDim2.new(0, 12, 0, 0)
+        lbl.BackgroundTransparency = 1; lbl.Text = labelTxt
+        lbl.TextColor3 = C.text; lbl.TextScaled = true
+        lbl.Font = Enum.Font.GothamBold; lbl.TextXAlignment = Enum.TextXAlignment.Left
+        local valL = Instance.new("TextLabel", holder)
+        valL.Size = UDim2.new(0, 40, 1, 0); valL.Position = UDim2.new(1, -50, 0, 0)
+        valL.BackgroundTransparency = 1; valL.Text = tostring(math.floor(getV()))
+        valL.TextColor3 = C.accent; valL.TextScaled = true
+        valL.Font = Enum.Font.GothamBold
+        local bar = Instance.new("Frame", holder)
+        bar.Size = UDim2.new(1, -190, 0, 14); bar.Position = UDim2.new(0, 100, 0.5, -7)
+        bar.BackgroundColor3 = Color3.fromRGB(20, 10, 28); bar.BorderSizePixel = 0
+        Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
+        local rel0 = (getV() - minV) / (maxV - minV)
+        local fill = Instance.new("Frame", bar)
+        fill.Size = UDim2.new(rel0, 0, 1, 0)
+        fill.BackgroundColor3 = C.accent; fill.BorderSizePixel = 0
+        Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+        local drag = false
+        local function upd(x)
+            local rel = math.clamp((x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+            fill.Size = UDim2.new(rel, 0, 1, 0)
+            local v = minV + rel * (maxV - minV)
+            setV(v); valL.Text = tostring(math.floor(v))
+        end
+        bar.InputBegan:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                drag = true; upd(i.Position.X)
+            end
+        end)
+        FH.UI.InputChanged:Connect(function(i)
+            if drag and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+                upd(i.Position.X)
+            end
+        end)
+        FH.UI.InputEnded:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                drag = false
+            end
+        end)
     end
-    bar.InputBegan:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-            drag = true; upd(i.Position.X)
-        end
-    end)
-    FH.UI.InputChanged:Connect(function(i)
-        if drag and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-            upd(i.Position.X)
-        end
-    end)
-    FH.UI.InputEnded:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-            drag = false
-        end
-    end)
+    mkSlider("Rango", 1, 100, function() return K.range end, function(v) K.range = v end)
+    mkSlider("HB Radio", 1, 100, function() return K.hbRange end, function(v) K.hbRange = v end)
 end
 
 if FH.pestana == "Experiment" then FH.panel() end
 FH.p8 = true
-print("🎃 [8/8] Killer Punch OK")
+print("🎃 [8/8] Killer Punch OK (v3)")
