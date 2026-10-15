@@ -1,4 +1,4 @@
--- ============ PARTE 8/8 - Killer Punch (v7) ============
+-- ============ PARTE 8/8 - Killer Punch (v8) ============
 local FH = getgenv().FH
 if not FH or not FH.p7 then warn("[FH] Ejecuta Partes 1-7 primero") return end
 if FH.p8 then warn("[FH] Parte 8 ya ejecutada") return end
@@ -69,6 +69,7 @@ local function enemigoAlFrente(radio)
     return best
 end
 
+-- ===== Auto Punch =====
 local apLoop = nil
 local function startAutoPunch()
     if apLoop then return end
@@ -109,6 +110,7 @@ local function startAutoPunch()
 end
 local function stopAutoPunch() K.autoPunch = false; apLoop = nil end
 
+-- ===== Anti Stun =====
 local stunConns = {}
 local function nukeStun(val)
     if val:GetAttribute("FH_STUN") then return end
@@ -141,6 +143,7 @@ local function stopAntiStun()
     stunConns = {}
 end
 
+-- ===== Hitbox Tp (Sniper: dispara en la posición del target) =====
 local tpLoop = nil
 local function startHitboxTp()
     if tpLoop then return end
@@ -185,6 +188,7 @@ local function startHitboxTp()
 end
 local function stopHitboxTp() K.hitboxTp = false; tpLoop = nil end
 
+-- ===== 360° Hitbox =====
 local hbLoop = nil
 local function startHitbox360()
     if hbLoop then return end
@@ -226,48 +230,49 @@ local function startHitbox360()
 end
 local function stopHitbox360() K.hitbox360 = false; hbLoop = nil end
 
+-- ===== Hitbox Expander (palo gigante en la dirección que miras) =====
 local hbExpandLoop = nil
 local function startHitboxExpander()
     if hbExpandLoop then return end
     hbExpandLoop = task.spawn(function()
         while K.hitboxExpander do
             if soyKiller() then
-                local t = enemigoAlFrente(K.expanderRange)
-                if t then
-                    local ev = getPunchEv()
-                    local mc = LP.Character
-                    local mh = mc and mc:FindFirstChild("HumanoidRootPart")
-                    if ev and mh then
-                        K.attackId = K.attackId + 1
-                        local id = K.attackId
-                        local th = t:FindFirstChild("Head") or t:FindFirstChild("HumanoidRootPart")
-                        if th then
-                            local startPos = mh.Position
-                            local endPos = th.Position
-                            local dir = (endPos - startPos).Unit
-                            local startT = tick()
-                            task.spawn(function()
-                                while tick() - startT <= 0.4 do
-                                    local steps = 20
-                                    for i = 0, steps do
-                                        local frac = i / steps
-                                        local pos = startPos + (endPos - startPos) * frac
-                                        pcall(function()
-                                            ev:FireServer({
-                                                AttackId = id,
-                                                Position = pos,
-                                                Velocity = Vector3.new(0,0,0),
-                                                Direction = dir,
-                                            })
-                                        end)
-                                    end
-                                    task.wait(0.05)
-                                end
-                            end)
+                local ev = getPunchEv()
+                local mc = LP.Character
+                local mh = mc and mc:FindFirstChild("HumanoidRootPart")
+                if ev and mh then
+                    K.attackId = K.attackId + 1
+                    local id = K.attackId
+                    local dist = K.expanderRange
+                    local startT = tick()
+                    task.spawn(function()
+                        while tick() - startT <= 0.4 do
+                            local c = LP.Character
+                            if not c then break end
+                            local h = c:FindFirstChild("HumanoidRootPart")
+                            if not h then break end
+                            -- Dirección = donde mira AHORA (se recalcula cada frame)
+                            local nowLook = h.CFrame.LookVector
+                            local nowStart = h.Position + nowLook * 2
+                            -- Palo que se extiende desde el jugador hasta el rango
+                            local steps = 25
+                            for i = 0, steps do
+                                local frac = i / steps
+                                local pos = nowStart + nowLook * (dist * frac)
+                                pcall(function()
+                                    ev:FireServer({
+                                        AttackId = id,
+                                        Position = pos,
+                                        Velocity = Vector3.new(0,0,0),
+                                        Direction = nowLook,
+                                    })
+                                end)
+                            end
+                            task.wait(0.05)
                         end
-                    end
-                    task.wait(0.45)
-                else task.wait(0.2) end
+                    end)
+                end
+                task.wait(0.45)
             else task.wait(0.3) end
         end
         hbExpandLoop = nil
@@ -275,6 +280,7 @@ local function startHitboxExpander()
 end
 local function stopHitboxExpander() K.hitboxExpander = false; hbExpandLoop = nil end
 
+-- ===== Panel =====
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
@@ -359,4 +365,4 @@ end
 
 if FH.pestana == "Experiment" then FH.panel() end
 FH.p8 = true
-print("🎃 [8/8] Killer Punch OK (v7)")
+print("🎃 [8/8] Killer Punch OK (v8)")
