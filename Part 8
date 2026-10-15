@@ -1,58 +1,362 @@
--- ===== Emotes (solo Roblox oficiales, loop toggle) =====
-FH.EMOTES = {
-    {name="Wave",       id="rbxassetid://507770239"},
-    {name="Point",      id="rbxassetid://507770453"},
-    {name="Dance",      id="rbxassetid://507771019"},
-    {name="Laugh",      id="rbxassetid://507770818"},
-    {name="Cheer",      id="rbxassetid://507770677"},
-    {name="Dance 2",    id="rbxassetid://507771379"},
-    {name="Dance 3",    id="rbxassetid://507776043"},
-    {name="Salute",     id="rbxassetid://507770677"},
-    {name="Sit",        id="rbxassetid://2506281703"},
-    {name="Lay",        id="rbxassetid://2825746228"},
-}
-FH.emoteLoopActive = {}   -- {id → true/false}
-FH.emoteTracks = {}       -- {id → AnimationTrack}
+-- ============ PARTE 8/8 - Killer Punch (v7) ============
+local FH = getgenv().FH
+if not FH or not FH.p7 then warn("[FH] Ejecuta Partes 1-7 primero") return end
+if FH.p8 then warn("[FH] Parte 8 ya ejecutada") return end
+local RS,PL,WS,RST,LP = FH.RS,FH.PL,FH.WS,FH.RST,FH.LP
+local C = FH.C
 
-local function getEmoteTrack(animId)
-    if FH.emoteTracks[animId] then return FH.emoteTracks[animId] end
-    local mc = LP.Character; if not mc then return nil end
-    local hum = mc:FindFirstChildOfClass("Humanoid"); if not hum then return nil end
-    local animator = hum:FindFirstChildOfClass("Animator")
-    if not animator then animator = Instance.new("Animator"); animator.Parent = hum end
-    local a = Instance.new("Animation")
-    a.AnimationId = animId
-    local tr = animator:LoadAnimation(a)
-    tr.Looped = true
-    tr.Priority = Enum.AnimationPriority.Action
-    FH.emoteTracks[animId] = tr
-    return tr
-end
-
-local function stopEmoteById(animId)
-    local tr = FH.emoteTracks[animId]
-    if tr then pcall(function() tr:Stop() end) end
-    FH.emoteLoopActive[animId] = false
-end
-
-local function stopAllEmotes()
-    for id in pairs(FH.emoteLoopActive) do
-        local tr = FH.emoteTracks[id]
-        if tr then pcall(function() tr:Stop() end) end
+local PunchEvent = nil
+local function getPunchEv()
+    if PunchEvent and PunchEvent.Parent then return PunchEvent end
+    PunchEvent = RST:FindFirstChild("PunchEvent")
+    if not PunchEvent then
+        for _, v in ipairs(RST:GetDescendants()) do
+            if v:IsA("RemoteEvent") and v.Name == "PunchEvent" then PunchEvent = v; break end
+        end
     end
-    FH.emoteLoopActive = {}
+    return PunchEvent
 end
 
-local function toggleEmote(animId)
-    if FH.emoteLoopActive[animId] then
-        stopEmoteById(animId)
-    else
-        -- Detener los demas antes de empezar uno nuevo
-        stopAllEmotes()
-        local tr = getEmoteTrack(animId)
-        if tr then
-            FH.emoteLoopActive[animId] = true
-            pcall(function() tr:Play(0.1) end)
+FH.k8 = {
+    autoPunch=false, antiStun=false,
+    hitboxTp=false, hitbox360=false, hitboxExpander=false,
+    range=12, hbRange=30, expanderRange=500, attackId=0,
+}
+local K = FH.k8
+
+local function soyKiller() return FH.isKiller(LP.Character) end
+
+local function enemigoCercano(radio)
+    radio = radio or K.range
+    local mc = LP.Character; if not mc then return nil end
+    local mh = mc:FindFirstChild("HumanoidRootPart"); if not mh then return nil end
+    local best, bd = nil, radio
+    for _, p in ipairs(PL:GetPlayers()) do
+        if p ~= LP and p.Character then
+            local h = p.Character:FindFirstChildOfClass("Humanoid")
+            local hr = p.Character:FindFirstChild("HumanoidRootPart")
+            if h and h.Health > 0 and hr then
+                local d = (mh.Position - hr.Position).Magnitude
+                if d < bd then bd = d; best = p.Character end
+            end
+        end
+    end
+    return best
+end
+
+local function enemigoAlFrente(radio)
+    local mc = LP.Character; if not mc then return nil end
+    local mh = mc:FindFirstChild("HumanoidRootPart"); if not mh then return nil end
+    local look = mh.CFrame.LookVector
+    local best, bestScore = nil, -math.huge
+    for _, p in ipairs(PL:GetPlayers()) do
+        if p ~= LP and p.Character then
+            local h = p.Character:FindFirstChildOfClass("Humanoid")
+            local hr = p.Character:FindFirstChild("HumanoidRootPart")
+            if h and h.Health > 0 and hr then
+                local diff = hr.Position - mh.Position
+                local dist = diff.Magnitude
+                if dist <= radio and dist > 0.1 then
+                    local dot = look:Dot(diff.Unit)
+                    if dot > 0.5 then
+                        local score = dot * 1000 - dist
+                        if score > bestScore then bestScore = score; best = p.Character end
+                    end
+                end
+            end
+        end
+    end
+    return best
+end
+
+local apLoop = nil
+local function startAutoPunch()
+    if apLoop then return end
+    apLoop = task.spawn(function()
+        while K.autoPunch do
+            if soyKiller() then
+                local t = enemigoCercano(K.range)
+                if t then
+                    local ev = getPunchEv()
+                    local mc = LP.Character
+                    local mh = mc and mc:FindFirstChild("HumanoidRootPart")
+                    if ev and mh then
+                        K.attackId = K.attackId + 1
+                        local id = K.attackId
+                        local startT = tick()
+                        task.spawn(function()
+                            while tick() - startT <= 0.4 do
+                                local c = LP.Character; if not c then break end
+                                local h = c:FindFirstChild("HumanoidRootPart"); if not h then break end
+                                pcall(function()
+                                    ev:FireServer({
+                                        AttackId = id,
+                                        Position = h.Position,
+                                        Velocity = h.AssemblyLinearVelocity,
+                                        Direction = h.CFrame.LookVector,
+                                    })
+                                end)
+                                task.wait(0.02)
+                            end
+                        end)
+                    end
+                    task.wait(0.45)
+                else task.wait(0.1) end
+            else task.wait(0.3) end
+        end
+        apLoop = nil
+    end)
+end
+local function stopAutoPunch() K.autoPunch = false; apLoop = nil end
+
+local stunConns = {}
+local function nukeStun(val)
+    if val:GetAttribute("FH_STUN") then return end
+    val:SetAttribute("FH_STUN", true)
+    pcall(function() val.Value = false end)
+    table.insert(stunConns, val:GetPropertyChangedSignal("Value"):Connect(function()
+        if K.antiStun and val.Value then pcall(function() val.Value = false end) end
+    end))
+end
+local function findStunValues()
+    local mc = LP.Character; if not mc then return end
+    for _, d in ipairs(mc:GetDescendants()) do
+        if d.Name:lower():find("stun") and (d:IsA("BoolValue") or d:IsA("IntValue") or d:IsA("NumberValue")) then
+            nukeStun(d)
         end
     end
 end
+local antiStunConn = nil
+local function startAntiStun()
+    findStunValues()
+    if antiStunConn then return end
+    antiStunConn = RS.Heartbeat:Connect(function()
+        if K.antiStun then findStunValues() end
+    end)
+end
+local function stopAntiStun()
+    K.antiStun = false
+    if antiStunConn then antiStunConn:Disconnect(); antiStunConn = nil end
+    for _, c in ipairs(stunConns) do pcall(function() c:Disconnect() end) end
+    stunConns = {}
+end
+
+local tpLoop = nil
+local function startHitboxTp()
+    if tpLoop then return end
+    tpLoop = task.spawn(function()
+        while K.hitboxTp do
+            if soyKiller() then
+                local t = enemigoAlFrente(K.expanderRange)
+                if t then
+                    local ev = getPunchEv()
+                    local mc = LP.Character
+                    local mh = mc and mc:FindFirstChild("HumanoidRootPart")
+                    if ev and mh then
+                        local th = t:FindFirstChild("Head") or t:FindFirstChild("HumanoidRootPart")
+                        if th then
+                            K.attackId = K.attackId + 1
+                            local id = K.attackId
+                            local dir = (th.Position - mh.Position).Unit
+                            local startT = tick()
+                            task.spawn(function()
+                                while tick() - startT <= 0.4 do
+                                    local t2 = t and (t:FindFirstChild("Head") or t:FindFirstChild("HumanoidRootPart"))
+                                    if not t2 then break end
+                                    pcall(function()
+                                        ev:FireServer({
+                                            AttackId = id,
+                                            Position = t2.Position,
+                                            Velocity = Vector3.new(0,0,0),
+                                            Direction = dir,
+                                        })
+                                    end)
+                                    task.wait(0.02)
+                                end
+                            end)
+                        end
+                    end
+                    task.wait(0.45)
+                else task.wait(0.2) end
+            else task.wait(0.3) end
+        end
+        tpLoop = nil
+    end)
+end
+local function stopHitboxTp() K.hitboxTp = false; tpLoop = nil end
+
+local hbLoop = nil
+local function startHitbox360()
+    if hbLoop then return end
+    hbLoop = task.spawn(function()
+        while K.hitbox360 do
+            if soyKiller() then
+                local ev = getPunchEv()
+                local mc = LP.Character
+                local mh = mc and mc:FindFirstChild("HumanoidRootPart")
+                if ev and mh then
+                    K.attackId = K.attackId + 1
+                    local id = K.attackId
+                    local startT = tick()
+                    task.spawn(function()
+                        while tick() - startT <= 0.4 do
+                            local c = LP.Character; if not c then break end
+                            local h = c:FindFirstChild("HumanoidRootPart"); if not h then break end
+                            for ang = 0, 300, 60 do
+                                local rad = math.rad(ang)
+                                local dir = Vector3.new(math.cos(rad), 0, math.sin(rad))
+                                pcall(function()
+                                    ev:FireServer({
+                                        AttackId = id,
+                                        Position = h.Position,
+                                        Velocity = h.AssemblyLinearVelocity,
+                                        Direction = dir,
+                                    })
+                                end)
+                            end
+                            task.wait(0.05)
+                        end
+                    end)
+                end
+                task.wait(0.45)
+            else task.wait(0.3) end
+        end
+        hbLoop = nil
+    end)
+end
+local function stopHitbox360() K.hitbox360 = false; hbLoop = nil end
+
+local hbExpandLoop = nil
+local function startHitboxExpander()
+    if hbExpandLoop then return end
+    hbExpandLoop = task.spawn(function()
+        while K.hitboxExpander do
+            if soyKiller() then
+                local t = enemigoAlFrente(K.expanderRange)
+                if t then
+                    local ev = getPunchEv()
+                    local mc = LP.Character
+                    local mh = mc and mc:FindFirstChild("HumanoidRootPart")
+                    if ev and mh then
+                        K.attackId = K.attackId + 1
+                        local id = K.attackId
+                        local th = t:FindFirstChild("Head") or t:FindFirstChild("HumanoidRootPart")
+                        if th then
+                            local startPos = mh.Position
+                            local endPos = th.Position
+                            local dir = (endPos - startPos).Unit
+                            local startT = tick()
+                            task.spawn(function()
+                                while tick() - startT <= 0.4 do
+                                    local steps = 20
+                                    for i = 0, steps do
+                                        local frac = i / steps
+                                        local pos = startPos + (endPos - startPos) * frac
+                                        pcall(function()
+                                            ev:FireServer({
+                                                AttackId = id,
+                                                Position = pos,
+                                                Velocity = Vector3.new(0,0,0),
+                                                Direction = dir,
+                                            })
+                                        end)
+                                    end
+                                    task.wait(0.05)
+                                end
+                            end)
+                        end
+                    end
+                    task.wait(0.45)
+                else task.wait(0.2) end
+            else task.wait(0.3) end
+        end
+        hbExpandLoop = nil
+    end)
+end
+local function stopHitboxExpander() K.hitboxExpander = false; hbExpandLoop = nil end
+
+local origPanel = FH.panel
+FH.panel = function()
+    origPanel()
+    if FH.pestana ~= "Experiment" then return end
+    local opt = FH.crearOpcion
+    opt("Auto Punch 👊", function(v)
+        K.autoPunch = v
+        if v then startAutoPunch() else stopAutoPunch() end
+    end)
+    opt("Anti Stun 🛡", function(v)
+        K.antiStun = v
+        if v then startAntiStun() else stopAntiStun() end
+    end)
+    opt("Hitbox Tp 👻", function(v)
+        K.hitboxTp = v
+        if v then startHitboxTp() else stopHitboxTp() end
+    end)
+    opt("360° Hitbox 💥", function(v)
+        K.hitbox360 = v
+        if v then startHitbox360() else stopHitbox360() end
+    end)
+    opt("Hitbox Expander 📏", function(v)
+        K.hitboxExpander = v
+        if v then startHitboxExpander() else stopHitboxExpander() end
+    end)
+
+    local function mkSlider(labelTxt, minV, maxV, getV, setV)
+        local holder = Instance.new("Frame", FH.oc)
+        holder.Size = UDim2.new(1, 0, 0, 40)
+        holder.BackgroundColor3 = C.bg_card
+        holder.BackgroundTransparency = 0.2
+        holder.BorderSizePixel = 0
+        Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 10)
+        local hs = Instance.new("UIStroke", holder)
+        hs.Color = C.border; hs.Thickness = 1; hs.Transparency = 0.5
+        local lbl = Instance.new("TextLabel", holder)
+        lbl.Size = UDim2.new(0, 84, 1, 0); lbl.Position = UDim2.new(0, 12, 0, 0)
+        lbl.BackgroundTransparency = 1; lbl.Text = labelTxt
+        lbl.TextColor3 = C.text; lbl.TextScaled = true
+        lbl.Font = Enum.Font.GothamBold; lbl.TextXAlignment = Enum.TextXAlignment.Left
+        local valL = Instance.new("TextLabel", holder)
+        valL.Size = UDim2.new(0, 60, 1, 0); valL.Position = UDim2.new(1, -70, 0, 0)
+        valL.BackgroundTransparency = 1; valL.Text = tostring(math.floor(getV()))
+        valL.TextColor3 = C.accent; valL.TextScaled = true
+        valL.Font = Enum.Font.GothamBold
+        local bar = Instance.new("Frame", holder)
+        bar.Size = UDim2.new(1, -210, 0, 14); bar.Position = UDim2.new(0, 100, 0.5, -7)
+        bar.BackgroundColor3 = Color3.fromRGB(20, 10, 28); bar.BorderSizePixel = 0
+        Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
+        local rel0 = (getV() - minV) / (maxV - minV)
+        local fill = Instance.new("Frame", bar)
+        fill.Size = UDim2.new(rel0, 0, 1, 0)
+        fill.BackgroundColor3 = C.accent; fill.BorderSizePixel = 0
+        Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+        local drag = false
+        local function upd(x)
+            local rel = math.clamp((x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+            fill.Size = UDim2.new(rel, 0, 1, 0)
+            local v = minV + rel * (maxV - minV)
+            setV(v); valL.Text = tostring(math.floor(v))
+        end
+        bar.InputBegan:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                drag = true; upd(i.Position.X)
+            end
+        end)
+        FH.UI.InputChanged:Connect(function(i)
+            if drag and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+                upd(i.Position.X)
+            end
+        end)
+        FH.UI.InputEnded:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                drag = false
+            end
+        end)
+    end
+    mkSlider("Rango", 1, 100, function() return K.range end, function(v) K.range = v end)
+    mkSlider("360 Radio", 0, 9999, function() return K.hbRange end, function(v) K.hbRange = v end)
+    mkSlider("Expander Rango", 0, 9999, function() return K.expanderRange end, function(v) K.expanderRange = v end)
+end
+
+if FH.pestana == "Experiment" then FH.panel() end
+FH.p8 = true
+print("🎃 [8/8] Killer Punch OK (v7)")
