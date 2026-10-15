@@ -1,4 +1,3 @@
--- ============ FATASSES HUB LOADER (9 partes) ============
 local URLS = {
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part1",
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%202",
@@ -9,13 +8,13 @@ local URLS = {
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%208",
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%209",
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%2010",
+    "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%2011",
+    "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%2012",
 }
 
 local DELAY = 2
 local TOTAL = #URLS
-
 print("🎃 LOADER: Iniciando carga de " .. TOTAL .. " partes...")
-
 for i = 1, TOTAL do
     print("🎃 LOADER: Cargando parte " .. i .. "/" .. TOTAL .. "...")
     local ok, code = pcall(function() return game:HttpGet(URLS[i], true) end)
@@ -36,11 +35,6 @@ for i = 1, TOTAL do
     print("🎃 LOADER: ✅ Parte " .. i .. "/" .. TOTAL .. " OK")
     if i < TOTAL then task.wait(DELAY) end
 end
-
--- Forzar rebuild del panel al terminar (para que aparezcan los botones de Parts 7-10)
 task.wait(0.5)
-if getgenv().FH and getgenv().FH.panel then
-    pcall(getgenv().FH.panel)
-end
-
+if getgenv().FH and getgenv().FH.panel then pcall(getgenv().FH.panel) end
 print("🎃 LOADER: ✅ TODO CARGADO. GUI lista.")
