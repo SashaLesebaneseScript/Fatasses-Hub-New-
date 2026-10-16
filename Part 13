@@ -4,8 +4,6 @@ if not FH or not FH.p12 then warn("[FH] Ejecuta Partes 1-12 primero") return end
 if FH.p13 then warn("[FH] Parte 13 ya ejecutada") return end
 local RS = FH.RS
 
--- Override del startJ original para hacerlo MUCHO mas rapido
--- 10 boost por ciclo (50 fires) x 60 fps = ~3000 fires/segundo
 local jT = nil
 
 FH.startJ = function()
@@ -27,4 +25,4 @@ FH.stopJ = function()
 end
 
 FH.p13 = true
-print("🎃 [13/13] Jackpot Fast OK (~3000 fires/sec)")
+print("🎃 [13/13] Jackpot Fast OK")
