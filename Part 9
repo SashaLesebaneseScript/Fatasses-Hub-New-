@@ -1,4 +1,4 @@
--- ============ PARTE 9/9 - Anti-Notif + Mute (v5 lag fix) ============
+-- ============ PARTE 9/9 - Anti-Notif + Mute Game (v5) ============
 local FH = getgenv().FH
 if not FH or not FH.p8 then warn("[FH] Ejecuta Partes 1-8 primero") return end
 if FH.p9 then warn("[FH] Parte 9 ya ejecutada") return end
@@ -8,7 +8,6 @@ local C = FH.C
 FH.hideHealMsg = false
 FH.muteGame = false
 
--- ===== Anti-Notif =====
 local function esHealMsg(txt)
     if not txt or txt == "" then return false end
     return (txt:find("Earned", 1, true) and txt:find("Healed a Scientist", 1, true))
@@ -27,12 +26,11 @@ local function checkLabel(lbl)
 end
 
 local hideScan = nil
-local function startHide()
+FH.startHide = function()
+    FH.hideHealMsg = true
     if hideScan then return end
-    -- Solo el loop. Sin hooks de DescendantAdded (evita lag con jackpot)
     hideScan = RS.Heartbeat:Connect(function()
         if not FH.hideHealMsg then return end
-        -- Limitar a 10Hz para no saturar
         FH._lastHideScan = FH._lastHideScan or 0
         if tick() - FH._lastHideScan < 0.1 then return end
         FH._lastHideScan = tick()
@@ -47,13 +45,12 @@ local function startHide()
         end
     end)
 end
-local function stopHide()
+FH.stopHide = function()
     FH.hideHealMsg = false
     if hideScan then hideScan:Disconnect(); hideScan = nil end
     FH._lastHideScan = nil
 end
 
--- ===== Mute (sin hooks por sonido, solo loop throttled) =====
 local mutedRefs = {}
 local muteScan = nil
 
@@ -81,10 +78,10 @@ local function scanAndMute()
     end
 end
 
-local function startMute()
+FH.startMute = function()
+    FH.muteGame = true
     scanAndMute()
     if muteScan then return end
-    -- Loop a 10Hz (0.1s). Silencia sin agregar conexiones
     muteScan = RS.Heartbeat:Connect(function()
         if not FH.muteGame then return end
         FH._lastMuteScan = FH._lastMuteScan or 0
@@ -96,36 +93,17 @@ end
 
 local function restoreAll()
     for s, v in pairs(mutedRefs) do
-        if s and s.Parent then
-            pcall(function() s.Volume = v end)
-        end
+        if s and s.Parent then pcall(function() s.Volume = v end) end
     end
     mutedRefs = {}
 end
 
-local function stopMute()
+FH.stopMute = function()
     FH.muteGame = false
     if muteScan then muteScan:Disconnect(); muteScan = nil end
     FH._lastMuteScan = nil
     restoreAll()
 end
 
--- ===== Panel Class A =====
-local origPanel = FH.panel
-FH.panel = function()
-    origPanel()
-    if FH.pestana ~= "Class A" then return end
-    local opt = FH.crearOpcion
-    opt("Delete Healed Msg 🚫", function(v)
-        FH.hideHealMsg = v
-        if v then startHide() else stopHide() end
-    end)
-    opt("Mute Game Sounds 🔇", function(v)
-        FH.muteGame = v
-        if v then startMute() else stopMute() end
-    end)
-end
-
-if FH.pestana == "Class A" then FH.panel() end
 FH.p9 = true
-print("🎃 [9/9] Anti-Notif + Mute Game OK (v5 lag fix)")
+print("🎃 [9/9] Anti-Notif + Mute Game OK (v5)")
