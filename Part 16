@@ -1,0 +1,198 @@
+-- ============ PARTE 16/16 - Beta Tab (Leeking Heat) ============
+local FH = getgenv().FH
+if not FH or not FH.p15 then warn("[FH] Ejecuta Partes 1-15 primero") return end
+if FH.p16 then warn("[FH] Parte 16 ya ejecutada") return end
+local RS,PL,LP = FH.RS,FH.PL,FH.LP
+local RST = FH.RST
+local C = FH.C
+
+local AbilityEvent = nil
+local function getAbilityEv()
+    if AbilityEvent and AbilityEvent.Parent then return AbilityEvent end
+    AbilityEvent = RST:FindFirstChild("AbilityEvent")
+    return AbilityEvent
+end
+
+FH.beta = {
+    autoUse=false, noCooldown=false,
+    bypassStun=false, bypassSecondary=false,
+    range=15, lastUse=0,
+}
+local B = FH.beta
+
+local function soyKiller() return FH.isKiller(LP.Character) end
+
+local function estoyStuneado()
+    local mc = LP.Character; if not mc then return false end
+    local s = mc:FindFirstChild("Stun")
+    if s and s:IsA("BoolValue") then return s.Value == true end
+    return false
+end
+
+local function estoySecundario()
+    local mc = LP.Character; if not mc then return false end
+    local s = mc:FindFirstChild("UsingSecondaryStrategy")
+    if s and s:IsA("BoolValue") then return s.Value == true end
+    return false
+end
+
+local function enemigoCercano(radio)
+    radio = radio or B.range
+    local mc = LP.Character; if not mc then return nil end
+    local mh = mc:FindFirstChild("HumanoidRootPart"); if not mh then return nil end
+    local best, bd = nil, radio
+    for _, p in ipairs(PL:GetPlayers()) do
+        if p ~= LP and p.Character then
+            local h = p.Character:FindFirstChildOfClass("Humanoid")
+            local hr = p.Character:FindFirstChild("HumanoidRootPart")
+            if h and h.Health > 0 and hr then
+                local d = (mh.Position - hr.Position).Magnitude
+                if d < bd then bd = d; best = p.Character end
+            end
+        end
+    end
+    return best
+end
+
+local function usarHabilidad()
+    if not soyKiller() then return false end
+    if not B.bypassStun and estoyStuneado() then return false end
+    if not B.bypassSecondary and estoySecundario() then return false end
+    local ev = getAbilityEv(); if not ev then return false end
+    local ok = pcall(function() ev:FireServer() end)
+    if ok then B.lastUse = tick() end
+    return ok
+end
+
+-- Auto Use: dispara cada 30s si hay enemigo cerca
+local useT = nil
+local function startAutoUse()
+    if useT then return end
+    useT = task.spawn(function()
+        while B.autoUse do
+            if soyKiller() then
+                local remaining = 30 - (tick() - B.lastUse)
+                if remaining <= 0 then
+                    if enemigoCercano(B.range) then
+                        usarHabilidad()
+                    end
+                end
+            end
+            task.wait(1)
+        end
+        useT = nil
+    end)
+end
+local function stopAutoUse() B.autoUse = false; useT = nil end
+
+-- No Cooldown
+local ncT = nil
+local function startNoCooldown()
+    if ncT then return end
+    ncT = task.spawn(function()
+        while B.noCooldown do
+            usarHabilidad()
+            task.wait(0.5)
+        end
+        ncT = nil
+    end)
+end
+local function stopNoCooldown() B.noCooldown = false; ncT = nil end
+
+-- ===== Tab Beta =====
+local t = Instance.new("TextButton", FH.sb)
+t.Size = UDim2.new(1, -6, 0, 32)
+t.BackgroundColor3 = C.bg_card
+t.BackgroundTransparency = 0.2
+t.Text = ""
+t.BorderSizePixel = 0
+t.AutoButtonColor = false
+Instance.new("UICorner", t).CornerRadius = UDim.new(0, 10)
+local icon = Instance.new("TextLabel", t)
+icon.Size = UDim2.new(0, 18, 0, 18); icon.Position = UDim2.new(0, 8, 0.5, -9)
+icon.BackgroundTransparency = 1; icon.Text = "🧬"; icon.TextColor3 = C.text
+icon.TextScaled = true; icon.Font = Enum.Font.GothamBold
+local lbl = Instance.new("TextLabel", t)
+lbl.Size = UDim2.new(1, -34, 1, 0); lbl.Position = UDim2.new(0, 30, 0, 0)
+lbl.BackgroundTransparency = 1; lbl.Text = "Beta"; lbl.TextColor3 = C.text
+lbl.TextScaled = true; lbl.Font = Enum.Font.GothamBold
+lbl.TextXAlignment = Enum.TextXAlignment.Left
+local ck = false
+local function setSt(s)
+    if s == "sel" then t.BackgroundColor3 = C.bg_card_hl; t.BackgroundTransparency = 0
+    else t.BackgroundColor3 = C.bg_card; t.BackgroundTransparency = 0.2 end
+end
+t.MouseButton1Click:Connect(function()
+    if ck or FH.pestana == "Beta" then return end
+    ck = true
+    FH.sfx("tab_switch", 2, 1)
+    if FH.tabs[FH.pestana] then FH.tabs[FH.pestana].S("dese") end
+    FH.pestana = "Beta"
+    setSt("sel")
+    task.spawn(function() pcall(FH.panel) end)
+    task.delay(0.5, function() ck = false end)
+end)
+FH.tabs["Beta"] = {S = setSt, CS = false}
+
+-- ===== Panel (filtra Auto Scream + añade Beta) =====
+local origPanel = FH.panel
+FH.panel = function()
+    origPanel()
+    -- Filtrar Auto Scream si existe
+    for _, child in ipairs(FH.oc:GetChildren()) do
+        if child:IsA("Frame") or child:IsA("TextButton") then
+            local txt = ""
+            for _, sub in ipairs(child:GetDescendants()) do
+                if sub:IsA("TextLabel") and sub.Text ~= "" then
+                    txt = txt .. " " .. sub.Text
+                end
+            end
+            if txt:find("Auto Scream") then child:Destroy() end
+        end
+    end
+    if FH.pestana ~= "Beta" then return end
+    local opt = FH.crearOpcion
+    opt("Auto Use Ability1 🌀", function(v)
+        B.autoUse = v
+        if v then startAutoUse() else stopAutoUse() end
+    end)
+    opt("No Cooldown ⚡", function(v)
+        B.noCooldown = v
+        if v then startNoCooldown() else stopNoCooldown() end
+    end)
+    opt("Bypass Stun 🛡", function(v) B.bypassStun = v end)
+    opt("Bypass Secondary 🎯", function(v) B.bypassSecondary = v end)
+
+    -- Range input
+    local holder = Instance.new("Frame", FH.oc)
+    holder.Size = UDim2.new(1, 0, 0, 40)
+    holder.BackgroundColor3 = C.bg_card
+    holder.BackgroundTransparency = 0.2
+    holder.BorderSizePixel = 0
+    Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 10)
+    local lbl2 = Instance.new("TextLabel", holder)
+    lbl2.Size = UDim2.new(1, -100, 1, 0); lbl2.Position = UDim2.new(0, 12, 0, 0)
+    lbl2.BackgroundTransparency = 1; lbl2.Text = "Rango"
+    lbl2.TextColor3 = C.text; lbl2.TextScaled = true
+    lbl2.Font = Enum.Font.GothamBold; lbl2.TextXAlignment = Enum.TextXAlignment.Left
+    local inputBg = Instance.new("Frame", holder)
+    inputBg.Size = UDim2.new(0, 76, 0, 30); inputBg.Position = UDim2.new(1, -88, 0.5, -15)
+    inputBg.BackgroundColor3 = Color3.fromRGB(35, 15, 45)
+    Instance.new("UICorner", inputBg).CornerRadius = UDim.new(0, 6)
+    local tb = Instance.new("TextBox", inputBg)
+    tb.Size = UDim2.new(1, -8, 1, -8); tb.Position = UDim2.new(0, 4, 0, 4)
+    tb.BackgroundTransparency = 1
+    tb.Text = tostring(B.range)
+    tb.TextColor3 = C.accent; tb.TextScaled = true
+    tb.Font = Enum.Font.GothamBold; tb.ClearTextOnFocus = false
+    tb.FocusLost:Connect(function()
+        local n = tonumber(tb.Text)
+        if not n then tb.Text = tostring(B.range); return end
+        n = math.clamp(n, 1, 200)
+        B.range = math.floor(n); tb.Text = tostring(B.range)
+    end)
+end
+
+if FH.pestana == "Beta" then FH.panel() end
+FH.p16 = true
+print("🎃 [16/16] Beta Tab OK")
