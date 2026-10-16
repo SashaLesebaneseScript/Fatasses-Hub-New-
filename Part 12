@@ -1,251 +1,8 @@
--- ============ PARTE 12/12 - Fun Tab (v8) ============
-local FH = getgenv().FH
-if not FH or not FH.p11 then warn("[FH] Ejecuta Partes 1-11 primero") return end
-if FH.p12 then warn("[FH] Parte 12 ya ejecutada") return end
-local RS,PL,LP = FH.RS,FH.PL,FH.LP
-local WS = FH.WS
-local C = FH.C
-
-FH.fun = {
-    ragdoll=false, dance=false, swim=false, fall=false,
-    enableJump=false, infJump=false,
-    guardian=false, guardianRadius=4,
-    brokeScientist=false,
-}
-
--- ===== Emotes =====
-FH.EMOTES = {
-    {name="Wave",       id="rbxassetid://507770239"},
-    {name="Point",      id="rbxassetid://507770453"},
-    {name="Dance",      id="rbxassetid://507771019"},
-    {name="Laugh",      id="rbxassetid://507770818"},
-    {name="Cheer",      id="rbxassetid://507770677"},
-    {name="Dance 2",    id="rbxassetid://507771379"},
-    {name="Dance 3",    id="rbxassetid://507776043"},
-    {name="Salute",     id="rbxassetid://507770677"},
-    {name="Sit",        id="rbxassetid://2506281703"},
-    {name="Lay",        id="rbxassetid://2825746228"},
-}
-FH.emoteLoopActive = {}
-FH.emoteTracks = {}
-
-local function getEmoteTrack(animId)
-    if FH.emoteTracks[animId] then return FH.emoteTracks[animId] end
-    local mc = LP.Character; if not mc then return nil end
-    local hum = mc:FindFirstChildOfClass("Humanoid"); if not hum then return nil end
-    local animator = hum:FindFirstChildOfClass("Animator")
-    if not animator then animator = Instance.new("Animator"); animator.Parent = hum end
-    local a = Instance.new("Animation"); a.AnimationId = animId
-    local tr = animator:LoadAnimation(a)
-    tr.Looped = true; tr.Priority = Enum.AnimationPriority.Action
-    FH.emoteTracks[animId] = tr
-    return tr
-end
-local function stopEmoteById(animId)
-    local tr = FH.emoteTracks[animId]
-    if tr then pcall(function() tr:Stop() end) end
-    FH.emoteLoopActive[animId] = false
-end
-local function stopAllEmotes()
-    for id in pairs(FH.emoteLoopActive) do
-        local tr = FH.emoteTracks[id]
-        if tr then pcall(function() tr:Stop() end) end
-    end
-    FH.emoteLoopActive = {}
-end
-local function toggleEmote(animId)
-    if FH.emoteLoopActive[animId] then
-        stopEmoteById(animId)
-    else
-        stopAllEmotes()
-        local tr = getEmoteTrack(animId)
-        if tr then
-            FH.emoteLoopActive[animId] = true
-            pcall(function() tr:Play(0.1) end)
-        end
-    end
-end
-
--- ===== Ragdoll / Dance / Swim / Fall =====
-local function setRagdoll(on)
-    local mc = LP.Character; if not mc then return end
-    local hum = mc:FindFirstChildOfClass("Humanoid"); if not hum then return end
-    hum.PlatformStand = on
-end
-local danceTrack = nil
-local function setDance(on)
-    local mc = LP.Character; if not mc then return end
-    local hum = mc:FindFirstChildOfClass("Humanoid"); if not hum then return end
-    local animator = hum:FindFirstChildOfClass("Animator")
-    if not animator then animator = Instance.new("Animator"); animator.Parent = hum end
-    if on then
-        if danceTrack then return end
-        local a = Instance.new("Animation"); a.AnimationId = "rbxassetid://507771019"
-        danceTrack = animator:LoadAnimation(a)
-        danceTrack.Looped = true; danceTrack.Priority = Enum.AnimationPriority.Action
-        pcall(function() danceTrack:Play() end)
-    else
-        if danceTrack then pcall(function() danceTrack:Stop() end); danceTrack = nil end
-    end
-end
-local swimConn = nil
-local function setSwim(on)
-    local mc = LP.Character; if not mc then return end
-    local hum = mc:FindFirstChildOfClass("Humanoid"); if not hum then return end
-    if on then
-        pcall(function()
-            hum:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
-            hum:ChangeState(Enum.HumanoidStateType.Swimming)
-        end)
-        if swimConn then return end
-        swimConn = RS.Heartbeat:Connect(function()
-            if not FH.fun.swim then return end
-            local c = LP.Character; if not c then return end
-            local h = c:FindFirstChildOfClass("Humanoid"); if not h then return end
-            local st = h:GetState()
-            if st ~= Enum.HumanoidStateType.Swimming and st ~= Enum.HumanoidStateType.Jumping then
-                pcall(function() h:ChangeState(Enum.HumanoidStateType.Swimming) end)
-            end
-        end)
-    else
-        if swimConn then swimConn:Disconnect(); swimConn = nil end
-        pcall(function() hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
-    end
-end
-local function doFall()
-    local mc = LP.Character; if not mc then return end
-    local hum = mc:FindFirstChildOfClass("Humanoid"); if not hum then return end
-    pcall(function() hum:ChangeState(Enum.HumanoidStateType.FallingDown) end)
-end
-
--- ===== Enable Jump =====
-local jumpLoopConn = nil
-local spaceConn = nil
-local function doJumpNow()
-    local mc = LP.Character; if not mc then return end
-    local hum = mc:FindFirstChildOfClass("Humanoid"); if not hum then return end
-    pcall(function() hum:ChangeState(Enum.HumanoidStateType.Jumping) end)
-    pcall(function() hum.Jump = true end)
-end
-local function startEnableJump()
-    if jumpLoopConn then return end
-    if not spaceConn then
-        spaceConn = FH.UI.InputBegan:Connect(function(inp, proc)
-            if proc or not FH.fun.enableJump then return end
-            if inp.KeyCode == Enum.KeyCode.Space then doJumpNow() end
-        end)
-    end
-    jumpLoopConn = RS.Heartbeat:Connect(function()
-        if not FH.fun.enableJump then return end
-        local pg = LP:FindFirstChild("PlayerGui"); if not pg then return end
-        local tg = pg:FindFirstChild("TouchGui"); if not tg then return end
-        local jb = tg:FindFirstChild("JumpButton", true); if not jb then return end
-        if not jb.Visible then jb.Visible = true end
-        if not jb.Active then jb.Active = true end
-        if not jb:GetAttribute("FH_HOOKED") then
-            jb:SetAttribute("FH_HOOKED", true)
-            jb.MouseButton1Click:Connect(function() if FH.fun.enableJump then doJumpNow() end end)
-            jb.MouseButton1Down:Connect(function() if FH.fun.enableJump then doJumpNow() end end)
-            jb.TouchTap:Connect(function() if FH.fun.enableJump then doJumpNow() end end)
-        end
-    end)
-end
-local function stopEnableJump()
-    FH.fun.enableJump = false
-    if jumpLoopConn then jumpLoopConn:Disconnect(); jumpLoopConn = nil end
-    if spaceConn then spaceConn:Disconnect(); spaceConn = nil end
-end
-local infConn = nil
-local function startInfJump()
-    if infConn then return end
-    infConn = FH.UI.JumpRequest:Connect(function()
-        if FH.fun.infJump then doJumpNow() end
-    end)
-end
-local function stopInfJump()
-    FH.fun.infJump = false
-    if infConn then infConn:Disconnect(); infConn = nil end
-end
-
--- ===== Guardian v8 =====
-local guardianConn = nil
-local savedSpeed, savedJump = 16, 50
-
-local function estoyStuneado()
-    local mc = LP.Character; if not mc then return false end
-    local s = mc:FindFirstChild("Stun")
-    if s and s:IsA("BoolValue") then return s.Value == true end
-    local hum = mc:FindFirstChildOfClass("Humanoid")
-    if hum and hum.PlatformStand then return true end
-    return false
-end
-
-local function hayPared(desde, hasta, ignorar)
-    local params = RaycastParams.new()
-    params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = ignorar or {}
-    local ray = WS:Raycast(desde, hasta - desde, params)
-    return ray ~= nil
-end
-
-local function getSurvivorTarget()
-    local killer = FH.updateKiller()
-    if killer then
-        local khrp = killer:FindFirstChild("HumanoidRootPart"); if not khrp then return nil end
-        local best, bd = nil, math.huge
-        for _, p in ipairs(PL:GetPlayers()) do
-            if p.Character and p.Character ~= killer and p ~= LP then
-                local h = p.Character:FindFirstChildOfClass("Humanoid")
-                local hrp = p.Character:FindFirstChild("HumanoidRootPart")
-                if h and h.Health > 0 and hrp then
-                    local d = (khrp.Position - hrp.Position).Magnitude
-                    if d < bd then bd = d; best = p.Character end
-                end
-            end
-        end
-        return best
-    end
-    return nil
-end
-
-local function getSafeTargetPos(shr, khr, myhr, mc, survivor, killer)
-    -- Devuelve la posición ideal entre survivor y killer (o null si no es alcanzable)
-    if not khr then return nil end
-    local flat = Vector3.new(khr.Position.X - shr.Position.X, 0, khr.Position.Z - shr.Position.Z)
-    if flat.Magnitude > 0.1 then flat = flat.Unit else flat = Vector3.new(0,0,-1) end
-
-    -- Probar múltiples ángulos alrededor del survivor
-    local angles = {0, 25, -25, 50, -50, 75, -75, 90, -90}
-    local ignorar = {mc, survivor}
-    if killer then table.insert(ignorar, killer) end
-
-    for _, angleDeg in ipairs(angles) do
-        local angle = math.rad(angleDeg)
-        local rotated = Vector3.new(
-            flat.X * math.cos(angle) - flat.Z * math.sin(angle),
-            0,
-            flat.X * math.sin(angle) + flat.Z * math.cos(angle)
-        )
-        local testPos = Vector3.new(
-            shr.Position.X + rotated.X * FH.fun.guardianRadius,
-            shr.Position.Y + 1,
-            shr.Position.Z + rotated.Z * FH.fun.guardianRadius
-        )
-        -- Chequear si hay pared entre mi posición actual y esa posición
-        local hayP1 = hayPared(myhr.Position, testPos, ignorar)
-        local hayP2 = hayPared(Vector3.new(myhr.Position.X, myhr.Position.Y+2, myhr.Position.Z),
-                                Vector3.new(testPos.X, testPos.Y+2, testPos.Z), ignorar)
-        if not hayP1 and not hayP2 then
-            return testPos
-        end
-    end
-    return nil
-end
+local guardianStuckT = 0
 
 local function updateGuardian()
     if not FH.fun.guardian then return end
     if estoyStuneado() then return end
-
     local survivor = getSurvivorTarget(); if not survivor then return end
     local shrp = survivor:FindFirstChild("HumanoidRootPart"); if not shrp then return end
     local mc = LP.Character; if not mc then return end
@@ -255,240 +12,53 @@ local function updateGuardian()
 
     local killer = FH.updateKiller()
     local khrp = killer and killer:FindFirstChild("HumanoidRootPart")
-
-    -- Buscar posición segura (sin pared)
-    local targetPos = getSafeTargetPos(shrp, khrp, myhrp, mc, survivor, killer)
     local lookAt = khrp and khrp.Position or shrp.Position
 
-    if not targetPos then
-        -- No hay ángulo seguro: no moverse, solo girar hacia el killer
-        local finalLook = Vector3.new(lookAt.X, myhrp.Position.Y, lookAt.Z)
-        pcall(function() myhrp.CFrame = CFrame.lookAt(myhrp.Position, finalLook) end)
-        return
+    -- Buscar posicion entre survivor y killer
+    local flat
+    if khrp then
+        flat = Vector3.new(khrp.Position.X - shrp.Position.X, 0, khrp.Position.Z - shrp.Position.Z)
+        if flat.Magnitude > 0.1 then flat = flat.Unit else flat = Vector3.new(0,0,-1) end
+    else
+        flat = Vector3.new(1, 0, 0)
     end
 
+    local targetPos = Vector3.new(
+        shrp.Position.X + flat.X * FH.fun.guardianRadius,
+        shrp.Position.Y + 1,
+        shrp.Position.Z + flat.Z * FH.fun.guardianRadius
+    )
     local finalLook = Vector3.new(lookAt.X, targetPos.Y, lookAt.Z)
     local dist = (myhrp.Position - targetPos).Magnitude
 
-    -- Ya estamos en posición: solo girar
+    -- Ya estamos en posicion: girar
     if dist < 1 then
+        guardianStuckT = 0
         pcall(function() myhrp.CFrame = CFrame.lookAt(myhrp.Position, finalLook) end)
         return
     end
 
-    -- Verificar que el camino esté libre
+    -- Chequear pared
     local ignorar = {mc, survivor}
     if killer then table.insert(ignorar, killer) end
     local hayP1 = hayPared(myhrp.Position, targetPos, ignorar)
     local hayP2 = hayPared(Vector3.new(myhrp.Position.X, myhrp.Position.Y+2, myhrp.Position.Z),
                             Vector3.new(targetPos.X, targetPos.Y+2, targetPos.Z), ignorar)
+
     if hayP1 or hayP2 then
-        -- Pared en camino: no moverse
+        -- Stuck detection: si llevamos 1.5s trabados, forzar TP
+        if tick() - guardianStuckT > 1.5 then
+            pcall(function() myhrp.CFrame = CFrame.lookAt(targetPos, finalLook) end)
+            guardianStuckT = tick()
+            return
+        end
+        if guardianStuckT == 0 then guardianStuckT = tick() end
         local fl = Vector3.new(lookAt.X, myhrp.Position.Y, lookAt.Z)
         pcall(function() myhrp.CFrame = CFrame.lookAt(myhrp.Position, fl) end)
         return
     end
 
-    -- Movimiento suave con Lerp
+    guardianStuckT = 0
     local newPos = myhrp.Position:Lerp(targetPos, 0.15)
     pcall(function() myhrp.CFrame = CFrame.lookAt(newPos, finalLook) end)
 end
-
-local function startGuardian()
-    if guardianConn then return end
-    local mc = LP.Character
-    if mc then
-        local hum = mc:FindFirstChildOfClass("Humanoid")
-        if hum then savedSpeed = hum.WalkSpeed; savedJump = hum.JumpPower end
-    end
-    guardianConn = RS.RenderStepped:Connect(function() pcall(updateGuardian) end)
-end
-local function stopGuardian()
-    FH.fun.guardian = false
-    if guardianConn then guardianConn:Disconnect(); guardianConn = nil end
-    local mc = LP.Character
-    if mc then
-        local hum = mc:FindFirstChildOfClass("Humanoid")
-        if hum then hum.WalkSpeed = savedSpeed; hum.JumpPower = savedJump end
-    end
-end
-
--- Broke Scientist
-local brokeConn = nil
-local function startBroke()
-    if brokeConn then return end
-    if not FH.TR then return end
-    brokeConn = FH.TR.OnClientEvent:Connect(function(accion, taskID, guiName)
-        if not FH.fun.brokeScientist then return end
-        if accion == "OpenGui" then
-            task.wait(0.3)
-            pcall(function() FH.TR:FireServer("LeaveTask", taskID) end)
-        end
-    end)
-end
-local function stopBroke()
-    FH.fun.brokeScientist = false
-    if brokeConn then brokeConn:Disconnect(); brokeConn = nil end
-end
-
-LP.CharacterAdded:Connect(function()
-    task.wait(1.5)
-    FH.emoteTracks = {}
-    FH.emoteLoopActive = {}
-    if FH.fun.ragdoll then setRagdoll(true) end
-    if FH.fun.dance then setDance(true) end
-    if FH.fun.swim then setSwim(true) end
-    if FH.fun.infJump then startInfJump() end
-    if FH.fun.enableJump then startEnableJump() end
-    if FH.fun.guardian then startGuardian() end
-end)
-
--- Tab
-local t = Instance.new("TextButton", FH.sb)
-t.Size = UDim2.new(1, -6, 0, 32)
-t.BackgroundColor3 = C.bg_card
-t.BackgroundTransparency = 0.2
-t.Text = ""
-t.BorderSizePixel = 0
-t.AutoButtonColor = false
-Instance.new("UICorner", t).CornerRadius = UDim.new(0, 10)
-local icon = Instance.new("TextLabel", t)
-icon.Size = UDim2.new(0, 18, 0, 18); icon.Position = UDim2.new(0, 8, 0.5, -9)
-icon.BackgroundTransparency = 1; icon.Text = "🎮"; icon.TextColor3 = C.text
-icon.TextScaled = true; icon.Font = Enum.Font.GothamBold
-local lbl = Instance.new("TextLabel", t)
-lbl.Size = UDim2.new(1, -34, 1, 0); lbl.Position = UDim2.new(0, 30, 0, 0)
-lbl.BackgroundTransparency = 1; lbl.Text = "Fun"; lbl.TextColor3 = C.text
-lbl.TextScaled = true; lbl.Font = Enum.Font.GothamBold
-lbl.TextXAlignment = Enum.TextXAlignment.Left
-local ck = false
-local function setSt(s)
-    if s == "sel" then t.BackgroundColor3 = C.bg_card_hl; t.BackgroundTransparency = 0
-    else t.BackgroundColor3 = C.bg_card; t.BackgroundTransparency = 0.2 end
-end
-t.MouseButton1Click:Connect(function()
-    if ck or FH.pestana == "Fun" then return end
-    ck = true
-    FH.sfx("tab_switch", 2, 1)
-    if FH.tabs[FH.pestana] then FH.tabs[FH.pestana].S("dese") end
-    FH.pestana = "Fun"
-    setSt("sel")
-    task.spawn(function() pcall(FH.panel) end)
-    task.delay(0.5, function() ck = false end)
-end)
-FH.tabs["Fun"] = {S = setSt, CS = false}
-
-local origPanel = FH.panel
-FH.panel = function()
-    origPanel()
-    if FH.pestana ~= "Fun" then return end
-    local opt = FH.crearOpcion
-    local hdr = function(txt)
-        local h = Instance.new("TextLabel", FH.oc)
-        h.Size = UDim2.new(1,0,0,22)
-        h.BackgroundTransparency = 1
-        h.Text = txt
-        h.TextColor3 = C.accent
-        h.Font = Enum.Font.GothamBold
-        h.TextScaled = true
-        h.TextXAlignment = Enum.TextXAlignment.Left
-    end
-
-    hdr("── Scientist ──")
-    opt("Spam Complete 🔁", function(v)
-        FH.on.spamComplete = v
-        if v then FH.startSp() else FH.stopSp() end
-    end)
-    opt("Broke Scientist Mini game 💥", function(v)
-        FH.fun.brokeScientist = v
-        if v then startBroke() else stopBroke() end
-    end)
-
-    hdr("── Emotes (toggle) ──")
-    for _, em in ipairs(FH.EMOTES) do
-        opt("▶ " .. em.name, function(v)
-            if v then
-                FH.emoteLoopActive[em.id] = false
-                toggleEmote(em.id)
-            else
-                stopEmoteById(em.id)
-            end
-        end)
-    end
-
-    hdr("── Acciones ──")
-    opt("Ragdoll 🕺", function(v) FH.fun.ragdoll = v; setRagdoll(v) end)
-    opt("Dance 💃", function(v) FH.fun.dance = v; setDance(v) end)
-    opt("Swim 🏊", function(v) FH.fun.swim = v; setSwim(v) end)
-    opt("Fall 🤕", function(v)
-        FH.fun.fall = v
-        if v then doFall(); FH.est["Fall 🤕"] = false end
-    end)
-    opt("Enable Jump 🦘", function(v)
-        FH.fun.enableJump = v
-        if v then startEnableJump() else stopEnableJump() end
-    end)
-    opt("Inf Jump ♾️", function(v)
-        FH.fun.infJump = v
-        if v then startInfJump() else stopInfJump() end
-    end)
-    opt("Guardian 🛡️", function(v)
-        FH.fun.guardian = v
-        if v then startGuardian() else stopGuardian() end
-    end)
-
-    local holder = Instance.new("Frame", FH.oc)
-    holder.Size = UDim2.new(1, 0, 0, 40)
-    holder.BackgroundColor3 = C.bg_card
-    holder.BackgroundTransparency = 0.2
-    holder.BorderSizePixel = 0
-    Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 10)
-    local hs = Instance.new("UIStroke", holder)
-    hs.Color = C.border; hs.Thickness = 1; hs.Transparency = 0.5
-    local l1 = Instance.new("TextLabel", holder)
-    l1.Size = UDim2.new(0, 84, 1, 0); l1.Position = UDim2.new(0, 12, 0, 0)
-    l1.BackgroundTransparency = 1; l1.Text = "Distancia"
-    l1.TextColor3 = C.text; l1.TextScaled = true
-    l1.Font = Enum.Font.GothamBold; l1.TextXAlignment = Enum.TextXAlignment.Left
-    local valL = Instance.new("TextLabel", holder)
-    valL.Size = UDim2.new(0, 40, 1, 0); valL.Position = UDim2.new(1, -50, 0, 0)
-    valL.BackgroundTransparency = 1; valL.Text = string.format("%.1f", FH.fun.guardianRadius)
-    valL.TextColor3 = C.accent; valL.TextScaled = true
-    valL.Font = Enum.Font.GothamBold
-    local bar = Instance.new("Frame", holder)
-    bar.Size = UDim2.new(1, -190, 0, 14); bar.Position = UDim2.new(0, 100, 0.5, -7)
-    bar.BackgroundColor3 = Color3.fromRGB(20, 10, 28); bar.BorderSizePixel = 0
-    Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
-    local rel0 = (FH.fun.guardianRadius - 1) / 9
-    local fill = Instance.new("Frame", bar)
-    fill.Size = UDim2.new(rel0, 0, 1, 0)
-    fill.BackgroundColor3 = C.accent; fill.BorderSizePixel = 0
-    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
-    local drag = false
-    local function upd(x)
-        local rel = math.clamp((x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
-        fill.Size = UDim2.new(rel, 0, 1, 0)
-        local v = 1 + rel * 9
-        FH.fun.guardianRadius = v
-        valL.Text = string.format("%.1f", v)
-    end
-    bar.InputBegan:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-            drag = true; upd(i.Position.X)
-        end
-    end)
-    FH.UI.InputChanged:Connect(function(i)
-        if drag and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-            upd(i.Position.X)
-        end
-    end)
-    FH.UI.InputEnded:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-            drag = false
-        end
-    end)
-end
-
-if FH.pestana == "Fun" then FH.panel() end
-FH.p12 = true
-print("🎃 [12/12] Fun Tab OK (v8)")
