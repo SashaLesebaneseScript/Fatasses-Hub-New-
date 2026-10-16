@@ -1,0 +1,29 @@
+-- ============ PARTE 15/15 - Music Pack Extended ============
+local FH = getgenv().FH
+if not FH or not FH.p14 then warn("[FH] Ejecuta Partes 1-14 primero") return end
+if FH.p15 then warn("[FH] Parte 15 ya ejecutada") return end
+
+local NUEVAS = {
+    {name="Teto Territory",         id="rbxassetid://83834280291443"},
+    {name="Hito Mania",             id="rbxassetid://86906722690072"},
+    {name="Flop Era",               id="rbxassetid://76476826342955"},
+    {name="Machine Love",           id="rbxassetid://112089340552085"},
+    {name="Akage",                  id="rbxassetid://86973739704300"},
+    {name="Nice Try",               id="rbxassetid://73974854794107"},
+    {name="Monitoring",             id="rbxassetid://92292285830973"},
+    {name="Po Pi Po",               id="rbxassetid://88859201063109"},
+    {name="Retry Now",              id="rbxassetid://124597285157146"},
+    {name="Aishite Aishite",        id="rbxassetid://90180736611845"},
+    {name="Bang Bang Bang",         id="rbxassetid://86832019844653"},
+    {name="Confess Your Love",      id="rbxassetid://92992163303925"},
+    {name="Vanity (Forsaken)",      id="rbxassetid://133788961944290"},
+    {name="Pretty Princess Chase",  id="rbxassetid://122583283125297"},
+    {name="Burnout Lms (Forsaken)", id="rbxassetid://72227777551487"},
+}
+
+for _, s in ipairs(NUEVAS) do
+    table.insert(FH.MUSIC_LIST, s)
+end
+
+FH.p15 = true
+print("🎃 [15/15] Music Pack Extended OK (" .. #NUEVAS .. " canciones)")
