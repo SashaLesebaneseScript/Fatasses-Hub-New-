@@ -1,4 +1,4 @@
--- ============ PARTE 9/9 - Anti-Notif + Mute Game (v5) ============
+-- ============ PARTE 9/9 - Anti-Notif + Mute Game (v6) ============
 local FH = getgenv().FH
 if not FH or not FH.p8 then warn("[FH] Ejecuta Partes 1-8 primero") return end
 if FH.p9 then warn("[FH] Parte 9 ya ejecutada") return end
@@ -105,5 +105,19 @@ FH.stopMute = function()
     restoreAll()
 end
 
+-- ===== ENGANCHE AL PANEL (re-añade los toggles de Class A) =====
+local origPanel = FH.panel
+FH.panel = function()
+    origPanel()
+    if FH.pestana ~= "Class A" then return end
+    local opt = FH.crearOpcion
+    opt("Delete Healed Msg 🚫", function(v)
+        if v then FH.startHide() else FH.stopHide() end
+    end)
+    opt("Mute Game Sounds 🔇", function(v)
+        if v then FH.startMute() else FH.stopMute() end
+    end)
+end
+
 FH.p9 = true
-print("🎃 [9/9] Anti-Notif + Mute Game OK (v5)")
+print("🎃 [9/9] Anti-Notif + Mute Game OK (v6)")
