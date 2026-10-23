@@ -1,3 +1,4 @@
+-- ============ FATASSES HUB LOADER (16 partes) ============
 local URLS = {
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part1",
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%202",
@@ -14,6 +15,7 @@ local URLS = {
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%2014",
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%2015",
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%2016",
+    "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%2017",
 }
 
 local DELAY = 2
@@ -42,6 +44,10 @@ for i = 1, TOTAL do
     if i < TOTAL then task.wait(DELAY) end
 end
 
+-- Forzar actualización del panel al terminar
 task.wait(0.5)
-if getgenv().FH and getgenv().FH.panel then pcall(getgenv().FH.panel) end
+if getgenv().FH and getgenv().FH.panel then 
+    pcall(getgenv().FH.panel) 
+end
+
 print("🎃 LOADER: ✅ TODO CARGADO. GUI lista.")
