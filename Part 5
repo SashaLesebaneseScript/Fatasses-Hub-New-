@@ -69,7 +69,7 @@ end
 FH.stopIS=function()if ifC then ifC:Disconnect();ifC=nil end;sprHeld=false end
 
 -- Teleports Ciclicos
-local tpIndex = { patient = 1, generator = 1 }
+local tpIndex = { patient = 1, tube = 1 }
 local function cycleTP(keyword)
     local mc = LP.Character; if not mc then return end
     local mh = mc:FindFirstChild("HumanoidRootPart"); if not mh then return end
@@ -96,10 +96,9 @@ local function updateSpecList()
     local count = 0
     for _, p in ipairs(PL:GetPlayers()) do
         if p ~= LP and p.Character then
-            local isInRound = p.Character:FindFirstChild("IsInRound")
             local hum = p.Character:FindFirstChildOfClass("Humanoid")
-            -- Si NO esta en ronda, o esta muerto, es un espectador
-            if (not isInRound) or (hum and hum.Health <= 0) then
+            -- Solo si esta muerto (Especteando)
+            if hum and hum.Health <= 0 then
                 count = count + 1
                 local lbl = Instance.new("TextLabel", specList)
                 lbl.Size = UDim2.new(1, 0, 0, 20); lbl.BackgroundTransparency = 1
@@ -108,7 +107,8 @@ local function updateSpecList()
             end
         end
     end
-    local title = specGui:FindFirstChild("Frame") and specGui.Frame:FindFirstChild("TopBar") and specGui.Frame.TopBar:FindFirstChild("TextLabel")
+    local topBar = specGui:FindFirstChild("Frame") and specGui.Frame:FindFirstChild("TopBar")
+    local title = topBar and topBar:FindFirstChild("TextLabel")
     if title then title.Text = "Spectators: " .. count end
 end
 local function startSpectator()
