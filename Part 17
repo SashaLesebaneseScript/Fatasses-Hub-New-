@@ -14,7 +14,7 @@ local function getGun()
     return GunEvent
 end
 
-FH.gun = { silentAim=false, autoShoot=false, lastShot=0 }
+FH.gun = { silentAim=false, lastShot=0 }
 
 local function getKiller()
     local best, bestH = nil, 6.5
@@ -35,7 +35,6 @@ local function getChest(char)
     return char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso") or char:FindFirstChild("HumanoidRootPart")
 end
 
--- LOS (Line of Sight)
 local function hasLOS(targetChar)
     local mc = LP.Character; if not mc or not targetChar then return false end
     local mh = mc:FindFirstChild("Head") or mc:FindFirstChild("HumanoidRootPart")
@@ -45,73 +44,42 @@ local function hasLOS(targetChar)
     params.FilterType = Enum.RaycastFilterType.Exclude
     params.FilterDescendantsInstances = {mc, targetChar}
     local ray = WS:Raycast(mh.Position, th.Position - mh.Position, params)
-    return ray == nil -- Si no hay nada en medio, hay linea de vision
+    return ray == nil 
 end
 
--- Forzar Pecho (Silent Aim)
-task.spawn(function()
-    task.wait(1)
-    pcall(function()
-        local mt = getrawmetatable(game)
-        if setreadonly then setreadonly(mt, false) end
-        local oldNamecall = mt.__namecall
-        mt.__namecall = newcclosure(function(self, ...)
-            local method = getnamecallmethod()
-            if method == "FireServer" and self.Name == "GunEvent" then
-                local args = {...}
-                if args[1] == "Shoot" and FH.gun.silentAim then
-                    local target = getKiller()
-                    if target then
-                        local chest = getChest(target)
-                        if chest then
-                            args[2] = chest.Position -- SI O SI va al pecho
-                        end
-                    end
-                    return oldNamecall(self, unpack(args))
-                end
-            end
-            return oldNamecall(self, ...)
-        end)
-        if setreadonly then setreadonly(mt, true) end
-    end)
-end)
+local function isAiming()
+    local mc = LP.Character
+    return mc and mc:GetAttribute("IsAiming") == true
+end
 
--- Loop de Auto Shoot
+-- Loop principal: Dispara SI O SI al pecho y quita el apuntado
 task.spawn(function()
     while true do
-        if FH.gun.autoShoot then
+        local ev = getGun()
+        if ev and isAiming() and FH.gun.silentAim then
             local target = getKiller()
             if target and hasLOS(target) then
                 if tick() - FH.gun.lastShot >= 45 then
-                    local ev = getGun()
-                    if ev then
-                        local chest = getChest(target)
-                        if chest then
-                            pcall(function() ev:FireServer("Shoot", chest.Position) end)
-                            FH.gun.lastShot = tick()
-                            
-                            -- Quitar animacion de apuntado (Un-aim)
-                            local mc = LP.Character
-                            if mc then
-                                mc:SetAttribute("IsAiming", false)
-                                -- Intentar soltar el boton de apuntar (si existe)
-                                local pg = LP.PlayerGui
-                                local gg = pg:FindFirstChild("GunGui")
-                                if gg then
-                                    local aimBtn = gg:FindFirstChild("AimButton")
-                                    if aimBtn and firesignal then
-                                        pcall(firesignal, aimBtn.MouseButton1Click)
-                                    end
-                                end
-                            end
+                    local chest = getChest(target)
+                    if chest then
+                        pcall(function() ev:FireServer("Shoot", chest.Position) end)
+                        FH.gun.lastShot = tick()
+                        
+                        -- Forzar quitar la animacion de apuntado
+                        local mc = LP.Character
+                        if mc then
+                            mc:SetAttribute("IsAiming", false)
+                            pcall(function()
+                                keypress(Enum.KeyCode.F)
+                                task.wait(0.05)
+                                keyrelease(Enum.KeyCode.F)
+                            end)
                         end
                     end
                 end
             end
-            task.wait(0.5)
-        else
-            task.wait(1)
         end
+        task.wait(0.2)
     end
 end)
 
@@ -120,10 +88,9 @@ FH.panel = function()
     origPanel()
     if FH.pestana ~= "Class S" then return end
     local opt = FH.crearOpcion
-    opt("Silent Aim (Force Chest) 🎯", function(v) FH.gun.silentAim = v end)
-    opt("Auto Shoot (45s + LOS) 🔫", function(v) FH.gun.autoShoot = v end)
+    opt("Silent Aim (Auto-Fire) 🎯", function(v) FH.gun.silentAim = v end)
 end
 
 if FH.pestana == "Class S" then FH.panel() end
 FH.p17 = true
-print("🎃 [17/17] Class S Gun Enhancements OK (Silent Aim + Auto Shoot)")
+print("🎃 [17/17] Class S Gun Enhancements OK (Silent Aim)")
