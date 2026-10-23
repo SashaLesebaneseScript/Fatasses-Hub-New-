@@ -4,11 +4,15 @@ if not FH or not FH.p4 then warn("[FH] Ejecuta Partes 1-4 primero") return end
 if FH.p5 then warn("[FH] Parte 5 ya ejecutada") return end
 local RS,PL,WS,LP=FH.RS,FH.PL,FH.WS,FH.LP
 local C=FH.C
-local sprHeld=false;sprBtn=nil;ifC=nil;humHk=nil
+
+-- Auto Sprint
+local sprHeld=false; sprBtn=nil; ifC=nil; humHk=nil
+FH.autoSprintActive = false
+
 local function hayM()return WS:FindFirstChild("Map1")~=nil or WS:FindFirstChild("Map2")~=nil end
 local function tSpeed()
  if not hayM()then return 16 end
- if sprHeld then return 30 end
+ if sprHeld or FH.autoSprintActive then return 30 end
  return 10 end
 local function forzStam()
  local ch=LP.Character;if not ch then return end
@@ -36,142 +40,95 @@ local function uiStam()
   t.TextColor3=Color3.fromRGB(255,150,50)end end
 local function hookBtn()
  local s=LP.PlayerGui:FindFirstChild("SprintGui")
- if not s then sprBtn=nil;sprHeld=false;return end
+ if not s then sprBtn=nil;return end
  local b=s:FindFirstChild("SprintButton",true)
  if not b or b==sprBtn then return end
  sprBtn=b
- b.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then sprHeld=true end end)
- b.InputEnded:Connect(function(i)if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then sprHeld=false end end)end
+ -- Simular click automatico
+ task.spawn(function()
+    while b and b.Parent do
+        if FH.autoSprintActive then
+            if firesignal then pcall(firesignal, b.MouseButton1Down) end
+        end
+        task.wait(0.1)
+    end
+ end)
+end
 FH.startIS=function()
  if ifC then return end
  local ch=LP.Character
  if ch then hookH(ch:FindFirstChildOfClass("Humanoid"))end
  ifC=RS.Heartbeat:Connect(function()
-  if not FH.on.infStam then return end
+  if not FH.on.infStam and not FH.autoSprintActive then return end
   pcall(forzStam);pcall(uiStam);pcall(hookBtn)
   local c2=LP.Character
   if c2 then local h2=c2:FindFirstChildOfClass("Humanoid")
    if h2 and h2~=humHk then humHk=nil;hookH(h2)end end end)end
 FH.stopIS=function()if ifC then ifC:Disconnect();ifC=nil end;sprHeld=false end
+
+-- Teleports (Generator / Patient)
+local function teleToTarget(keyword)
+    local mc = LP.Character
+    if not mc then return end
+    local mh = mc:FindFirstChild("HumanoidRootPart")
+    if not mh then return end
+    
+    local best, bestD = nil, math.huge
+    for _, obj in ipairs(WS:GetDescendants()) do
+        if obj:IsA("Model") and string.find(string.lower(obj.Name), keyword) then
+            local hrp = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")
+            if hrp then
+                local d = (mh.Position - hrp.Position).Magnitude
+                if d < bestD then bestD = d; best = hrp end
+            end
+        end
+    end
+    
+    if best then
+        mh.CFrame = CFrame.new(best.Position + Vector3.new(0, 3, 0))
+    end
+end
+
+-- Class S Aimlock / AutoShoot (igual que antes)
 local camC,charT,ultD=nil,nil,0
-local function countScr(m)
- if not m or not m:IsA("Model")then return 0 end
- local n=0
- for _,x in ipairs(m:GetDescendants())do
-  if x:IsA("Script")or x:IsA("LocalScript")or x:IsA("ModuleScript")then n=n+1 end end
- return n end
-local function findK()
- local bk,bs=nil,0
- for _,p in ipairs(PL:GetPlayers())do
-  if p~=LP and p.Character then
-   local ch=p.Character;local h=ch:FindFirstChildOfClass("Humanoid")
-   if h and h.Health>0 then
-    local n=countScr(ch);local a=ch:GetExtentsSize().Y
-    if n>=FH.KST then local sc=1000+n;if sc>bs then bs=sc;bk=ch end
-    elseif a>bs then bs=a;bk=ch end end end end
- return bk end
+local function countScr(m) if not m or not m:IsA("Model")then return 0 end; local n=0; for _,x in ipairs(m:GetDescendants())do if x:IsA("Script")or x:IsA("LocalScript")or x:IsA("ModuleScript")then n=n+1 end end return n end
+local function findK() local bk,bs=nil,0; for _,p in ipairs(PL:GetPlayers())do if p~=LP and p.Character then local ch=p.Character;local h=ch:FindFirstChildOfClass("Humanoid"); if h and h.Health>0 then local n=countScr(ch);local a=ch:GetExtentsSize().Y; if n>=FH.KST then local sc=1000+n;if sc>bs then bs=sc;bk=ch end elseif a>bs then bs=a;bk=ch end end end end; return bk end
 local function aim()local mc=LP.Character;return mc and mc:GetAttribute("IsAiming")==true end
 local function getChest(c)return c and(c:FindFirstChild("UpperTorso")or c:FindFirstChild("Torso")or c:FindFirstChild("HumanoidRootPart"))end
-local function predPos(c)
- local ch=getChest(c);if not ch then return nil end
- local v=Vector3.new(0,0,0)
- local hr=c:FindFirstChild("HumanoidRootPart")
- if hr then v=hr.AssemblyLinearVelocity;if v.Magnitude<.1 then v=hr.Velocity end end
- local p=v*.12;if p.Magnitude>3 then p=p.Unit*3 end
- return ch.Position+p end
-FH.startAL=function()
- if camC then return end
- camC=RS.RenderStepped:Connect(function()
-  if not FH.on.aimlockS then return end
-  if not aim()then return end
-  if not charT or not charT.Parent then charT=findK()end
-  if charT and charT.Parent then
-   local p=predPos(charT)
-   if p then workspace.CurrentCamera.CFrame=CFrame.lookAt(workspace.CurrentCamera.CFrame.Position,p)end end end)end
+local function predPos(c) local ch=getChest(c);if not ch then return nil end; local v=Vector3.new(0,0,0); local hr=c:FindFirstChild("HumanoidRootPart"); if hr then v=hr.AssemblyLinearVelocity;if v.Magnitude<.1 then v=hr.Velocity end end; local p=v*.12;if p.Magnitude>3 then p=p.Unit*3 end; return ch.Position+p end
+FH.startAL=function() if camC then return end; camC=RS.RenderStepped:Connect(function() if not FH.on.aimlockS then return end; if not aim()then return end; if not charT or not charT.Parent then charT=findK()end; if charT and charT.Parent then local p=predPos(charT); if p then workspace.CurrentCamera.CFrame=CFrame.lookAt(workspace.CurrentCamera.CFrame.Position,p)end end end)end
 FH.stopAL=function()if camC then camC:Disconnect();camC=nil end;charT=nil end
-local function findTrig()
- local g=LP.PlayerGui:FindFirstChild("GunGui");if not g then return nil end
- return g:FindFirstChild("TriggerButton",true)or g:FindFirstChild("Trigger",true)or g:FindFirstChild("ShootButton",true)end
-local function shoot()
- local b=findTrig();if not b then return false end
- if firesignal then pcall(firesignal,b.MouseButton1Click);return true end
- pcall(function()b:Activate()end);return false end
+local function findTrig() local g=LP.PlayerGui:FindFirstChild("GunGui");if not g then return nil end; return g:FindFirstChild("TriggerButton",true)or g:FindFirstChild("Trigger",true)or g:FindFirstChild("ShootButton",true)end
+local function shoot() local b=findTrig();if not b then return false end; if firesignal then pcall(firesignal,b.MouseButton1Click);return true end; pcall(function()b:Activate()end);return false end
 local aSC,aimT=nil,0
-FH.startAS2=function()
- if aSC then return end
- aimT=0
- aSC=RS.RenderStepped:Connect(function()
-  if not FH.on.autoShootS then return end
-  local mc=LP.Character;if not mc then aimT=0;return end
-  if not aim()then aimT=0;return end
-  if aimT==0 then aimT=tick();return end
-  if tick()-ultD<.6 then return end
-  local k=charT or findK()
-  if not k or not k.Parent then return end
-  if FH.vision(k)then if shoot()then ultD=tick();aimT=tick()end end end)end
+FH.startAS2=function() if aSC then return end; aimT=0; aSC=RS.RenderStepped:Connect(function() if not FH.on.autoShootS then return end; local mc=LP.Character;if not mc then aimT=0;return end; if not aim()then aimT=0;return end; if aimT==0 then aimT=tick();return end; if tick()-ultD<.6 then return end; local k=charT or findK(); if not k or not k.Parent then return end; if FH.vision(k)then if shoot()then ultD=tick();aimT=tick()end end end)end
 FH.stopAS2=function()if aSC then aSC:Disconnect();aSC=nil end;aimT=0 end
-local function getIcon(n)
- if n=="Esp" then return "👁" end
- if n=="Scientist" then return "🧪" end
- if n=="Class A" then return "💚" end
- if n=="Class S" then return "🎯" end
- if n=="Extra Stuff" then return "⚡" end
- return "🎃"
-end
+
+-- Tabs
+local function getIcon(n) if n=="Esp" then return "👁" end; if n=="Scientist" then return "🧪" end; if n=="Class A" then return "💚" end; if n=="Class S" then return "🎯" end; if n=="Extra Stuff" then return "⚡" end; return "🎃" end
 local TABS={"Esp","Scientist","Class A","Class S","Extra Stuff"}
 local tabs={};FH.tabs=tabs;FH.pestana="Esp"
 local function mkTab(n,cs)
- local t=Instance.new("TextButton",FH.sb)
- t.Size=UDim2.new(1,-6,0,32)
- t.BackgroundColor3=C.bg_card
- t.BackgroundTransparency=.2
- t.Text=""
- t.BorderSizePixel=0
- t.AutoButtonColor=false
+ local t=Instance.new("TextButton",FH.sb); t.Size=UDim2.new(1,-6,0,32); t.BackgroundColor3=C.bg_card; t.BackgroundTransparency=.2; t.Text=""; t.BorderSizePixel=0; t.AutoButtonColor=false
  Instance.new("UICorner",t).CornerRadius=UDim.new(0,10)
  local ic=getIcon(n)
- local i=Instance.new("TextLabel",t)
- i.Size=UDim2.new(0,18,0,18)
- i.Position=UDim2.new(0,8,.5,-9)
- i.BackgroundTransparency=1
- i.Text=ic
- i.TextColor3=cs and C.text_sub or C.text
- i.TextScaled=true
- i.Font=Enum.Font.GothamBold
- local l=Instance.new("TextLabel",t)
- l.Size=UDim2.new(1,-34,1,0)
- l.Position=UDim2.new(0,30,0,0)
- l.BackgroundTransparency=1
- l.Text=n
- l.TextColor3=cs and C.text_sub or C.text
- l.TextScaled=true
- l.Font=Enum.Font.GothamBold
- l.TextXAlignment=Enum.TextXAlignment.Left
+ local i=Instance.new("TextLabel",t); i.Size=UDim2.new(0,18,0,18); i.Position=UDim2.new(0,8,.5,-9); i.BackgroundTransparency=1; i.Text=ic; i.TextColor3=cs and C.text_sub or C.text; i.TextScaled=true; i.Font=Enum.Font.GothamBold
+ local l=Instance.new("TextLabel",t); l.Size=UDim2.new(1,-34,1,0); l.Position=UDim2.new(0,30,0,0); l.BackgroundTransparency=1; l.Text=n; l.TextColor3=cs and C.text_sub or C.text; l.TextScaled=true; l.Font=Enum.Font.GothamBold; l.TextXAlignment=Enum.TextXAlignment.Left
  local ck=false
- local function setSt(s)
-  if s=="sel"then t.BackgroundColor3=C.bg_card_hl;t.BackgroundTransparency=0
-  else t.BackgroundColor3=C.bg_card;t.BackgroundTransparency=.2 end end
- t.MouseButton1Click:Connect(function()
-  if ck or cs or FH.pestana==n then return end
-  ck=true
-  FH.sfx("tab_switch",2,1)
-  if tabs[FH.pestana]then tabs[FH.pestana].S("dese")end
-  FH.pestana=n
-  setSt("sel")
-  task.spawn(function()pcall(FH.panel)end)
-  task.delay(.5,function()ck=false end)end)
- tabs[n]={S=setSt,CS=cs}end
+ local function setSt(s) if s=="sel"then t.BackgroundColor3=C.bg_card_hl;t.BackgroundTransparency=0 else t.BackgroundColor3=C.bg_card;t.BackgroundTransparency=.2 end end
+ t.MouseButton1Click:Connect(function() if ck or cs or FH.pestana==n then return end; ck=true; FH.sfx("tab_switch",2,1); if tabs[FH.pestana]then tabs[FH.pestana].S("dese")end; FH.pestana=n; setSt("sel"); task.spawn(function()pcall(FH.panel)end); task.delay(.5,function()ck=false end)end)
+ tabs[n]={S=setSt,CS=cs}
+end
 for _,n in ipairs(TABS)do mkTab(n,false)end
 if tabs["Esp"]then tabs["Esp"].S("sel")end
+
 local pupd=false
 FH.panel=function()
  if pupd then return end
  pupd=true
  pcall(function()
-  for _,h in ipairs(FH.oc:GetChildren())do
-   if not h:IsA("UIListLayout")then h:Destroy()end end
-  local opt=FH.crearOpcion
-  local btn=FH.crearBotonAccion
+  for _,h in ipairs(FH.oc:GetChildren())do if not h:IsA("UIListLayout")then h:Destroy()end end
+  local opt=FH.crearOpcion; local btn=FH.crearBotonAccion
   if FH.pestana=="Esp"then
    opt("ESP Tasks 👁",function(v)FH.on.espActive=v;if v then FH.startESP()else FH.stopESP()end end)
    opt("ESP Players 🎃",function(v)FH.on.espPlActive=v;if v then FH.startEP()else FH.stopEP()end end)
@@ -179,6 +136,8 @@ FH.panel=function()
   elseif FH.pestana=="Scientist"then
    opt("Auto Patient 🧟",function(v)FH.on.autoPatient=v;if v then FH.startAP()else FH.stopAP()end end)
    opt("Auto Generator 🕸",function(v)FH.on.autoGen=v;if v then FH.startGen()else FH.stopGen()end end)
+   btn("Teleport to Patient 🧟", function() teleToTarget("patient") end)
+   btn("Teleport to Generator 🕸", function() teleToTarget("generator") end)
   elseif FH.pestana=="Class A"then
    btn("Heal Nearest 💚",FH.healN)
    opt("Auto Heal 💚",function(v)FH.on.autoHeal=v;if v then FH.startAH()else FH.stopAH()end end)
@@ -193,29 +152,19 @@ FH.panel=function()
    opt("Auto Shoot 🔫",function(v)FH.on.autoShootS=v;if v then FH.startAS2()else FH.stopAS2()end end)
   elseif FH.pestana=="Extra Stuff"then
    opt("Inf Stamina 🎃",function(v)FH.on.infStam=v;if v then FH.startIS()else FH.stopIS()end end)
+   opt("Auto Sprint 🏃",function(v)FH.autoSprintActive=v;if v then FH.startIS()end end)
   end
  end)
- pupd=false end
-local th=Instance.new("Frame")
-th.Size=UDim2.new(0,60,0,60)
-th.Position=UDim2.new(0,20,.75,0)
-th.BackgroundTransparency=1
-th.Parent=FH.sg
-local tbtn=Instance.new("TextButton",th)
-tbtn.Size=UDim2.new(1,0,1,0)
-tbtn.BackgroundColor3=C.accent
-tbtn.Text=""
-tbtn.BorderSizePixel=0
-tbtn.AutoButtonColor=false
+ pupd=false 
+end
+
+-- Toggle Flotante
+local th=Instance.new("Frame"); th.Size=UDim2.new(0,60,0,60); th.Position=UDim2.new(0,20,.75,0); th.BackgroundTransparency=1; th.Parent=FH.sg
+local tbtn=Instance.new("TextButton",th); tbtn.Size=UDim2.new(1,0,1,0); tbtn.BackgroundColor3=C.accent; tbtn.Text=""; tbtn.BorderSizePixel=0; tbtn.AutoButtonColor=false
 Instance.new("UICorner",tbtn).CornerRadius=UDim.new(1,0)
-local sl2=Instance.new("TextLabel",tbtn)
-sl2.Size=UDim2.new(1,0,1,0)
-sl2.BackgroundTransparency=1
-sl2.Text="🎃"
-sl2.TextColor3=Color3.fromRGB(255,255,255)
-sl2.TextScaled=true
-sl2.Font=Enum.Font.GothamBlack
+local sl2=Instance.new("TextLabel",tbtn); sl2.Size=UDim2.new(1,0,1,0); sl2.BackgroundTransparency=1; sl2.Text="🎃"; sl2.TextColor3=Color3.fromRGB(255,255,255); sl2.TextScaled=true; sl2.Font=Enum.Font.GothamBlack
 tbtn.MouseButton1Click:Connect(function()FH.fr.Visible=not FH.fr.Visible end)
+
 FH.panel()
 FH.p5=true
 print("🎃 [5/5] TODO LISTO. GUI activa.")
