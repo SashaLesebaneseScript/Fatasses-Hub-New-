@@ -1,4 +1,4 @@
--- ============ PARTE 8/8 - Killer Punch (v14) ============
+-- ============ PARTE 8/8 - Killer Punch (v15) ============
 local FH = getgenv().FH
 if not FH or not FH.p7 then warn("[FH] Ejecuta Partes 1-7 primero") return end
 if FH.p8 then warn("[FH] Parte 8 ya ejecutada") return end
@@ -13,29 +13,17 @@ local function getPunchEv()
 end
 
 FH.showWarning = function(featureName, limit)
-    local existing = FH.sg:FindFirstChild("FH_Warning")
-    if existing then existing:Destroy() end
-    local w = Instance.new("Frame", FH.sg)
-    w.Name = "FH_Warning"; w.Size = UDim2.new(0, 320, 0, 120); w.Position = UDim2.new(0.5, -160, 0, 120)
-    w.BackgroundColor3 = Color3.fromRGB(30, 10, 15); w.BorderSizePixel = 0; w.ZIndex = 10
-    Instance.new("UICorner", w).CornerRadius = UDim.new(0, 10)
-    local wstroke = Instance.new("UIStroke", w); wstroke.Color = Color3.fromRGB(255, 80, 80); wstroke.Thickness = 2
-    local txt = Instance.new("TextLabel", w)
-    txt.Size = UDim2.new(1, -50, 1, -20); txt.Position = UDim2.new(0, 14, 0, 10); txt.BackgroundTransparency = 1
-    txt.Text = "You reached the limit of " .. featureName .. " (" .. limit .. ").\nI recommend set it to " .. limit .. " so u don't lag."
-    txt.TextColor3 = Color3.fromRGB(255, 200, 200); txt.Font = Enum.Font.GothamBold; txt.TextScaled = true; txt.TextWrapped = true
-    txt.TextXAlignment = Enum.TextXAlignment.Left; txt.ZIndex = 11
-    local x = Instance.new("TextButton", w)
-    x.Size = UDim2.new(0, 24, 0, 24); x.Position = UDim2.new(1, -30, 0, 6); x.BackgroundColor3 = Color3.fromRGB(180, 30, 60)
-    x.Text = "X"; x.TextColor3 = Color3.new(1,1,1); x.Font = Enum.Font.GothamBold; x.TextScaled = true; x.BorderSizePixel = 0; x.AutoButtonColor = false; x.ZIndex = 11
-    Instance.new("UICorner", x).CornerRadius = UDim.new(1, 0)
-    x.MouseButton1Click:Connect(function() w:Destroy() end)
-    task.delay(8, function() if w and w.Parent then w:Destroy() end end)
+    local existing = FH.sg:FindFirstChild("FH_Warning"); if existing then existing:Destroy() end
+    local w = Instance.new("Frame", FH.sg); w.Name = "FH_Warning"; w.Size = UDim2.new(0, 320, 0, 120); w.Position = UDim2.new(0.5, -160, 0, 120); w.BackgroundColor3 = Color3.fromRGB(30, 10, 15); w.BorderSizePixel = 0; w.ZIndex = 10
+    Instance.new("UICorner", w).CornerRadius = UDim.new(0, 10); local wstroke = Instance.new("UIStroke", w); wstroke.Color = Color3.fromRGB(255, 80, 80); wstroke.Thickness = 2
+    local txt = Instance.new("TextLabel", w); txt.Size = UDim2.new(1, -50, 1, -20); txt.Position = UDim2.new(0, 14, 0, 10); txt.BackgroundTransparency = 1; txt.Text = "Limit reached: " .. featureName .. " (" .. limit .. ").\nRecommended: " .. limit; txt.TextColor3 = Color3.fromRGB(255, 200, 200); txt.Font = Enum.Font.GothamBold; txt.TextScaled = true; txt.TextWrapped = true; txt.TextXAlignment = Enum.TextXAlignment.Left; txt.ZIndex = 11
+    local x = Instance.new("TextButton", w); x.Size = UDim2.new(0, 24, 0, 24); x.Position = UDim2.new(1, -30, 0, 6); x.BackgroundColor3 = Color3.fromRGB(180, 30, 60); x.Text = "X"; x.TextColor3 = Color3.new(1,1,1); x.Font = Enum.Font.GothamBold; x.TextScaled = true; x.BorderSizePixel = 0; x.AutoButtonColor = false; x.ZIndex = 11; Instance.new("UICorner", x).CornerRadius = UDim.new(1, 0)
+    x.MouseButton1Click:Connect(function() w:Destroy() end); task.delay(8, function() if w and w.Parent then w:Destroy() end end)
 end
 
-FH.k8 = { autoPunch=false, antiStun=false, hitboxTp=false, hitbox360=false, hitboxExpander=false, alwaysMaxSpeed=false, killAll=false, range=12, hbRange=100, expanderRange=20, expanderWidth=15, tpBoxSize=8, attackId=0 }
+FH.k8 = { autoPunch=false, antiStun=false, hitboxTp=false, hitbox360=false, hitboxExpander=false, alwaysMaxSpeed=false, killAll=false, range=12, hbRange=100, expanderRange=3.5, expanderWidth=2.0, tpBoxSize=8, attackId=0 }
 local K = FH.k8
-local LIMITS = { range=100, hbRange=500, expanderRange=100, expanderWidth=50, tpBoxSize=20 }
+local LIMITS = { range=100, hbRange=500, expanderRange=20, expanderWidth=10, tpBoxSize=20 }
 local EXTRA_MODE = false
 local SPHERE_DIRS = {}
 for x=-1,1 do for y=-1,1 do for z=-1,1 do if x~=0 or y~=0 or z~=0 then table.insert(SPHERE_DIRS, Vector3.new(x,y,z).Unit) end end end end
@@ -47,10 +35,8 @@ local function estoyStuneado()
     local hum = mc:FindFirstChildOfClass("Humanoid"); if hum and hum.PlatformStand then return true end
     return false
 end
-local function hayPared(desde, hasta, ignorar)
-    local params = RaycastParams.new(); params.FilterType = Enum.RaycastFilterType.Exclude; params.FilterDescendantsInstances = ignorar or {}
-    return WS:Raycast(desde, hasta - desde, params) ~= nil
-end
+local function hayPared(desde, hasta, ignorar) local params = RaycastParams.new(); params.FilterType = Enum.RaycastFilterType.Exclude; params.FilterDescendantsInstances = ignorar or {}; return WS:Raycast(desde, hasta - desde, params) ~= nil end
+
 local function enemigoCercano(radio)
     radio = radio or K.range; local mc = LP.Character; if not mc then return nil end
     local mh = mc:FindFirstChild("HumanoidRootPart"); if not mh then return nil end
@@ -61,22 +47,32 @@ local function enemigoCercano(radio)
     end end return best
 end
 
+-- Loop de Auto Punch Independiente
+task.spawn(function()
+    while true do
+        if K.autoPunch and soyKiller() and not estoyStuneado() then
+            local t = enemigoCercano(K.range)
+            if t then
+                local ev = getPunchEv()
+                local mh = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+                if ev and mh then
+                    K.attackId = K.attackId + 1
+                    pcall(function() ev:FireServer({AttackId=K.attackId, Position=mh.Position, Velocity=mh.AssemblyLinearVelocity, Direction=mh.CFrame.LookVector}) end)
+                end
+            end
+            task.wait(0.6)
+        else
+            task.wait(0.5)
+        end
+    end
+end)
+
+-- Extras On-Click (Extras manuales)
 local function triggerExtras()
     if EXTRA_MODE or not soyKiller() or estoyStuneado() then return end
     local ev = getPunchEv(); if not ev then return end
     local mc = LP.Character; local mh = mc and mc:FindFirstChild("HumanoidRootPart"); if not mh then return end
     EXTRA_MODE = true
-    
-    if K.autoPunch then
-        K.attackId = K.attackId + 1; local id = K.attackId; local startT = tick()
-        while tick() - startT <= 0.4 do
-            if estoyStuneado() then break end
-            local c = LP.Character; if not c then break end
-            local h = c:FindFirstChild("HumanoidRootPart"); if not h then break end
-            for i = 1, 5 do pcall(function() ev:FireServer({AttackId=id, Position=h.Position, Velocity=h.AssemblyLinearVelocity, Direction=h.CFrame.LookVector}) end) end
-            task.wait(0.05)
-        end
-    end
     
     if K.hitboxTp then
         local t = enemigoCercano(K.expanderRange)
@@ -110,13 +106,14 @@ local function triggerExtras()
     end
     
     if K.hitboxExpander then
-        K.attackId = K.attackId + 1; local id = K.attackId; local look = mh.CFrame.LookVector; local right = mh.CFrame.RightVector
+        K.attackId = K.attackId + 1; local id = K.attackId; local look = mh.CFrame.LookVector
         local dist = K.expanderRange; local width = K.expanderWidth; local startT = tick()
         while tick() - startT <= 0.3 do
             if estoyStuneado() then break end
-            local positions = { mh.Position + look*(dist*0.5), mh.Position + look*(dist*0.5) + right*(width*0.5), mh.Position + look*(dist*0.5) - right*(width*0.5) }
-            for _, pos in ipairs(positions) do pcall(function() ev:FireServer({AttackId=id, Position=pos, Velocity=Vector3.new(0,0,0), Direction=look}) end) end
-            task.wait(0.05)
+            -- Solo 1 hitbox extra al frente para que sea realista
+            local pos = mh.Position + look * dist
+            pcall(function() ev:FireServer({AttackId=id, Position=pos, Velocity=Vector3.new(0,0,0), Direction=look}) end)
+            task.wait(0.1)
         end
     end
     EXTRA_MODE = false
@@ -137,63 +134,19 @@ task.spawn(function()
     end)
 end)
 
-local amsConn = nil
-local function startAMS()
-    if amsConn then return end
-    amsConn = RS.Heartbeat:Connect(function()
-        if not K.alwaysMaxSpeed or not soyKiller() or estoyStuneado() then return end
-        local mc = LP.Character; if not mc then return end
-        local hum = mc:FindFirstChildOfClass("Humanoid"); if hum and hum.WalkSpeed ~= 27 then pcall(function() hum.WalkSpeed = 27 end) end
-    end)
-end
-local function stopAMS() K.alwaysMaxSpeed = false; if amsConn then amsConn:Disconnect(); amsConn = nil end end
+-- AMS, Kill All, Anti Stun, Panel
+local amsConn = nil; local function startAMS() if amsConn then return end; amsConn = RS.Heartbeat:Connect(function() if not K.alwaysMaxSpeed or not soyKiller() or estoyStuneado() then return end; local mc = LP.Character; if not mc then return end; local hum = mc:FindFirstChildOfClass("Humanoid"); if hum and hum.WalkSpeed ~= 27 then pcall(function() hum.WalkSpeed = 27 end) end end) end; local function stopAMS() K.alwaysMaxSpeed = false; if amsConn then amsConn:Disconnect(); amsConn = nil end end
 
 local killAllConn = nil; local savedSpeedKA, savedJumpKA = 16, 50; local killAllStuckT = 0
-local function getNearestSurvivor()
-    local mc = LP.Character; if not mc then return nil end
-    local mh = mc:FindFirstChild("HumanoidRootPart"); if not mh then return nil end
-    local best, bd = nil, math.huge
-    for _, p in ipairs(PL:GetPlayers()) do if p ~= LP and p.Character then
-        local h = p.Character:FindFirstChildOfClass("Humanoid"); local hrp = p.Character:FindFirstChild("HumanoidRootPart")
-        if h and h.Health > 0 and hrp then local d = (mh.Position - hrp.Position).Magnitude; if d < bd then bd = d; best = p.Character end end
-    end end return best
-end
-local function updateKillAll()
-    if not K.killAll or estoyStuneado() then return end
-    local survivor = getNearestSurvivor(); if not survivor then return end
-    local shrp = survivor:FindFirstChild("HumanoidRootPart"); if not shrp then return end
-    local mc = LP.Character; if not mc then return end
-    local myhrp = mc:FindFirstChild("HumanoidRootPart"); if not myhrp then return end
-    local myhum = mc:FindFirstChildOfClass("Humanoid"); if myhum then myhum.WalkSpeed = 0; myhum.JumpPower = 0 end
-    local targetPos = shrp.Position + Vector3.new(2.5, 1, 0); local finalLook = Vector3.new(shrp.Position.X, targetPos.Y, shrp.Position.Z)
-    if (myhrp.Position - shrp.Position).Magnitude > 2.5 then
-        local newPos = myhrp.Position:Lerp(targetPos, 0.1); local ignorar = {mc, survivor}
-        local hayPared1 = hayPared(myhrp.Position, newPos, ignorar); local headA = Vector3.new(myhrp.Position.X, myhrp.Position.Y + 2, myhrp.Position.Z); local headB = Vector3.new(newPos.X, newPos.Y + 2, newPos.Z)
-        if hayPared1 or hayPared(headA, headB, ignorar) then
-            if tick() - killAllStuckT > 1.5 then pcall(function() myhrp.CFrame = CFrame.lookAt(targetPos, finalLook) end); killAllStuckT = tick(); return end
-            if killAllStuckT == 0 then killAllStuckT = tick() end
-            local ry = math.atan2(-(shrp.Position.X - myhrp.Position.X), -(shrp.Position.Z - myhrp.Position.Z)); myhrp.CFrame = CFrame.new(myhrp.Position) * CFrame.Angles(0, ry, 0); return
-        end
-        killAllStuckT = 0; pcall(function() myhrp.CFrame = CFrame.lookAt(newPos, finalLook) end); return
-    end
-    killAllStuckT = 0; pcall(function() myhrp.CFrame = CFrame.lookAt(myhrp.Position, finalLook) end)
-end
-local function startKillAll()
-    if killAllConn then return end
-    local mc = LP.Character; if mc then local hum = mc:FindFirstChildOfClass("Humanoid"); if hum then savedSpeedKA = hum.WalkSpeed; savedJumpKA = hum.JumpPower end end
-    killAllConn = RS.RenderStepped:Connect(function() pcall(updateKillAll) end)
-end
-local function stopKillAll()
-    K.killAll = false; if killAllConn then killAllConn:Disconnect(); killAllConn = nil end
-    local mc = LP.Character; if mc then local hum = mc:FindFirstChildOfClass("Humanoid"); if hum then hum.WalkSpeed = savedSpeedKA; hum.JumpPower = savedJumpKA end end
-end
+local function getNearestSurvivor() local mc = LP.Character; if not mc then return nil end; local mh = mc:FindFirstChild("HumanoidRootPart"); if not mh then return nil end; local best, bd = nil, math.huge; for _, p in ipairs(PL:GetPlayers()) do if p ~= LP and p.Character then local h = p.Character:FindFirstChildOfClass("Humanoid"); local hrp = p.Character:FindFirstChild("HumanoidRootPart"); if h and h.Health > 0 and hrp then local d = (mh.Position - hrp.Position).Magnitude; if d < bd then bd = d; best = p.Character end end end end return best end
+local function updateKillAll() if not K.killAll or estoyStuneado() then return end; local survivor = getNearestSurvivor(); if not survivor then return end; local shrp = survivor:FindFirstChild("HumanoidRootPart"); if not shrp then return end; local mc = LP.Character; if not mc then return end; local myhrp = mc:FindFirstChild("HumanoidRootPart"); if not myhrp then return end; local myhum = mc:FindFirstChildOfClass("Humanoid"); if myhum then myhum.WalkSpeed = 0; myhum.JumpPower = 0 end; local targetPos = shrp.Position + Vector3.new(2.5, 1, 0); local finalLook = Vector3.new(shrp.Position.X, targetPos.Y, shrp.Position.Z); if (myhrp.Position - shrp.Position).Magnitude > 2.5 then local newPos = myhrp.Position:Lerp(targetPos, 0.1); local ignorar = {mc, survivor}; if hayPared(myhrp.Position, newPos, ignorar) or hayPared(Vector3.new(myhrp.Position.X, myhrp.Position.Y + 2, myhrp.Position.Z), Vector3.new(newPos.X, newPos.Y + 2, newPos.Z), ignorar) then if tick() - killAllStuckT > 1.5 then pcall(function() myhrp.CFrame = CFrame.lookAt(targetPos, finalLook) end); killAllStuckT = tick(); return end; if killAllStuckT == 0 then killAllStuckT = tick() end; myhrp.CFrame = CFrame.new(myhrp.Position) * CFrame.Angles(0, math.atan2(-(shrp.Position.X - myhrp.Position.X), -(shrp.Position.Z - myhrp.Position.Z)), 0); return end; killAllStuckT = 0; pcall(function() myhrp.CFrame = CFrame.lookAt(newPos, finalLook) end); return end; killAllStuckT = 0; pcall(function() myhrp.CFrame = CFrame.lookAt(myhrp.Position, finalLook) end) end
+local function startKillAll() if killAllConn then return end; local mc = LP.Character; if mc then local hum = mc:FindFirstChildOfClass("Humanoid"); if hum then savedSpeedKA = hum.WalkSpeed; savedJumpKA = hum.JumpPower end end; killAllConn = RS.RenderStepped:Connect(function() pcall(updateKillAll) end) end
+local function stopKillAll() K.killAll = false; if killAllConn then killAllConn:Disconnect(); killAllConn = nil end; local mc = LP.Character; if mc then local hum = mc:FindFirstChildOfClass("Humanoid"); if hum then hum.WalkSpeed = savedSpeedKA; hum.JumpPower = savedJumpKA end end end
 
 local stunConns = {}
 local function nukeStun(val) if val:GetAttribute("FH_STUN") then return end; val:SetAttribute("FH_STUN", true); pcall(function() val.Value = false end); table.insert(stunConns, val:GetPropertyChangedSignal("Value"):Connect(function() if K.antiStun and val.Value then pcall(function() val.Value = false end) end end)) end
 local function findStunValues() local mc = LP.Character; if not mc then return end; for _, d in ipairs(mc:GetDescendants()) do if d.Name:lower():find("stun") and (d:IsA("BoolValue") or d:IsA("IntValue") or d:IsA("NumberValue")) then nukeStun(d) end end end
-local antiStunConn = nil
-local function startAntiStun() findStunValues(); if antiStunConn then return end; antiStunConn = RS.Heartbeat:Connect(function() if K.antiStun then findStunValues() end end) end
-local function stopAntiStun() K.antiStun = false; if antiStunConn then antiStunConn:Disconnect(); antiStunConn = nil end; for _, c in ipairs(stunConns) do pcall(function() c:Disconnect() end) end; stunConns = {} end
+local antiStunConn = nil; local function startAntiStun() findStunValues(); if antiStunConn then return end; antiStunConn = RS.Heartbeat:Connect(function() if K.antiStun then findStunValues() end end) end; local function stopAntiStun() K.antiStun = false; if antiStunConn then antiStunConn:Disconnect(); antiStunConn = nil end; for _, c in ipairs(stunConns) do pcall(function() c:Disconnect() end) end; stunConns = {} end
 
 local function mkNumInput(labelTxt, minV, maxV, getV, setV)
     local holder = Instance.new("Frame", FH.oc); holder.Size = UDim2.new(1, 0, 0, 40); holder.BackgroundColor3 = C.bg_card; holder.BackgroundTransparency = 0.2; holder.BorderSizePixel = 0
@@ -223,4 +176,4 @@ end
 
 if FH.pestana == "Experiment" then FH.panel() end
 FH.p8 = true
-print("🎃 [8/8] Killer Punch OK (v14)")
+print("🎃 [8/8] Killer Punch OK (v15)")
