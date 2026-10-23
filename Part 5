@@ -68,117 +68,65 @@ FH.startIS=function()
 end
 FH.stopIS=function()if ifC then ifC:Disconnect();ifC=nil end;sprHeld=false end
 
--- Teleports
-local function teleToTarget(keyword)
-    local mc = LP.Character
-    if not mc then return end
-    local mh = mc:FindFirstChild("HumanoidRootPart")
-    if not mh then return end
-    local best, bestD = nil, math.huge
+-- Teleports Ciclicos
+local tpIndex = { patient = 1, generator = 1 }
+local function cycleTP(keyword)
+    local mc = LP.Character; if not mc then return end
+    local mh = mc:FindFirstChild("HumanoidRootPart"); if not mh then return end
+    local targets = {}
     for _, obj in ipairs(WS:GetDescendants()) do
         if obj:IsA("Model") and string.find(string.lower(obj.Name), keyword) then
             local hrp = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")
-            if hrp then
-                local d = (mh.Position - hrp.Position).Magnitude
-                if d < bestD then bestD = d; best = hrp end
-            end
+            if hrp then table.insert(targets, hrp) end
         end
     end
-    if best then
-        mh.CFrame = CFrame.new(best.Position + Vector3.new(0, 3, 0))
-    end
+    if #targets == 0 then return end
+    local idx = tpIndex[keyword] or 1
+    if idx > #targets then idx = 1 end
+    tpIndex[keyword] = idx + 1
+    local target = targets[idx]
+    mh.CFrame = CFrame.new(target.Position + Vector3.new(0, 3, 0))
 end
 
 -- Spectator GUI
-local specGui = nil
-local specList = nil
-local specActive = false
+local specGui = nil; local specList = nil; local specActive = false
 local function updateSpecList()
-    if not specGui then return end
-    for _, c in ipairs(specList:GetChildren()) do
-        if c:IsA("TextLabel") then c:Destroy() end
-    end
+    if not specGui or not specList then return end
+    for _, c in ipairs(specList:GetChildren()) do if c:IsA("TextLabel") then c:Destroy() end end
+    local count = 0
     for _, p in ipairs(PL:GetPlayers()) do
         if p ~= LP and p.Character then
             local isInRound = p.Character:FindFirstChild("IsInRound")
             local hum = p.Character:FindFirstChildOfClass("Humanoid")
-            if isInRound and hum and hum.Health > 0 then
+            -- Si NO esta en ronda, o esta muerto, es un espectador
+            if (not isInRound) or (hum and hum.Health <= 0) then
+                count = count + 1
                 local lbl = Instance.new("TextLabel", specList)
-                lbl.Size = UDim2.new(1, 0, 0, 20)
-                lbl.BackgroundTransparency = 1
-                lbl.Text = "🎃 " .. p.Name
-                lbl.TextColor3 = Color3.fromRGB(255, 200, 200)
-                lbl.TextXAlignment = Enum.TextXAlignment.Left
-                lbl.Font = Enum.Font.GothamBold
-                lbl.TextScaled = true
+                lbl.Size = UDim2.new(1, 0, 0, 20); lbl.BackgroundTransparency = 1
+                lbl.Text = "👁 " .. p.Name; lbl.TextColor3 = Color3.fromRGB(255, 200, 200)
+                lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Font = Enum.Font.GothamBold; lbl.TextScaled = true
             end
         end
     end
+    local title = specGui:FindFirstChild("Frame") and specGui.Frame:FindFirstChild("TopBar") and specGui.Frame.TopBar:FindFirstChild("TextLabel")
+    if title then title.Text = "Spectators: " .. count end
 end
 local function startSpectator()
     if specGui then return end
-    specGui = Instance.new("ScreenGui")
-    specGui.Name = "FH_Spectators"
-    specGui.ResetOnSpawn = false
-    specGui.Parent = FH.parent
-    
-    local frame = Instance.new("Frame", specGui)
-    frame.Size = UDim2.new(0, 180, 0, 250)
-    frame.Position = UDim2.new(0, 20, 0.2, 0)
-    frame.BackgroundColor3 = Color3.fromRGB(20, 10, 28)
-    frame.BorderSizePixel = 0
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
-    
-    local topBar = Instance.new("Frame", frame)
-    topBar.Size = UDim2.new(1, 0, 0, 30)
-    topBar.BackgroundColor3 = Color3.fromRGB(35, 15, 45)
-    topBar.BorderSizePixel = 0
-    Instance.new("UICorner", topBar).CornerRadius = UDim.new(0, 8)
-    
-    local title = Instance.new("TextLabel", topBar)
-    title.Size = UDim2.new(1, 0, 1, 0)
-    title.BackgroundTransparency = 1
-    title.Text = "Spectators: " .. #PL:GetPlayers()
-    title.TextColor3 = Color3.new(1,1,1)
-    title.Font = Enum.Font.GothamBold
-    title.TextScaled = true
-    
-    specList = Instance.new("ScrollingFrame", frame)
-    specList.Size = UDim2.new(1, -10, 1, -40)
-    specList.Position = UDim2.new(0, 5, 0, 35)
-    specList.BackgroundTransparency = 1
-    specList.BorderSizePixel = 0
-    specList.ScrollBarThickness = 2
+    specGui = Instance.new("ScreenGui"); specGui.Name = "FH_Spectators"; specGui.ResetOnSpawn = false; specGui.Parent = FH.parent
+    local frame = Instance.new("Frame", specGui); frame.Name = "Frame"; frame.Size = UDim2.new(0, 180, 0, 250); frame.Position = UDim2.new(0, 20, 0.2, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(20, 10, 28); frame.BorderSizePixel = 0; Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+    local topBar = Instance.new("Frame", frame); topBar.Name = "TopBar"; topBar.Size = UDim2.new(1, 0, 0, 30); topBar.BackgroundColor3 = Color3.fromRGB(35, 15, 45); topBar.BorderSizePixel = 0; Instance.new("UICorner", topBar).CornerRadius = UDim.new(0, 8)
+    local title = Instance.new("TextLabel", topBar); title.Size = UDim2.new(1, 0, 1, 0); title.BackgroundTransparency = 1; title.Text = "Spectators: 0"; title.TextColor3 = Color3.new(1,1,1); title.Font = Enum.Font.GothamBold; title.TextScaled = true
+    specList = Instance.new("ScrollingFrame", frame); specList.Size = UDim2.new(1, -10, 1, -40); specList.Position = UDim2.new(0, 5, 0, 35); specList.BackgroundTransparency = 1; specList.BorderSizePixel = 0; specList.ScrollBarThickness = 2
     Instance.new("UIListLayout", specList).Padding = UDim.new(0, 5)
-    
-    -- Draggable
     local dragging, dragStart, startPos
-    topBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true; dragStart = input.Position; startPos = frame.Position
-        end
-    end)
-    UI.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local delta = input.Position - dragStart
-            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
-    UI.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
-    end)
-    
-    task.spawn(function()
-        while specActive do
-            updateSpecList()
-            title.Text = "Spectators: " .. #PL:GetPlayers()
-            task.wait(2)
-        end
-    end)
+    topBar.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true; dragStart = input.Position; startPos = frame.Position end end)
+    UI.InputChanged:Connect(function(input) if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then local delta = input.Position - dragStart; frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end)
+    UI.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
+    task.spawn(function() while specActive do updateSpecList(); task.wait(2) end end)
 end
-local function stopSpectator()
-    if specGui then specGui:Destroy(); specGui = nil end
-end
+local function stopSpectator() if specGui then specGui:Destroy(); specGui = nil end end
 
 -- Class S / Tabs
 local camC,charT,ultD=nil,nil,0
@@ -219,8 +167,8 @@ FH.panel=function()
   elseif FH.pestana=="Scientist"then
    opt("Auto Patient 🧟",function(v)FH.on.autoPatient=v;if v then FH.startAP()else FH.stopAP()end end)
    opt("Auto Generator 🕸",function(v)FH.on.autoGen=v;if v then FH.startGen()else FH.stopGen()end end)
-   btn("TP to Patient 🧟", function() teleToTarget("patient") end)
-   btn("TP to Generator 🕸", function() teleToTarget("tube") end)
+   btn("Cycle TP to Patient 🧟", function() cycleTP("patient") end)
+   btn("Cycle TP to Generator 🕸", function() cycleTP("tube") end)
   elseif FH.pestana=="Class A"then
    btn("Heal Nearest 💚",FH.healN)
    opt("Auto Heal 💚",function(v)FH.on.autoHeal=v;if v then FH.startAH()else FH.stopAH()end end)
@@ -246,7 +194,6 @@ local tbtn=Instance.new("TextButton",th); tbtn.Size=UDim2.new(1,0,1,0); tbtn.Bac
 Instance.new("UICorner",tbtn).CornerRadius=UDim.new(1,0)
 local sl2=Instance.new("TextLabel",tbtn); sl2.Size=UDim2.new(1,0,1,0); sl2.BackgroundTransparency=1; sl2.Text="🎃"; sl2.TextColor3=Color3.fromRGB(255,255,255); sl2.TextScaled=true; sl2.Font=Enum.Font.GothamBlack
 tbtn.MouseButton1Click:Connect(function()FH.fr.Visible=not FH.fr.Visible end)
-
 FH.panel()
 FH.p5=true
 print("🎃 [5/5] TODO LISTO. GUI activa.")
