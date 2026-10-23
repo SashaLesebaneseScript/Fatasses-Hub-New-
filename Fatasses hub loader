@@ -1,4 +1,3 @@
--- ============ FATASSES HUB LOADER (16 partes) ============
 local URLS = {
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part1",
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%202",
@@ -16,6 +15,7 @@ local URLS = {
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%2015",
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%2016",
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%2017",
+    "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%2018",
 }
 
 local DELAY = 2
@@ -26,28 +26,15 @@ print("🎃 LOADER: Iniciando carga de " .. TOTAL .. " partes...")
 for i = 1, TOTAL do
     print("🎃 LOADER: Cargando parte " .. i .. "/" .. TOTAL .. "...")
     local ok, code = pcall(function() return game:HttpGet(URLS[i], true) end)
-    if not ok or not code or code == "" then
-        warn("🎃 LOADER: ERROR al descargar parte " .. i .. "/" .. TOTAL)
-        return
-    end
+    if not ok or not code or code == "" then warn("🎃 LOADER: ERROR al descargar parte " .. i .. "/" .. TOTAL); return end
     local fn, err = loadstring(code)
-    if not fn then
-        warn("🎃 LOADER: ERROR de sintaxis en parte " .. i .. ": " .. tostring(err))
-        return
-    end
+    if not fn then warn("🎃 LOADER: ERROR de sintaxis en parte " .. i .. ": " .. tostring(err)); return end
     local ok2, err2 = pcall(fn)
-    if not ok2 then
-        warn("🎃 LOADER: ERROR al ejecutar parte " .. i .. ": " .. tostring(err2))
-        return
-    end
+    if not ok2 then warn("🎃 LOADER: ERROR al ejecutar parte " .. i .. ": " .. tostring(err2)); return end
     print("🎃 LOADER: ✅ Parte " .. i .. "/" .. TOTAL .. " OK")
     if i < TOTAL then task.wait(DELAY) end
 end
 
--- Forzar actualización del panel al terminar
 task.wait(0.5)
-if getgenv().FH and getgenv().FH.panel then 
-    pcall(getgenv().FH.panel) 
-end
-
+if getgenv().FH and getgenv().FH.panel then pcall(getgenv().FH.panel) end
 print("🎃 LOADER: ✅ TODO CARGADO. GUI lista.")
