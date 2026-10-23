@@ -9,24 +9,13 @@ FH.gun = { silentAim=false }
 
 local function getKiller()
     local best, bestH = nil, 6.5
-    for _, p in ipairs(PL:GetPlayers()) do
-        if p ~= LP and p.Character then
-            local h = p.Character:FindFirstChildOfClass("Humanoid")
-            if h and h.Health > 0 then
-                local ok, sz = pcall(function() return p.Character:GetExtentsSize().Y end)
-                if ok and sz and sz > bestH then bestH = sz; best = p.Character end
-            end
-        end
-    end
-    return best
+    for _, p in ipairs(PL:GetPlayers()) do if p ~= LP and p.Character then
+        local h = p.Character:FindFirstChildOfClass("Humanoid")
+        if h and h.Health > 0 then local ok, sz = pcall(function() return p.Character:GetExtentsSize().Y end); if ok and sz and sz > bestH then bestH = sz; best = p.Character end end
+    end end return best
 end
+local function getChest(char) if not char then return nil end return char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso") or char:FindFirstChild("HumanoidRootPart") end
 
-local function getChest(char)
-    if not char then return nil end
-    return char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso") or char:FindFirstChild("HumanoidRootPart")
-end
-
--- Hook __namecall para cambiar el tiro cuando disparas
 task.spawn(function()
     task.wait(1)
     pcall(function()
@@ -39,12 +28,7 @@ task.spawn(function()
                 local args = {...}
                 if args[1] == "Shoot" and FH.gun.silentAim then
                     local target = getKiller()
-                    if target then
-                        local chest = getChest(target)
-                        if chest then
-                            args[2] = chest.Position -- Cambiar la posición al pecho
-                        end
-                    end
+                    if target then local chest = getChest(target); if chest then args[2] = chest.Position end end
                     return oldNamecall(self, unpack(args))
                 end
             end
@@ -54,7 +38,6 @@ task.spawn(function()
     end)
 end)
 
--- Añadir al panel de Class S
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
