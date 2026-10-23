@@ -3,6 +3,7 @@ local FH=getgenv().FH
 if not FH or not FH.p4 then warn("[FH] Ejecuta Partes 1-4 primero") return end
 if FH.p5 then warn("[FH] Parte 5 ya ejecutada") return end
 local RS,PL,WS,LP=FH.RS,FH.PL,FH.WS,FH.LP
+local UI = FH.UI
 local C=FH.C
 local sprHeld=false; sprBtn=nil; ifC=nil; humHk=nil
 FH.autoSprintActive = false
@@ -26,7 +27,6 @@ local function hookH(h)
   if setreadonly then setreadonly(mt,false)end
   local old=mt.__newindex
   mt.__newindex=function(s,k,v)
-   -- Forzamos la velocidad si InfStamina o AutoSprint están activos
    if k=="WalkSpeed"and s==h and (FH.on.infStam or FH.autoSprintActive) then
     local t=tSpeed();if v~=t then return old(s,k,t)end end
    return old(s,k,v)end
@@ -57,7 +57,6 @@ FH.startIS=function()
   if c2 then local h2=c2:FindFirstChildOfClass("Humanoid")
    if h2 and h2~=humHk then humHk=nil;hookH(h2)end end 
   
-  -- Forzar WalkSpeed cada frame si AutoSprint está ON
   if FH.autoSprintActive then
       local char = LP.Character
       if char then
@@ -69,13 +68,12 @@ FH.startIS=function()
 end
 FH.stopIS=function()if ifC then ifC:Disconnect();ifC=nil end;sprHeld=false end
 
--- Teleports (Generator / Patient)
+-- Teleports
 local function teleToTarget(keyword)
     local mc = LP.Character
     if not mc then return end
     local mh = mc:FindFirstChild("HumanoidRootPart")
     if not mh then return end
-    
     local best, bestD = nil, math.huge
     for _, obj in ipairs(WS:GetDescendants()) do
         if obj:IsA("Model") and string.find(string.lower(obj.Name), keyword) then
@@ -91,7 +89,98 @@ local function teleToTarget(keyword)
     end
 end
 
--- Class S
+-- Spectator GUI
+local specGui = nil
+local specList = nil
+local specActive = false
+local function updateSpecList()
+    if not specGui then return end
+    for _, c in ipairs(specList:GetChildren()) do
+        if c:IsA("TextLabel") then c:Destroy() end
+    end
+    for _, p in ipairs(PL:GetPlayers()) do
+        if p ~= LP and p.Character then
+            local isInRound = p.Character:FindFirstChild("IsInRound")
+            local hum = p.Character:FindFirstChildOfClass("Humanoid")
+            if isInRound and hum and hum.Health > 0 then
+                local lbl = Instance.new("TextLabel", specList)
+                lbl.Size = UDim2.new(1, 0, 0, 20)
+                lbl.BackgroundTransparency = 1
+                lbl.Text = "🎃 " .. p.Name
+                lbl.TextColor3 = Color3.fromRGB(255, 200, 200)
+                lbl.TextXAlignment = Enum.TextXAlignment.Left
+                lbl.Font = Enum.Font.GothamBold
+                lbl.TextScaled = true
+            end
+        end
+    end
+end
+local function startSpectator()
+    if specGui then return end
+    specGui = Instance.new("ScreenGui")
+    specGui.Name = "FH_Spectators"
+    specGui.ResetOnSpawn = false
+    specGui.Parent = FH.parent
+    
+    local frame = Instance.new("Frame", specGui)
+    frame.Size = UDim2.new(0, 180, 0, 250)
+    frame.Position = UDim2.new(0, 20, 0.2, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(20, 10, 28)
+    frame.BorderSizePixel = 0
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+    
+    local topBar = Instance.new("Frame", frame)
+    topBar.Size = UDim2.new(1, 0, 0, 30)
+    topBar.BackgroundColor3 = Color3.fromRGB(35, 15, 45)
+    topBar.BorderSizePixel = 0
+    Instance.new("UICorner", topBar).CornerRadius = UDim.new(0, 8)
+    
+    local title = Instance.new("TextLabel", topBar)
+    title.Size = UDim2.new(1, 0, 1, 0)
+    title.BackgroundTransparency = 1
+    title.Text = "Spectators: " .. #PL:GetPlayers()
+    title.TextColor3 = Color3.new(1,1,1)
+    title.Font = Enum.Font.GothamBold
+    title.TextScaled = true
+    
+    specList = Instance.new("ScrollingFrame", frame)
+    specList.Size = UDim2.new(1, -10, 1, -40)
+    specList.Position = UDim2.new(0, 5, 0, 35)
+    specList.BackgroundTransparency = 1
+    specList.BorderSizePixel = 0
+    specList.ScrollBarThickness = 2
+    Instance.new("UIListLayout", specList).Padding = UDim.new(0, 5)
+    
+    -- Draggable
+    local dragging, dragStart, startPos
+    topBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true; dragStart = input.Position; startPos = frame.Position
+        end
+    end)
+    UI.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    UI.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+    end)
+    
+    task.spawn(function()
+        while specActive do
+            updateSpecList()
+            title.Text = "Spectators: " .. #PL:GetPlayers()
+            task.wait(2)
+        end
+    end)
+end
+local function stopSpectator()
+    if specGui then specGui:Destroy(); specGui = nil end
+end
+
+-- Class S / Tabs
 local camC,charT,ultD=nil,nil,0
 local function countScr(m) if not m or not m:IsA("Model")then return 0 end; local n=0; for _,x in ipairs(m:GetDescendants())do if x:IsA("Script")or x:IsA("LocalScript")or x:IsA("ModuleScript")then n=n+1 end end return n end
 local function findK() local bk,bs=nil,0; for _,p in ipairs(PL:GetPlayers())do if p~=LP and p.Character then local ch=p.Character;local h=ch:FindFirstChildOfClass("Humanoid"); if h and h.Health>0 then local n=countScr(ch);local a=ch:GetExtentsSize().Y; if n>=FH.KST then local sc=1000+n;if sc>bs then bs=sc;bk=ch end elseif a>bs then bs=a;bk=ch end end end end; return bk end
@@ -100,13 +189,7 @@ local function getChest(c)return c and(c:FindFirstChild("UpperTorso")or c:FindFi
 local function predPos(c) local ch=getChest(c);if not ch then return nil end; local v=Vector3.new(0,0,0); local hr=c:FindFirstChild("HumanoidRootPart"); if hr then v=hr.AssemblyLinearVelocity;if v.Magnitude<.1 then v=hr.Velocity end end; local p=v*.12;if p.Magnitude>3 then p=p.Unit*3 end; return ch.Position+p end
 FH.startAL=function() if camC then return end; camC=RS.RenderStepped:Connect(function() if not FH.on.aimlockS then return end; if not aim()then return end; if not charT or not charT.Parent then charT=findK()end; if charT and charT.Parent then local p=predPos(charT); if p then workspace.CurrentCamera.CFrame=CFrame.lookAt(workspace.CurrentCamera.CFrame.Position,p)end end end)end
 FH.stopAL=function()if camC then camC:Disconnect();camC=nil end;charT=nil end
-local function findTrig() local g=LP.PlayerGui:FindFirstChild("GunGui");if not g then return nil end; return g:FindFirstChild("TriggerButton",true)or g:FindFirstChild("Trigger",true)or g:FindFirstChild("ShootButton",true)end
-local function shoot() local b=findTrig();if not b then return false end; if firesignal then pcall(firesignal,b.MouseButton1Click);return true end; pcall(function()b:Activate()end);return false end
-local aSC,aimT=nil,0
-FH.startAS2=function() if aSC then return end; aimT=0; aSC=RS.RenderStepped:Connect(function() if not FH.on.autoShootS then return end; local mc=LP.Character;if not mc then aimT=0;return end; if not aim()then aimT=0;return end; if aimT==0 then aimT=tick();return end; if tick()-ultD<.6 then return end; local k=charT or findK(); if not k or not k.Parent then return end; if FH.vision(k)then if shoot()then ultD=tick();aimT=tick()end end end)end
-FH.stopAS2=function()if aSC then aSC:Disconnect();aSC=nil end;aimT=0 end
 
--- Tabs
 local function getIcon(n) if n=="Esp" then return "👁" end; if n=="Scientist" then return "🧪" end; if n=="Class A" then return "💚" end; if n=="Class S" then return "🎯" end; if n=="Extra Stuff" then return "⚡" end; return "🎃" end
 local TABS={"Esp","Scientist","Class A","Class S","Extra Stuff"}
 local tabs={};FH.tabs=tabs;FH.pestana="Esp"
@@ -137,7 +220,7 @@ FH.panel=function()
    opt("Auto Patient 🧟",function(v)FH.on.autoPatient=v;if v then FH.startAP()else FH.stopAP()end end)
    opt("Auto Generator 🕸",function(v)FH.on.autoGen=v;if v then FH.startGen()else FH.stopGen()end end)
    btn("TP to Patient 🧟", function() teleToTarget("patient") end)
-   btn("TP to Generator 🕸", function() teleToTarget("generator") end)
+   btn("TP to Generator 🕸", function() teleToTarget("tube") end)
   elseif FH.pestana=="Class A"then
    btn("Heal Nearest 💚",FH.healN)
    opt("Auto Heal 💚",function(v)FH.on.autoHeal=v;if v then FH.startAH()else FH.stopAH()end end)
@@ -149,10 +232,10 @@ FH.panel=function()
    opt("Auto heal self 🩹",function(v)FH.on.autoHealSelf=v;if v then FH.startAHS()else FH.stopAHS()end end)
   elseif FH.pestana=="Class S"then
    opt("Aimlock 🎯",function(v)FH.on.aimlockS=v;if v then FH.startAL()else FH.stopAL()end end)
-   opt("Auto Shoot 🔫",function(v)FH.on.autoShootS=v;if v then FH.startAS2()else FH.stopAS2()end end)
   elseif FH.pestana=="Extra Stuff"then
    opt("Inf Stamina 🎃",function(v)FH.on.infStam=v;if v then FH.startIS()else FH.stopIS()end end)
-   opt("Auto Sprint (Force) 🏃", function(v) FH.autoSprintActive = v; if v then FH.startIS() end end)
+   opt("Auto Sprint (30) 🏃", function(v) FH.autoSprintActive = v; if v then FH.startIS() end end)
+   opt("Spectators GUI 👁", function(v) specActive = v; if v then startSpectator() else stopSpectator() end end)
   end
  end)
  pupd=false 
