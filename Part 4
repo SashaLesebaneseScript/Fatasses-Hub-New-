@@ -83,7 +83,7 @@ FH.startEP=function()
 end
 FH.stopEP=function() pT=nil; for m in pairs(pESP)do delP(m)end end
 
--- Tracers
+-- Tracers (AHORA VISIBLES FUERA DE PANTALLA)
 local tGui=Instance.new("ScreenGui")
 tGui.Name="FatassesTracers"; tGui.ResetOnSpawn=false; tGui.IgnoreGuiInset=true
 tGui.DisplayOrder=998; tGui.Parent=FH.parent
@@ -96,7 +96,6 @@ local function renderT()
     local cm=workspace.CurrentCamera; if not cm then return end
     
     local msp, mon, mdepth = cm:WorldToViewportPoint(myFoot)
-    -- Si yo estoy fuera de camara, uso el centro de la pantalla
     if mdepth <= 0 then
         msp = Vector2.new(cm.ViewportSize.X/2, cm.ViewportSize.Y/2)
     end
@@ -120,7 +119,7 @@ local function renderT()
                     local fp=hh.Position-Vector3.new(0,2.5,0)
                     local sp, ons, dep = cm:WorldToViewportPoint(fp)
                     
-                    -- Si esta en frente nuestro (dep > 0), dibujar tracer (aunque no esté en pantalla)
+                    -- dep > 0 significa que está frente a la cámara. No importa si está fuera de la pantalla.
                     if dep > 0 then
                         local l=tCache[ch]
                         if not l or not l.Parent then
