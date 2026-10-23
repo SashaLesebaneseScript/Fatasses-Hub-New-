@@ -1,0 +1,100 @@
+-- ============ PARTE 17/17 - Class S Gun Enhancements ============
+local FH = getgenv().FH
+if not FH or not FH.p16 then warn("[FH] Ejecuta Partes 1-16 primero") return end
+if FH.p17 then warn("[FH] Parte 17 ya ejecutada") return end
+local RS,PL,LP = FH.RS,FH.PL,FH.LP
+local RST = FH.RST
+local WS = FH.WS
+local C = FH.C
+
+local GunEvent = nil
+local function getGun()
+    if GunEvent and GunEvent.Parent then return GunEvent end
+    GunEvent = RST:FindFirstChild("GunEvent")
+    return GunEvent
+end
+
+FH.gun = { silentAim=false, noCooldown=false }
+
+-- Busca al ASESINO (el jugador mas alto)
+local function getKiller()
+    local best, bestH = nil, 6.5
+    for _, p in ipairs(PL:GetPlayers()) do
+        if p ~= LP and p.Character then
+            local h = p.Character:FindFirstChildOfClass("Humanoid")
+            if h and h.Health > 0 then
+                local ok, sz = pcall(function() return p.Character:GetExtentsSize().Y end)
+                if ok and sz and sz > bestH then bestH = sz; best = p.Character end
+            end
+        end
+    end
+    return best
+end
+
+-- Busca el PECHO (hitbox mas grande)
+local function getChest(char)
+    if not char then return nil end
+    return char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso") or char:FindFirstChild("HumanoidRootPart")
+end
+
+local function isAiming()
+    local mc = LP.Character
+    return mc and mc:GetAttribute("IsAiming") == true
+end
+
+local function getCrosshairPos()
+    local cam = workspace.CurrentCamera
+    if not cam then return nil end
+    local vp = cam.ViewportSize
+    local ray = cam:ViewportPointToRay(vp.X/2, vp.Y/2)
+    local rp = RaycastParams.new()
+    rp.FilterDescendantsInstances = {LP.Character}
+    rp.FilterType = Enum.RaycastFilterType.Exclude
+    local r = WS:Raycast(ray.Origin, ray.Direction*500, rp)
+    if r then return r.Position end
+    return ray.Origin + ray.Direction*500
+end
+
+-- Loop principal
+task.spawn(function()
+    while true do
+        local ev = getGun()
+        if ev and isAiming() and (FH.gun.silentAim or FH.gun.noCooldown) then
+            if FH.gun.silentAim then
+                -- Dispara al PECHO del asesino
+                local target = getKiller()
+                if target then
+                    local chest = getChest(target)
+                    if chest then
+                        pcall(function()
+                            ev:FireServer("Shoot", chest.Position)
+                        end)
+                    end
+                end
+            elseif FH.gun.noCooldown then
+                -- Dispara al centro de tu pantalla (sin cooldown)
+                local pos = getCrosshairPos()
+                if pos then
+                    pcall(function()
+                        ev:FireServer("Shoot", pos)
+                    end)
+                end
+            end
+        end
+        task.wait(FH.gun.noCooldown and 0.15 or 0.4)
+    end
+end)
+
+-- Añadir al panel de Class S
+local origPanel = FH.panel
+FH.panel = function()
+    origPanel()
+    if FH.pestana ~= "Class S" then return end
+    local opt = FH.crearOpcion
+    opt("Silent Aim (To Killer) 🎯", function(v) FH.gun.silentAim = v end)
+    opt("No Cooldown (Gun) ⚡", function(v) FH.gun.noCooldown = v end)
+end
+
+if FH.pestana == "Class S" then FH.panel() end
+FH.p17 = true
+print("🎃 [17/17] Class S Gun Enhancements OK (Chest)")
