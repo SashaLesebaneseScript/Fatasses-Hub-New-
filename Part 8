@@ -1,4 +1,4 @@
--- ============ PARTE 8/8 - Killer Punch (v15) ============
+-- ============ PARTE 8/8 - Killer Punch (v16) ============
 local FH = getgenv().FH
 if not FH or not FH.p7 then warn("[FH] Ejecuta Partes 1-7 primero") return end
 if FH.p8 then warn("[FH] Parte 8 ya ejecutada") return end
@@ -54,7 +54,7 @@ task.spawn(function()
             local t = enemigoCercano(K.range)
             if t then
                 local ev = getPunchEv()
-                local mh = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+                local mh = LP.Character and LP:FindFirstChild("HumanoidRootPart")
                 if ev and mh then
                     K.attackId = K.attackId + 1
                     pcall(function() ev:FireServer({AttackId=K.attackId, Position=mh.Position, Velocity=mh.AssemblyLinearVelocity, Direction=mh.CFrame.LookVector}) end)
@@ -67,7 +67,7 @@ task.spawn(function()
     end
 end)
 
--- Extras On-Click (Extras manuales)
+-- Extras On-Click (Expander manual)
 local function triggerExtras()
     if EXTRA_MODE or not soyKiller() or estoyStuneado() then return end
     local ev = getPunchEv(); if not ev then return end
@@ -106,15 +106,11 @@ local function triggerExtras()
     end
     
     if K.hitboxExpander then
-        K.attackId = K.attackId + 1; local id = K.attackId; local look = mh.CFrame.LookVector
-        local dist = K.expanderRange; local width = K.expanderWidth; local startT = tick()
-        while tick() - startT <= 0.3 do
-            if estoyStuneado() then break end
-            -- Solo 1 hitbox extra al frente para que sea realista
-            local pos = mh.Position + look * dist
-            pcall(function() ev:FireServer({AttackId=id, Position=pos, Velocity=Vector3.new(0,0,0), Direction=look}) end)
-            task.wait(0.1)
-        end
+        K.attackId = K.attackId + 1; local id = K.attackId; local look = mh.CFrame.LookVector; local right = mh.CFrame.RightVector
+        local dist = K.expanderRange; local width = K.expanderWidth
+        -- Solo disparamos UN hitbox al frente, sin abanico, muy pegado a ti
+        local pos = mh.Position + look * (dist * 0.5) 
+        pcall(function() ev:FireServer({AttackId=id, Position=pos, Velocity=Vector3.new(0,0,0), Direction=look}) end)
     end
     EXTRA_MODE = false
 end
@@ -176,4 +172,4 @@ end
 
 if FH.pestana == "Experiment" then FH.panel() end
 FH.p8 = true
-print("🎃 [8/8] Killer Punch OK (v15)")
+print("🎃 [8/8] Killer Punch OK (v16)")
