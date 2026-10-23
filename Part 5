@@ -118,7 +118,6 @@ local function getIcon(n)
  if n=="Extra Stuff" then return "⚡" end
  return "🎃"
 end
--- SOLO tablas base (Experiment y Fun los crean Part 11 y 12 respectivamente)
 local TABS={"Esp","Scientist","Class A","Class S","Extra Stuff"}
 local tabs={};FH.tabs=tabs;FH.pestana="Esp"
 local function mkTab(n,cs)
@@ -177,7 +176,6 @@ FH.panel=function()
    opt("ESP Tasks 👁",function(v)FH.on.espActive=v;if v then FH.startESP()else FH.stopESP()end end)
    opt("ESP Players 🎃",function(v)FH.on.espPlActive=v;if v then FH.startEP()else FH.stopEP()end end)
    opt("Tracers 📏",function(v)FH.on.tracersActive=v;if v then FH.startT()else FH.stopT()end end)
-   opt("Hide Completed 🚫",function(v)FH.espHideCompleted=v end)
   elseif FH.pestana=="Scientist"then
    opt("Auto Patient 🧟",function(v)FH.on.autoPatient=v;if v then FH.startAP()else FH.stopAP()end end)
    opt("Auto Generator 🕸",function(v)FH.on.autoGen=v;if v then FH.startGen()else FH.stopGen()end end)
