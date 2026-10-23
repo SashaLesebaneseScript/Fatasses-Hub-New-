@@ -1,0 +1,96 @@
+-- ============ PARTE 18/18 - Fake VIP / Mastery (Client) ============
+local FH = getgenv().FH
+if not FH or not FH.p17 then warn("[FH] Ejecuta Partes 1-17 primero") return end
+if FH.p18 then warn("[FH] Parte 18 ya ejecutada") return end
+local C = FH.C
+
+FH.fakeVipGUI = nil
+FH.fakeVipActive = false
+
+local function createFakeGUI()
+    if FH.fakeVipGUI then FH.fakeVipGUI:Destroy() end
+    local sg = Instance.new("ScreenGui")
+    sg.Name = "FakeVipProfile"
+    sg.ResetOnSpawn = false
+    sg.DisplayOrder = 100
+    sg.Parent = FH.parent
+
+    local frame = Instance.new("Frame", sg)
+    frame.Size = UDim2.new(0, 300, 0, 180)
+    frame.Position = UDim2.new(0, 20, 0.4, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(15, 20, 25)
+    frame.BorderSizePixel = 0
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
+    local stroke = Instance.new("UIStroke", frame)
+    stroke.Color = Color3.fromRGB(0, 255, 255) -- Cyan VIP
+    stroke.Thickness = 2
+
+    local title = Instance.new("TextLabel", frame)
+    title.Size = UDim2.new(1, 0, 0, 30)
+    title.BackgroundTransparency = 1
+    title.Text = "EMPLOYEE CARD - VIP 👑"
+    title.TextColor3 = Color3.fromRGB(0, 255, 255)
+    title.Font = Enum.Font.GothamBold
+    title.TextScaled = true
+
+    local name = Instance.new("TextLabel", frame)
+    name.Size = UDim2.new(1, -20, 0, 20)
+    name.Position = UDim2.new(0, 10, 0, 35)
+    name.BackgroundTransparency = 1
+    name.Text = "Name: " .. FH.LP.Name
+    name.TextColor3 = Color3.new(1,1,1)
+    name.TextXAlignment = Enum.TextXAlignment.Left
+    name.Font = Enum.Font.Gotham
+    name.TextScaled = true
+
+    local data = Instance.new("TextLabel", frame)
+    data.Size = UDim2.new(1, -20, 0, 20)
+    data.Position = UDim2.new(0, 10, 0, 60)
+    data.BackgroundTransparency = 1
+    data.Text = "Collected Data: 999,999,999"
+    data.TextColor3 = Color3.fromRGB(255, 215, 0)
+    data.TextXAlignment = Enum.TextXAlignment.Left
+    data.Font = Enum.Font.GothamBold
+    data.TextScaled = true
+
+    local mast = Instance.new("TextLabel", frame)
+    mast.Size = UDim2.new(1, -20, 0, 20)
+    mast.Position = UDim2.new(0, 10, 0, 85)
+    mast.BackgroundTransparency = 1
+    mast.Text = "Class S Scientist | Mastery 100%"
+    mast.TextColor3 = Color3.fromRGB(0, 255, 100)
+    mast.TextXAlignment = Enum.TextXAlignment.Left
+    mast.Font = Enum.Font.GothamBold
+    mast.TextScaled = true
+
+    local note = Instance.new("TextLabel", frame)
+    note.Size = UDim2.new(1, -20, 0, 40)
+    note.Position = UDim2.new(0, 10, 0, 120)
+    note.BackgroundTransparency = 1
+    note.Text = "(Visual Fake - Only You Can See This)"
+    note.TextColor3 = Color3.fromRGB(150, 150, 150)
+    note.Font = Enum.Font.Gotham
+    note.TextScaled = true
+    note.TextWrapped = true
+
+    FH.fakeVipGUI = sg
+end
+
+-- Añadir al panel de Fun
+local origPanel = FH.panel
+FH.panel = function()
+    origPanel()
+    if FH.pestana ~= "Fun" then return end
+    local opt = FH.crearOpcion
+    
+    opt("Fake VIP & 100% Mastery 👑", function(v)
+        FH.fakeVipActive = v
+        if v then createFakeGUI() else 
+            if FH.fakeVipGUI then FH.fakeVipGUI:Destroy(); FH.fakeVipGUI = nil end
+        end
+    end)
+end
+
+if FH.pestana == "Fun" then FH.panel() end
+FH.p18 = true
+print("🎃 [18/18] Fake VIP / Mastery OK")
