@@ -1,56 +1,74 @@
--- ============ PARTE 17/17 - Class S Gun Enhancements ============
+-- ============ PARTE 17/17 - Class S Gun (Silent Aim Auto-Fire) ============
 local FH = getgenv().FH
 if not FH or not FH.p16 then warn("[FH] Ejecuta Partes 1-16 primero") return end
 if FH.p17 then warn("[FH] Parte 17 ya ejecutada") return end
 local RS,PL,LP = FH.RS,FH.PL,FH.LP
+local RST = FH.RST
+local WS = FH.WS
 local C = FH.C
+
+local GunEvent = nil
+local function getGun()
+    if GunEvent and GunEvent.Parent then return GunEvent end
+    GunEvent = RST:FindFirstChild("GunEvent")
+    return GunEvent
+end
 
 FH.gun = { silentAim=false }
 
+-- Busca al ASESINO (el jugador mas alto)
 local function getKiller()
     local best, bestH = nil, 6.5
-    for _, p in ipairs(PL:GetPlayers()) do if p ~= LP and p.Character then
-        local h = p.Character:FindFirstChildOfClass("Humanoid")
-        if h and h.Health > 0 then local ok, sz = pcall(function() return p.Character:GetExtentsSize().Y end); if ok and sz and sz > bestH then bestH = sz; best = p.Character end end
-    end end return best
+    for _, p in ipairs(PL:GetPlayers()) do
+        if p ~= LP and p.Character then
+            local h = p.Character:FindFirstChildOfClass("Humanoid")
+            if h and h.Health > 0 then
+                local ok, sz = pcall(function() return p.Character:GetExtentsSize().Y end)
+                if ok and sz and sz > bestH then bestH = sz; best = p.Character end
+            end
+        end
+    end
+    return best
 end
-local function getChest(char) if not char then return nil end return char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso") or char:FindFirstChild("HumanoidRootPart") end
 
+local function getChest(char)
+    if not char then return nil end
+    return char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso") or char:FindFirstChild("HumanoidRootPart")
+end
+
+local function isAiming()
+    local mc = LP.Character
+    return mc and mc:GetAttribute("IsAiming") == true
+end
+
+-- Loop principal: Dispara solo al pecho del asesino mientras estas apuntando
 task.spawn(function()
-    task.wait(1)
-    pcall(function()
-        local mt = getrawmetatable(game)
-        if setreadonly then setreadonly(mt, false) end
-        local oldNamecall = mt.__namecall
-        mt.__namecall = newcclosure(function(self, ...)
-            local method = getnamecallmethod()
-            if method == "FireServer" and self.Name == "GunEvent" then
-                local args = {...}
-                if args[1] == "Shoot" and FH.gun.silentAim then
-                    local target = getKiller()
-                    if target then
-                        local chest = getChest(target)
-                        if chest then
-                            args[2] = chest.Position
-                        end
-                    end
-                    return oldNamecall(self, unpack(args))
+    while true do
+        local ev = getGun()
+        if ev and isAiming() and FH.gun.silentAim then
+            local target = getKiller()
+            if target then
+                local chest = getChest(target)
+                if chest then
+                    pcall(function()
+                        ev:FireServer("Shoot", chest.Position)
+                    end)
                 end
             end
-            return oldNamecall(self, ...)
-        end)
-        if setreadonly then setreadonly(mt, true) end
-    end)
+        end
+        task.wait(0.15)
+    end
 end)
 
+-- Añadir al panel de Class S
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
     if FH.pestana ~= "Class S" then return end
     local opt = FH.crearOpcion
-    opt("Silent Aim (To Killer) 🎯", function(v) FH.gun.silentAim = v end)
+    opt("Silent Aim (Auto-Fire) 🎯", function(v) FH.gun.silentAim = v end)
 end
 
 if FH.pestana == "Class S" then FH.panel() end
 FH.p17 = true
-print("🎃 [17/17] Class S Gun Enhancements OK (Silent Aim Only)")
+print("🎃 [17/17] Class S Gun Enhancements OK (Auto-Fire)")
