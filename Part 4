@@ -83,7 +83,7 @@ FH.startEP=function()
 end
 FH.stopEP=function() pT=nil; for m in pairs(pESP)do delP(m)end end
 
--- Tracers (AHORA VISIBLES FUERA DE PANTALLA)
+-- Tracers (Visibles siempre)
 local tGui=Instance.new("ScreenGui")
 tGui.Name="FatassesTracers"; tGui.ResetOnSpawn=false; tGui.IgnoreGuiInset=true
 tGui.DisplayOrder=998; tGui.Parent=FH.parent
@@ -119,7 +119,7 @@ local function renderT()
                     local fp=hh.Position-Vector3.new(0,2.5,0)
                     local sp, ons, dep = cm:WorldToViewportPoint(fp)
                     
-                    -- dep > 0 significa que está frente a la cámara. No importa si está fuera de la pantalla.
+                    -- El tracer se dibuja si el enemigo está frente a la cámara (dep > 0)
                     if dep > 0 then
                         local l=tCache[ch]
                         if not l or not l.Parent then
