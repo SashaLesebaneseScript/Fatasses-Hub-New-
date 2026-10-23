@@ -3,8 +3,10 @@ local FH = getgenv().FH
 if not FH or not FH.p16 then warn("[FH] Ejecuta Partes 1-16 primero") return end
 if FH.p17 then warn("[FH] Parte 17 ya ejecutada") return end
 local RS,PL,LP = FH.RS,FH.PL,FH.LP
+local RST = FH.RST
 local C = FH.C
 
+local GunEvent = RST:WaitForChild("GunEvent", 5)
 FH.gun = { silentAim=false }
 
 local function getKiller()
@@ -16,27 +18,21 @@ local function getKiller()
 end
 local function getChest(char) if not char then return nil end return char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso") or char:FindFirstChild("HumanoidRootPart") end
 
-task.spawn(function()
-    task.wait(1)
-    pcall(function()
-        local mt = getrawmetatable(game)
-        if setreadonly then setreadonly(mt, false) end
-        local oldNamecall = mt.__namecall
-        mt.__namecall = newcclosure(function(self, ...)
-            local method = getnamecallmethod()
-            if method == "FireServer" and self.Name == "GunEvent" then
-                local args = {...}
-                if args[1] == "Shoot" and FH.gun.silentAim then
-                    local target = getKiller()
-                    if target then local chest = getChest(target); if chest then args[2] = chest.Position end end
-                    return oldNamecall(self, unpack(args))
+if GunEvent then
+    local oldFire = hookfunction(GunEvent.FireServer, function(self, ...)
+        local args = {...}
+        if args[1] == "Shoot" and FH.gun.silentAim then
+            local target = getKiller()
+            if target then
+                local chest = getChest(target)
+                if chest then
+                    args[2] = chest.Position -- Redirigir la bala
                 end
             end
-            return oldNamecall(self, ...)
-        end)
-        if setreadonly then setreadonly(mt, true) end
+        end
+        return oldFire(self, unpack(args))
     end)
-end)
+end
 
 local origPanel = FH.panel
 FH.panel = function()
@@ -48,4 +44,4 @@ end
 
 if FH.pestana == "Class S" then FH.panel() end
 FH.p17 = true
-print("🎃 [17/17] Class S Gun Enhancements OK (Silent Aim Only)")
+print("🎃 [17/17] Class S Gun Enhancements OK (Silent Aim Fix)")
