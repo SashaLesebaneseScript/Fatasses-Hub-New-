@@ -3,6 +3,7 @@ local FH=getgenv().FH
 if not FH or not FH.p3 then warn("[FH] Ejecuta Partes 1-3 primero") return end
 if FH.p4 then warn("[FH] Parte 4 ya ejecutada") return end
 local RS,PL,LP=FH.RS,FH.PL,FH.LP
+local WS = FH.WS
 
 -- ESP Players
 local pESP={}
@@ -10,130 +11,67 @@ local function mkP(m,rojo)
     if not m then return end
     if pESP[m] then
         local h=pESP[m].h
-        if rojo then
-            h.FillColor=Color3.fromRGB(180,30,60)
-            h.OutlineColor=Color3.fromRGB(255,70,120)
-        else
-            h.FillColor=Color3.fromRGB(255,120,20)
-            h.OutlineColor=Color3.fromRGB(255,180,80)
-        end
+        if rojo then h.FillColor=Color3.fromRGB(180,30,60); h.OutlineColor=Color3.fromRGB(255,70,120)
+        else h.FillColor=Color3.fromRGB(255,120,20); h.OutlineColor=Color3.fromRGB(255,180,80) end
         return
     end
     local h=Instance.new("Highlight")
-    h.FillTransparency=.6
-    h.OutlineTransparency=0
-    h.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
-    h.Adornee=m
-    h.Parent=m
-    if rojo then
-        h.FillColor=Color3.fromRGB(180,30,60)
-        h.OutlineColor=Color3.fromRGB(255,70,120)
-    else
-        h.FillColor=Color3.fromRGB(255,120,20)
-        h.OutlineColor=Color3.fromRGB(255,180,80)
-    end
+    h.FillTransparency=.6; h.OutlineTransparency=0
+    h.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop; h.Adornee=m; h.Parent=m
+    if rojo then h.FillColor=Color3.fromRGB(180,30,60); h.OutlineColor=Color3.fromRGB(255,70,120)
+    else h.FillColor=Color3.fromRGB(255,120,20); h.OutlineColor=Color3.fromRGB(255,180,80) end
     local bg=Instance.new("BillboardGui")
-    bg.Size=UDim2.new(0,160,0,60)
-    bg.StudsOffset=Vector3.new(0,3.5,0)
-    bg.AlwaysOnTop=true
-    bg.Parent=m
+    bg.Size=UDim2.new(0,160,0,60); bg.StudsOffset=Vector3.new(0,3.5,0); bg.AlwaysOnTop=true; bg.Parent=m
     local n=Instance.new("TextLabel",bg)
-    n.Size=UDim2.new(1,0,.5,0)
-    n.BackgroundTransparency=1
-    n.TextColor3=Color3.fromRGB(255,220,180)
-    n.TextStrokeTransparency=0
-    n.TextStrokeColor3=Color3.fromRGB(20,5,20)
-    n.TextScaled=true
-    n.Font=Enum.Font.GothamBold
-    n.Text="🎃 "..m.Name
+    n.Size=UDim2.new(1,0,.5,0); n.BackgroundTransparency=1
+    n.TextColor3=Color3.fromRGB(255,220,180); n.TextStrokeTransparency=0; n.TextStrokeColor3=Color3.fromRGB(20,5,20)
+    n.TextScaled=true; n.Font=Enum.Font.GothamBold; n.Text="🎃 "..m.Name
     local s=Instance.new("TextLabel",bg)
-    s.Size=UDim2.new(1,0,.5,0)
-    s.Position=UDim2.new(0,0,.5,0)
-    s.BackgroundTransparency=1
-    s.TextColor3=Color3.fromRGB(255,150,50)
-    s.TextStrokeTransparency=0
-    s.TextStrokeColor3=Color3.fromRGB(20,5,20)
-    s.TextScaled=true
-    s.Font=Enum.Font.GothamBold
-    s.Text="100 / 100"
+    s.Size=UDim2.new(1,0,.5,0); s.Position=UDim2.new(0,0,.5,0); s.BackgroundTransparency=1
+    s.TextColor3=Color3.fromRGB(255,150,50); s.TextStrokeTransparency=0; s.TextStrokeColor3=Color3.fromRGB(20,5,20)
+    s.TextScaled=true; s.Font=Enum.Font.GothamBold; s.Text="100 / 100"
     pESP[m]={h=h,bg=bg,l=s,hp=-1,mx=-1}
 end
 local function delP(m)
-    local d=pESP[m]
-    if not d then return end
-    d.h:Destroy()
-    d.bg:Destroy()
-    pESP[m]=nil
+    local d=pESP[m]; if not d then return end
+    d.h:Destroy(); d.bg:Destroy(); pESP[m]=nil
 end
 local function scanP()
-    local found={}
-    local masAlto,altMax=nil,-math.huge
-    for _,p in ipairs(PL:GetPlayers()) do
+    local found={}; local masAlto,altMax=nil,-math.huge
+    for _,p in ipairs(PL:GetPlayers())do
         if p~=LP and p.Character then
-            local ch=p.Character
-            local hum=ch:FindFirstChildOfClass("Humanoid")
+            local ch=p.Character; local hum=ch:FindFirstChildOfClass("Humanoid")
             if hum and hum.Health>0 then
-                local ok,sz=pcall(function() return ch:GetExtentsSize().Y end)
-                if ok and sz and sz>altMax then
-                    altMax=sz
-                    masAlto=ch
-                end
-            end
-        end
-    end
-    for _,p in ipairs(PL:GetPlayers()) do
+                local ok,sz=pcall(function()return ch:GetExtentsSize().Y end)
+                if ok and sz and sz>altMax then altMax=sz; masAlto=ch end end end end
+    for _,p in ipairs(PL:GetPlayers())do
         if p~=LP and p.Character then
-            local ch=p.Character
-            local hum=ch:FindFirstChildOfClass("Humanoid")
-            if hum and hum.Health>0 then
-                mkP(ch,(ch==masAlto) or FH.isKiller(ch))
-                found[ch]=true
-            end
-        end
-    end
-    for m in pairs(pESP) do
-        if not found[m] or not m.Parent then
-            delP(m)
-        end
-    end
+            local ch=p.Character; local hum=ch:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health>0 then mkP(ch,(ch==masAlto)or FH.isKiller(ch)); found[ch]=true end end end
+    for m in pairs(pESP)do if not found[m]or not m.Parent then delP(m)end end
 end
 local pT
 FH.startEP=function()
     if pT then return end
     scanP()
-    PL.PlayerAdded:Connect(function()
-        if FH.on.espPlActive then
-            task.wait(.3)
-            scanP()
-        end
-    end)
-    PL.PlayerRemoving:Connect(function()
-        task.wait(.3)
-        scanP()
-    end)
+    PL.PlayerAdded:Connect(function() if FH.on.espPlActive then task.wait(.3); scanP() end end)
+    PL.PlayerRemoving:Connect(function() task.wait(.3); scanP() end)
     pT=task.spawn(function()
         while FH.on.espPlActive do
             task.wait(1)
             if FH.on.espPlActive then
                 scanP()
-                for m,d in pairs(pESP) do
+                for m,d in pairs(pESP)do
                     if m and m.Parent and d.l then
                         local h=m:FindFirstChildOfClass("Humanoid")
                         if h then
-                            local hp=math.floor(h.Health)
-                            local mx=math.floor(h.MaxHealth)
+                            local hp=math.floor(h.Health); local mx=math.floor(h.MaxHealth)
                             if hp~=d.hp or mx~=d.mx then
-                                d.hp=hp
-                                d.mx=mx
-                                d.l.Text=hp.." / "..mx
+                                d.hp=hp; d.mx=mx; d.l.Text=hp.." / "..mx
                                 local r=hp/math.max(1,mx)
-                                if r>.6 then
-                                    d.l.TextColor3=Color3.fromRGB(255,150,50)
-                                elseif r>.3 then
-                                    d.l.TextColor3=Color3.fromRGB(255,220,80)
-                                else
-                                    d.l.TextColor3=Color3.fromRGB(255,50,50)
-                                end
+                                if r>.6 then d.l.TextColor3=Color3.fromRGB(255,150,50)
+                                elseif r>.3 then d.l.TextColor3=Color3.fromRGB(255,220,80)
+                                else d.l.TextColor3=Color3.fromRGB(255,50,50) end
                             end
                         end
                     end
@@ -143,126 +81,86 @@ FH.startEP=function()
         pT=nil
     end)
 end
-FH.stopEP=function()
-    pT=nil
-    for m in pairs(pESP) do
-        delP(m)
-    end
-end
+FH.stopEP=function() pT=nil; for m in pairs(pESP)do delP(m)end end
 
 -- Tracers
 local tGui=Instance.new("ScreenGui")
-tGui.Name="FatassesTracers"
-tGui.ResetOnSpawn=false
-tGui.IgnoreGuiInset=true
-tGui.DisplayOrder=998
-tGui.Parent=FH.parent
+tGui.Name="FatassesTracers"; tGui.ResetOnSpawn=false; tGui.IgnoreGuiInset=true
+tGui.DisplayOrder=998; tGui.Parent=FH.parent
 local tCache={}
 local function renderT()
-    if not FH.on.tracersActive then
-        for _,l in pairs(tCache) do
-            if l.Parent then l.Visible=false end
-        end
-        return
-    end
-    local mc=LP.Character
-    if not mc then return end
-    local hr=mc:FindFirstChild("HumanoidRootPart")
-    if not hr then return end
+    if not FH.on.tracersActive then for _,l in pairs(tCache)do if l.Parent then l.Visible=false end end; return end
+    local mc=LP.Character; if not mc then return end
+    local hr=mc:FindFirstChild("HumanoidRootPart"); if not hr then return end
     local myFoot=hr.Position-Vector3.new(0,2.5,0)
-    local cm=workspace.CurrentCamera
-    if not cm then return end
-    local msp,mon=cm:WorldToViewportPoint(myFoot)
-    if not mon then
-        for _,l in pairs(tCache) do
-            if l.Parent then l.Visible=false end
-        end
-        return
+    local cm=workspace.CurrentCamera; if not cm then return end
+    
+    local msp, mon, mdepth = cm:WorldToViewportPoint(myFoot)
+    -- Si yo estoy fuera de camara, uso el centro de la pantalla
+    if mdepth <= 0 then
+        msp = Vector2.new(cm.ViewportSize.X/2, cm.ViewportSize.Y/2)
     end
+    
     local masAlto,altMax=nil,-math.huge
-    for _,p in ipairs(PL:GetPlayers()) do
+    for _,p in ipairs(PL:GetPlayers())do
         if p~=LP and p.Character then
             local h=p.Character:FindFirstChildOfClass("Humanoid")
             if h and h.Health>0 then
-                local ok,sz=pcall(function() return p.Character:GetExtentsSize().Y end)
-                if ok and sz and sz>altMax then
-                    altMax=sz
-                    masAlto=p.Character
-                end
-            end
-        end
-    end
+                local ok,sz=pcall(function()return p.Character:GetExtentsSize().Y end)
+                if ok and sz and sz>altMax then altMax=sz; masAlto=p.Character end end end end
+    
     local alive={}
-    for _,p in ipairs(PL:GetPlayers()) do
+    for _,p in ipairs(PL:GetPlayers())do
         if p~=LP and p.Character then
-            local ch=p.Character
-            local h=ch:FindFirstChildOfClass("Humanoid")
+            local ch=p.Character; local h=ch:FindFirstChildOfClass("Humanoid")
             if h and h.Health>0 then
                 alive[ch]=true
                 local hh=ch:FindFirstChild("HumanoidRootPart")
                 if hh then
                     local fp=hh.Position-Vector3.new(0,2.5,0)
-                    local sp,ons=cm:WorldToViewportPoint(fp)
-                    if ons then
+                    local sp, ons, dep = cm:WorldToViewportPoint(fp)
+                    
+                    -- Si esta en frente nuestro (dep > 0), dibujar tracer (aunque no esté en pantalla)
+                    if dep > 0 then
                         local l=tCache[ch]
                         if not l or not l.Parent then
-                            l=Instance.new("Frame")
-                            l.BorderSizePixel=0
-                            l.ZIndex=998
-                            l.AnchorPoint=Vector2.new(.5,.5)
-                            l.Parent=tGui
-                            tCache[ch]=l
+                            l=Instance.new("Frame"); l.BorderSizePixel=0; l.ZIndex=998
+                            l.AnchorPoint=Vector2.new(.5,.5); l.Parent=tGui; tCache[ch]=l 
                         end
-                        local dx=sp.X-msp.X
-                        local dy=sp.Y-msp.Y
+                        local dx=sp.X-msp.X; local dy=sp.Y-msp.Y
                         local len=math.sqrt(dx*dx+dy*dy)
+                        
                         l.Size=UDim2.new(0,len,0,2)
                         l.Position=UDim2.new(0,(msp.X+sp.X)/2,0,(msp.Y+sp.Y)/2)
                         l.Rotation=math.deg(math.atan2(dy,dx))
                         l.Visible=true
-                        if (ch==masAlto) or FH.isKiller(ch) then
-                            l.BackgroundColor3=Color3.fromRGB(255,30,60)
-                        else
-                            l.BackgroundColor3=Color3.fromRGB(255,120,20)
-                        end
+                        l.BackgroundColor3=((ch==masAlto)or FH.isKiller(ch))and Color3.fromRGB(255,30,60)or Color3.fromRGB(255,120,20)
                     else
-                        local l=tCache[ch]
-                        if l and l.Parent then l.Visible=false end
+                        local l=tCache[ch]; if l and l.Parent then l.Visible=false end
                     end
                 end
             end
         end
     end
-    for ch,l in pairs(tCache) do
-        if not alive[ch] or not ch.Parent then
-            l:Destroy()
-            tCache[ch]=nil
-        end
-    end
+    for ch,l in pairs(tCache)do if not alive[ch]or not ch.Parent then l:Destroy(); tCache[ch]=nil end end
 end
+
 local trC
 FH.startT=function()
     if trC then return end
-    trC=RS.RenderStepped:Connect(function()
-        if FH.on.tracersActive then pcall(renderT) end
-    end)
+    trC=RS.RenderStepped:Connect(function() if FH.on.tracersActive then pcall(renderT)end end)
 end
 FH.stopT=function()
-    if trC then trC:Disconnect();trC=nil end
-    for _,l in pairs(tCache) do l:Destroy() end
-    tCache={}
+    if trC then trC:Disconnect(); trC=nil end
+    for _,l in pairs(tCache)do l:Destroy()end; tCache={}
 end
 
 -- Healing
 FH.healT=function(t)
-    local e=FH.getHealEv()
-    if not e or not t then return false end
+    local e=FH.getHealEv(); if not e or not t then return false end
     pcall(function() e:FireServer("StartVisuals",t) end)
     task.spawn(function()
-        for i=1,6 do
-            pcall(function() e:FireServer("HealTick",t) end)
-            task.wait(.1)
-        end
+        for i=1,6 do pcall(function() e:FireServer("HealTick",t) end); task.wait(.1) end
         pcall(function() e:FireServer("GiveSpeedBoost") end)
         pcall(function() e:FireServer("StartCooldown") end)
     end)
@@ -270,103 +168,62 @@ FH.healT=function(t)
 end
 FH.healN=function() return FH.healT(FH.injPlayer(100)) end
 FH.healS=function()
-    local e=FH.getHealEv()
-    if not e then return false end
+    local e=FH.getHealEv(); if not e then return false end
     pcall(function() e:FireServer("StartVisuals",LP) end)
     task.spawn(function()
-        for i=1,6 do
-            pcall(function() e:FireServer("HealTick",LP) end)
-            task.wait(.1)
-        end
+        for i=1,6 do pcall(function() e:FireServer("HealTick",LP) end); task.wait(.1) end
         pcall(function() e:FireServer("GiveSpeedBoost") end)
     end)
     return true
 end
 FH.resetCd=function()
-    local e=FH.getHealEv()
-    if not e then return end
-    task.spawn(function()
-        for i=1,15 do
-            pcall(function() e:FireServer("RequestCooldownCheck") end)
-            task.wait(.05)
-        end
-    end)
+    local e=FH.getHealEv(); if not e then return end
+    task.spawn(function() for i=1,15 do pcall(function() e:FireServer("RequestCooldownCheck") end); task.wait(.05) end end)
 end
 FH.boost=function()
-    local e=FH.getHealEv()
-    if not e then return end
+    local e=FH.getHealEv(); if not e then return end
     for i=1,5 do pcall(function() e:FireServer("GiveSpeedBoost") end) end
 end
 FH.healAll=function()
-    local e=FH.getHealEv()
-    if not e then return end
-    for _,p in ipairs(PL:GetPlayers()) do
+    local e=FH.getHealEv(); if not e then return end
+    for _,p in ipairs(PL:GetPlayers())do
         if p~=LP and p.Character then
             local h=p.Character:FindFirstChildOfClass("Humanoid")
             if h and h.Health>0 and h.Health<h.MaxHealth then
                 task.spawn(function()
                     pcall(function() e:FireServer("StartVisuals",p) end)
-                    for i=1,6 do
-                        pcall(function() e:FireServer("HealTick",p) end)
-                        task.wait(.08)
-                    end
+                    for i=1,6 do pcall(function() e:FireServer("HealTick",p) end); task.wait(.08) end
                     pcall(function() e:FireServer("GiveSpeedBoost") end)
                 end)
             end
         end
     end
 end
+
 local ahT
 FH.startAH=function()
     if ahT then return end
     ahT=task.spawn(function()
         while FH.on.autoHeal do
             task.wait(.3)
-            if FH.on.autoHeal then
-                local t=FH.injPlayer(100)
-                if t then
-                    FH.healT(t)
-                    task.wait(.5)
-                end
-            end
+            if FH.on.autoHeal then local t=FH.injPlayer(100); if t then FH.healT(t); task.wait(.5) end end
         end
-        ahT=nil
+        ahT=nil 
     end)
 end
-FH.stopAH=function()
-    FH.on.autoHeal=false
-    ahT=nil
-end
+FH.stopAH=function() FH.on.autoHeal=false; ahT=nil end
 local jT
 FH.startJ=function()
     if jT then return end
-    jT=task.spawn(function()
-        while FH.on.jackpot do
-            FH.boost()
-            task.wait(0)
-        end
-        jT=nil
-    end)
+    jT=task.spawn(function() while FH.on.jackpot do FH.boost(); task.wait() end; jT=nil end)
 end
-FH.stopJ=function()
-    FH.on.jackpot=false
-    jT=nil
-end
+FH.stopJ=function() FH.on.jackpot=false; jT=nil end
 local ahsT
 FH.startAHS=function()
     if ahsT then return end
-    ahsT=task.spawn(function()
-        while FH.on.autoHealSelf do
-            FH.healS()
-            task.wait(1)
-        end
-        ahsT=nil
-    end)
+    ahsT=task.spawn(function() while FH.on.autoHealSelf do FH.healS(); task.wait(1) end; ahsT=nil end)
 end
-FH.stopAHS=function()
-    FH.on.autoHealSelf=false
-    ahsT=nil
-end
+FH.stopAHS=function() FH.on.autoHealSelf=false; ahsT=nil end
 
 FH.p4=true
 print("🎃 [4/5] ESP Players + Tracers + Healing OK")
