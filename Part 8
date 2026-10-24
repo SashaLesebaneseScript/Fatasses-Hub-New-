@@ -1,4 +1,4 @@
--- ============ PARTE 8/8 - Killer Punch (v16) ============
+-- ============ PARTE 8/8 - Killer Punch (v17) ============
 local FH = getgenv().FH
 if not FH or not FH.p7 then warn("[FH] Ejecuta Partes 1-7 primero") return end
 if FH.p8 then warn("[FH] Parte 8 ya ejecutada") return end
@@ -54,7 +54,7 @@ task.spawn(function()
             local t = enemigoCercano(K.range)
             if t then
                 local ev = getPunchEv()
-                local mh = LP.Character and LP:FindFirstChild("HumanoidRootPart")
+                local mh = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
                 if ev and mh then
                     K.attackId = K.attackId + 1
                     pcall(function() ev:FireServer({AttackId=K.attackId, Position=mh.Position, Velocity=mh.AssemblyLinearVelocity, Direction=mh.CFrame.LookVector}) end)
@@ -67,7 +67,7 @@ task.spawn(function()
     end
 end)
 
--- Extras On-Click (Expander manual)
+-- Extras On-Click
 local function triggerExtras()
     if EXTRA_MODE or not soyKiller() or estoyStuneado() then return end
     local ev = getPunchEv(); if not ev then return end
@@ -105,12 +105,23 @@ local function triggerExtras()
         end
     end
     
+    -- HITBOX EXPANDER CORREGIDO (7 golpes hacia adelante)
     if K.hitboxExpander then
-        K.attackId = K.attackId + 1; local id = K.attackId; local look = mh.CFrame.LookVector; local right = mh.CFrame.RightVector
-        local dist = K.expanderRange; local width = K.expanderWidth
-        -- Solo disparamos UN hitbox al frente, sin abanico, muy pegado a ti
-        local pos = mh.Position + look * (dist * 0.5) 
-        pcall(function() ev:FireServer({AttackId=id, Position=pos, Velocity=Vector3.new(0,0,0), Direction=look}) end)
+        local look = mh.CFrame.LookVector
+        -- Hacemos 7 golpes separados por 3 studs
+        for i = 1, 7 do
+            K.attackId = K.attackId + 1
+            local pos = mh.Position + look * (i * 3) 
+            pcall(function() 
+                ev:FireServer({
+                    AttackId = K.attackId, 
+                    Position = pos, 
+                    Velocity = Vector3.new(0,0,0), 
+                    Direction = look
+                }) 
+            end)
+            task.wait(0.05) -- Pequeña espera entre golpes para que el servidor los registre
+        end
     end
     EXTRA_MODE = false
 end
@@ -165,11 +176,9 @@ FH.panel = function()
     opt("Kill All ☠️", function(v) K.killAll = v; if v then startKillAll() else stopKillAll() end end)
     mkNumInput("Rango", 1, LIMITS.range, function() return K.range end, function(v) K.range = v end)
     mkNumInput("360 Radio", 1, LIMITS.hbRange, function() return K.hbRange end, function(v) K.hbRange = v end)
-    mkNumInput("Expander Largo", 1, LIMITS.expanderRange, function() return K.expanderRange end, function(v) K.expanderRange = v end)
-    mkNumInput("Expander Ancho", 1, LIMITS.expanderWidth, function() return K.expanderWidth end, function(v) K.expanderWidth = v end)
     mkNumInput("TP Caja", 1, LIMITS.tpBoxSize, function() return K.tpBoxSize end, function(v) K.tpBoxSize = v end)
 end
 
 if FH.pestana == "Experiment" then FH.panel() end
 FH.p8 = true
-print("🎃 [8/8] Killer Punch OK (v16)")
+print("🎃 [8/8] Killer Punch OK (v17)")
