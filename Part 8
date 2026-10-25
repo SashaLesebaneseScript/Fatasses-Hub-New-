@@ -1,4 +1,4 @@
--- ============ PARTE 8/8 - Killer Punch (v17) ============
+-- ============ PARTE 8/8 - Killer Punch (v18) ============
 local FH = getgenv().FH
 if not FH or not FH.p7 then warn("[FH] Ejecuta Partes 1-7 primero") return end
 if FH.p8 then warn("[FH] Parte 8 ya ejecutada") return end
@@ -21,7 +21,7 @@ FH.showWarning = function(featureName, limit)
     x.MouseButton1Click:Connect(function() w:Destroy() end); task.delay(8, function() if w and w.Parent then w:Destroy() end end)
 end
 
-FH.k8 = { autoPunch=false, antiStun=false, hitboxTp=false, hitbox360=false, hitboxExpander=false, alwaysMaxSpeed=false, killAll=false, range=12, hbRange=100, expanderRange=3.5, expanderWidth=2.0, tpBoxSize=8, attackId=0 }
+FH.k8 = { autoPunch=false, antiStun=false, hitboxTp=false, hitbox360=false, hitboxExpander=false, alwaysMaxSpeed=false, killAll=false, anchoredHitbox=false, legitInfStamina=false, range=12, hbRange=100, expanderRange=3.5, expanderWidth=2.0, tpBoxSize=8, attackId=0 }
 local K = FH.k8
 local LIMITS = { range=100, hbRange=500, expanderRange=20, expanderWidth=10, tpBoxSize=20 }
 local EXTRA_MODE = false
@@ -46,6 +46,25 @@ local function enemigoCercano(radio)
         if h and h.Health > 0 and hr then local d = (mh.Position - hr.Position).Magnitude; if d < bd then bd = d; best = p.Character end end
     end end return best
 end
+
+-- Legit Inf Stamina Loop
+task.spawn(function()
+    while true do
+        if K.legitInfStamina then
+            local mc = LP.Character
+            if mc then
+                local stam = mc:FindFirstChild("Stam")
+                if stam and (stam:IsA("NumberValue") or stam:IsA("IntValue")) then
+                    if stam.Value > 0 and stam.Value <= 30 then
+                        -- Simula que se desgasta 80% mas lento
+                        stam.Value = stam.Value + 0.08
+                    end
+                end
+            end
+        end
+        task.wait(0.1)
+    end
+end)
 
 -- Loop de Auto Punch Independiente
 task.spawn(function()
@@ -105,22 +124,25 @@ local function triggerExtras()
         end
     end
     
-    -- HITBOX EXPANDER CORREGIDO (7 golpes hacia adelante)
     if K.hitboxExpander then
         local look = mh.CFrame.LookVector
-        -- Hacemos 7 golpes separados por 3 studs
+        local target = enemigoCercano(K.range)
+        local targetPos = target and target:FindFirstChild("HumanoidRootPart") and target.HumanoidRootPart.Position
+        
         for i = 1, 7 do
             K.attackId = K.attackId + 1
-            local pos = mh.Position + look * (i * 3) 
+            local pos
+            if K.anchoredHitbox then
+                pos = mh.Position + look * (i * 3) -- Siempre al frente tuyo
+            else
+                -- Hacia el enemigo mas cercano, o al frente si no hay nadie
+                local dir = (targetPos and (targetPos - mh.Position).Unit) or look
+                pos = mh.Position + dir * (i * 3)
+            end
             pcall(function() 
-                ev:FireServer({
-                    AttackId = K.attackId, 
-                    Position = pos, 
-                    Velocity = Vector3.new(0,0,0), 
-                    Direction = look
-                }) 
+                ev:FireServer({AttackId = K.attackId, Position = pos, Velocity = Vector3.new(0,0,0), Direction = look}) 
             end)
-            task.wait(0.05) -- Pequeña espera entre golpes para que el servidor los registre
+            task.wait(0.05)
         end
     end
     EXTRA_MODE = false
@@ -172,6 +194,8 @@ FH.panel = function()
     opt("Hitbox Tp 👻", function(v) K.hitboxTp = v end)
     opt("360° Hitbox 💥", function(v) K.hitbox360 = v end)
     opt("Hitbox Expander (Legit) 📏", function(v) K.hitboxExpander = v end)
+    opt("Anchored Hitbox ⚓", function(v) K.anchoredHitbox = v end)
+    opt("Legit Inf Stamina 🔋", function(v) K.legitInfStamina = v end)
     opt("Always Max Speed 🏃", function(v) K.alwaysMaxSpeed = v; if v then startAMS() else stopAMS() end end)
     opt("Kill All ☠️", function(v) K.killAll = v; if v then startKillAll() else stopKillAll() end end)
     mkNumInput("Rango", 1, LIMITS.range, function() return K.range end, function(v) K.range = v end)
@@ -181,4 +205,4 @@ end
 
 if FH.pestana == "Experiment" then FH.panel() end
 FH.p8 = true
-print("🎃 [8/8] Killer Punch OK (v17)")
+print("🎃 [8/8] Killer Punch OK (v18)")
