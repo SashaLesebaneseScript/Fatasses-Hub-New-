@@ -8,7 +8,7 @@ local LP = FH.LP
 
 FH.fakeStatsActive = false
 
--- ===== 1. Hook al ChatHandler para forzar el Tag VIP real =====
+-- Hook al ChatHandler para forzar el Tag VIP real
 task.spawn(function()
     task.wait(1)
     pcall(function()
@@ -18,11 +18,8 @@ task.spawn(function()
         mt.__namecall = newcclosure(function(self, ...)
             local method = getnamecallmethod()
             local args = {...}
-            
-            -- Si el juego pregunta por tu tag de chat
             if method == "InvokeServer" and self.Name == "ChatHandler" then
                 if args[1] == LP and FH.fakeStatsActive then
-                    -- Retornamos el tag VIP falso para que el juego lo pinte
                     return {Tag = "VIP", Color = Color3.fromRGB(255, 215, 0)}
                 end
             end
@@ -32,7 +29,7 @@ task.spawn(function()
     end)
 end)
 
--- ===== 2. Loop para forzar Dinero y XP en el perfil =====
+-- Loop para forzar Dinero, XP, Level y VIP Boost
 task.spawn(function()
     while true do
         if FH.fakeStatsActive then
@@ -41,36 +38,35 @@ task.spawn(function()
                 for _, obj in ipairs(pg:GetDescendants()) do
                     if obj:IsA("TextLabel") and obj.Text ~= "" then
                         
-                        -- Forzar Dinero (Collected Data)
+                        -- Forzar Dinero
                         if string.find(obj.Text, "Data") then
                             obj.Text = string.gsub(obj.Text, "%d+", "99999999999")
                         
-                        -- Forzar XP / Level
-                        elseif string.find(obj.Text, "XP") or string.find(obj.Text, "Level") then
-                            obj.Text = string.gsub(obj.Text, "%d+", "999")
+                        -- Forzar Level/XP (Teto Style)
+                        elseif string.find(obj.Text, "Level") then
+                            obj.Text = string.gsub(obj.Text, "%d+", "100")
+                        elseif string.find(obj.Text, "EXP") or string.find(obj.Text, "XP") then
+                            obj.Text = string.gsub(obj.Text, "%d+", "100")
+                        
+                        -- Forzar X1.25 Boost en la tienda
+                        elseif string.find(obj.Text, "X999") or string.find(obj.Text, "x999") then
+                            obj.Text = "X1.25 XP Boost"
                         end
                         
                     end
                 end
             end
         end
-        task.wait(1.5) -- Escanea cada 1.5 segundos para no lagear
+        task.wait(1.5)
     end
 end)
 
--- Añadir al panel de Fun
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
     if FH.pestana ~= "Fun" then return end
     local opt = FH.crearOpcion
-    opt("Fake VIP & Max Stats 👑", function(v) 
-        FH.fakeStatsActive = v 
-        if not v then
-            -- Si se apaga, forzamos un update de la GUI para restaurar los valores reales
-            -- (El juego los restaurará solo en el siguiente tick si no los sobreescribimos)
-        end
-    end)
+    opt("Fake VIP & Max Stats 👑", function(v) FH.fakeStatsActive = v end)
 end
 
 if FH.pestana == "Fun" then FH.panel() end
