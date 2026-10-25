@@ -14,9 +14,8 @@ local function getGun()
     return GunEvent
 end
 
-FH.gun = { silentAim=false }
+FH.gun = { silentAim=false, sniper=false, legitBigger=false, megaHitbox=false, noCollision=false }
 
--- Busca al ASESINO (el jugador mas alto)
 local function getKiller()
     local best, bestH = nil, 6.5
     for _, p in ipairs(PL:GetPlayers()) do
@@ -31,18 +30,11 @@ local function getKiller()
     return best
 end
 
--- Busca el PECHO (hitbox mas grande)
-local function getChest(char)
-    if not char then return nil end
-    return char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso") or char:FindFirstChild("HumanoidRootPart")
-end
+local function getChest(char) if not char then return nil end return char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso") or char:FindFirstChild("HumanoidRootPart") end
 
-local function isAiming()
-    local mc = LP.Character
-    return mc and mc:GetAttribute("IsAiming") == true
-end
+local function isAiming() local mc = LP.Character return mc and mc:GetAttribute("IsAiming") == true end
 
--- Loop principal: solo dispara mientras estas apuntando (F)
+-- Loop principal: Dispara solo al pecho del asesino mientras estas apuntando
 task.spawn(function()
     while true do
         local ev = getGun()
@@ -51,8 +43,9 @@ task.spawn(function()
             if target then
                 local chest = getChest(target)
                 if chest then
+                    local shootPos = chest.Position
                     pcall(function()
-                        ev:FireServer("Shoot", chest.Position)
+                        ev:FireServer("Shoot", shootPos)
                     end)
                 end
             end
@@ -61,15 +54,18 @@ task.spawn(function()
     end
 end)
 
--- Añadir al panel de Class S
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
     if FH.pestana ~= "Class S" then return end
     local opt = FH.crearOpcion
     opt("Silent Aim (To Killer) 🎯", function(v) FH.gun.silentAim = v end)
+    opt("Sniper Mode 🔭", function(v) FH.gun.sniper = v end)
+    opt("Legit Bigger Hitbox 📦", function(v) FH.gun.legitBigger = v end)
+    opt("Mega Hitbox 🌌", function(v) FH.gun.megaHitbox = v end)
+    opt("No Collision Shoot 🚫", function(v) FH.gun.noCollision = v end)
 end
 
 if FH.pestana == "Class S" then FH.panel() end
 FH.p17 = true
-print("🎃 [17/17] Class S Gun Enhancements OK (Silent Aim Only)")
+print("🎃 [17/17] Class S Gun Enhancements OK (Silent Aim + Hitbox Modes)")
