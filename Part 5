@@ -24,7 +24,8 @@ RS.RenderStepped:Connect(function()
                 if sg then
                     local txt = sg:FindFirstChild("StaminaText", true)
                     local bar = sg:FindFirstChild("FillFrame", true)
-                    if txt and txt:IsA("TextLabel") then txt.Text = "Stamina: 🎃 Inf/67" end
+                    -- AQUI ESTA EL CAMBIO DEL TEXTO
+                    if txt and txt:IsA("TextLabel") then txt.Text = "Sasha Wuz Here 👀" end
                     if bar and bar:IsA("Frame") then bar.Size = UDim2.new(1, 0, 1, 0) end
                 end
             end
@@ -84,9 +85,7 @@ task.spawn(function()
         if FH.autoCandyActive then
             local mc = LP.Character; local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
             if hrp then
-                -- Guardar posición inicial
                 if not FH.candyStartPos then FH.candyStartPos = hrp.CFrame end
-                
                 local candies = {}
                 for _, obj in ipairs(WS:GetDescendants()) do
                     if obj:IsA("Model") and obj.Name:match("^Candy") then
@@ -94,12 +93,10 @@ task.spawn(function()
                         if primary then table.insert(candies, primary) end
                     end
                 end
-                
                 if #candies > 0 then
                     hrp.CFrame = candies[1].CFrame
                     task.wait(0.15)
                 else
-                    -- No hay más candy's, regresar al inicio
                     hrp.CFrame = FH.candyStartPos
                     FH.autoCandyActive = false
                     FH.candyStartPos = nil
