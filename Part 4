@@ -70,7 +70,7 @@ local trC
 FH.startT=function() if trC then return end; trC=RS.RenderStepped:Connect(function() if FH.on.tracersActive then pcall(renderT)end end) end
 FH.stopT=function() if trC then trC:Disconnect(); trC=nil end; for _,l in pairs(tCache)do l:Destroy()end; tCache={} end
 
--- ===== ESP TASKS (PANELS) =====
+-- ===== ESP TASKS (PANELS) FIX =====
 FH.espTasksCache = {}
 FH.startESP = function(v)
     if not v then
@@ -80,15 +80,27 @@ FH.startESP = function(v)
     end
     task.spawn(function()
         while FH.on.espActive do
-            for _, obj in ipairs(WS:GetChildren()) do
-                -- Busca CUALQUIER cosa que empiece con Task
-                if obj:IsA("Model") and (obj.Name:match("Task") or obj.Name:match("Panel")) then
-                    if not FH.espTasksCache[obj] then
-                        local hl = Instance.new("Highlight", obj); hl.FillColor = Color3.fromRGB(255, 120, 20); hl.OutlineColor = Color3.fromRGB(255, 180, 80); hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                        local bg = Instance.new("BillboardGui", obj); bg.Size = UDim2.new(0, 100, 0, 30); bg.StudsOffset = Vector3.new(0, 3, 0); bg.AlwaysOnTop = true
-                        local txt = Instance.new("TextLabel", bg); txt.Size = UDim2.new(1, 0, 1, 0); txt.BackgroundTransparency = 1; txt.Text = "📋 Panel"; txt.TextColor3 = Color3.fromRGB(255, 120, 20); txt.TextStrokeTransparency = 0; txt.Font = Enum.Font.GothamBold; txt.TextScaled = true
-                        FH.espTasksCache[obj] = {hl = hl, bg = bg}
+            local maps = {WS:FindFirstChild("Map1"), WS:FindFirstChild("Map2")}
+            for _, map in ipairs(maps) do
+                if map then
+                    for _, obj in ipairs(map:GetChildren()) do
+                        if obj:IsA("Model") and obj.Name:match("^Task_%d+$") then
+                            if not FH.espTasksCache[obj] then
+                                local hl = Instance.new("Highlight", obj); hl.FillColor = Color3.fromRGB(255, 120, 20); hl.OutlineColor = Color3.fromRGB(255, 180, 80); hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                                local bg = Instance.new("BillboardGui", obj); bg.Size = UDim2.new(0, 100, 0, 30); bg.StudsOffset = Vector3.new(0, 3, 0); bg.AlwaysOnTop = true
+                                local txt = Instance.new("TextLabel", bg); txt.Size = UDim2.new(1, 0, 1, 0); txt.BackgroundTransparency = 1; txt.Text = "📋 Panel"; txt.TextColor3 = Color3.fromRGB(255, 120, 20); txt.TextStrokeTransparency = 0; txt.Font = Enum.Font.GothamBold; txt.TextScaled = true
+                                FH.espTasksCache[obj] = {hl = hl, bg = bg}
+                            end
+                        end
                     end
+                end
+            end
+            -- Limpiar tareas destruidas
+            for obj, data in pairs(FH.espTasksCache) do
+                if not obj.Parent then
+                    if data.hl then data.hl:Destroy() end
+                    if data.bg then data.bg:Destroy() end
+                    FH.espTasksCache[obj] = nil
                 end
             end
             task.wait(1)
@@ -137,4 +149,4 @@ end
 FH.setNoFog = function(v) if v then Lighting.FogEnd = 100000 else Lighting.FogEnd = defaultFogEnd end end
 
 FH.p4=true
-print("🎃 [4/5] ESP & Fullbright OK")
+print("🎃 [4/5] ESP & Lighting OK")
