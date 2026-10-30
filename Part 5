@@ -5,26 +5,29 @@ if FH.p5 then warn("[FH] Parte 5 ya ejecutada") return end
 local RS,PL,WS,LP=FH.RS,FH.PL,FH.WS,FH.LP
 local C=FH.C
 
--- INFINITE STAMINA & FORCE SPEED
-local sprintConn = nil
-FH.startIS = function()
-    if sprintConn then return end
-    sprintConn = RS.RenderStepped:Connect(function()
-        if FH.on.infStam or FH.autoSprintActive then
-            local char = LP.Character
-            if char then
-                local stam = char:FindFirstChild("Stam")
-                local canSprint = char:FindFirstChild("CanSprint")
-                if stam then stam.Value = 100 end
-                if canSprint then canSprint.Value = true end
+-- INFINITE STAMINA & AUTO SPRINT (FIX)
+FH.autoSprintActive = false
+RS.RenderStepped:Connect(function()
+    if FH.on.infStam or FH.autoSprintActive then
+        local char = LP.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            local stam = char:FindFirstChild("Stam")
+            local canSprint = char:FindFirstChild("CanSprint")
+            
+            -- Forzamos las variables del juego
+            if stam then stam.Value = 100 end
+            if canSprint then canSprint.Value = true end
+            
+            -- Forzamos la velocidad directamente si el sprint está activo
+            if FH.autoSprintActive and hum then
+                hum.WalkSpeed = 30
             end
         end
-    end)
-end
-FH.stopIS = function() if sprintConn then sprintConn:Disconnect(); sprintConn = nil end end
-FH.autoSprintActive = false
+    end
+end)
 
--- AUTO PATIENT & GENERATOR
+-- AUTO PATIENT (Lo dejamos como el original que te funcionaba)
 FH.startAP = function()
     if FH.apConn then return end
     FH.apConn = RS.Heartbeat:Connect(function()
@@ -47,7 +50,7 @@ FH.startAP = function()
 end
 FH.stopAP = function() if FH.apConn then FH.apConn:Disconnect(); FH.apConn=nil end end
 
--- CYCLE TPs
+-- CYCLE TPs FIX
 local tpIdx = { patient = 1, tube = 1, candy = 1 }
 local function getTargets(keyword)
     local t = {}
@@ -68,13 +71,36 @@ FH.cycleTP = function(kw)
     if hrp then hrp.CFrame = t[i].CFrame * CFrame.new(0, 3, 0); tpIdx[kw] = i + 1 end
 end
 
+-- GET ALL CANDYS FIX (TP al centro)
+FH.autoCandyActive = false
+task.spawn(function()
+    while true do
+        if FH.autoCandyActive then
+            local mc = LP.Character; local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                for _, obj in ipairs(WS:GetChildren()) do
+                    if obj.Name:match("Candy") then
+                        local primary = obj:FindFirstChild("PrimaryPart") or obj:FindFirstChildWhichIsA("BasePart")
+                        if primary then
+                            -- TP directo al centro del caramelo
+                            hrp.CFrame = primary.CFrame
+                            task.wait(0.1)
+                        end
+                    end
+                end
+            end
+            task.wait(0.5)
+        else
+            task.wait(1)
+        end
+    end
+end)
+
 -- NOCLIP
 FH.noclipActive = false
 RS.Stepped:Connect(function()
     if FH.noclipActive and LP.Character then
-        for _, v in pairs(LP.Character:GetDescendants()) do
-            if v:IsA("BasePart") and v.CanCollide then v.CanCollide = false end
-        end
+        for _, v in pairs(LP.Character:GetDescendants()) do if v:IsA("BasePart") and v.CanCollide then v.CanCollide = false end end
     end
 end)
 
@@ -102,10 +128,10 @@ FH.panel=function()
   for _,h in ipairs(FH.oc:GetChildren())do if not h:IsA("UIListLayout")then h:Destroy()end end
   local opt=FH.crearOpcion; local btn=FH.crearBotonAccion
   if FH.pestana=="Esp"then
-   opt("ESP Tasks 👁",function(v)FH.on.espActive=v;if v then FH.startESP()else FH.stopESP()end end)
+   opt("ESP Tasks 👁",function(v)FH.on.espActive=v;if v then FH.startESP(true)else FH.stopESP()end end)
    opt("ESP Players 🎃",function(v)FH.on.espPlActive=v;if v then FH.startEP()else FH.stopEP()end end)
    opt("Tracers 📏",function(v)FH.on.tracersActive=v;if v then FH.startT()else FH.stopT()end end)
-   opt("ESP Candies 🍬", function(v) FH.startCandyESP(v) end)
+   opt("ESP Candies 🍬", function(v) FH.candyESP_Active=v; if v then FH.startCandyESP(true) else FH.startCandyESP(false) end end)
    opt("Full Bright ☀️", function(v) FH.setFullbright(v, false) end)
    opt("Alt Full Bright 🌤️", function(v) FH.setFullbright(v, true) end)
    opt("No Fog 🌫️", function(v) FH.setNoFog(v) end)
@@ -116,7 +142,7 @@ FH.panel=function()
    opt("Spam Complete 🔁", function(v) FH.on.spamComplete = v; if v then FH.startSp() else FH.stopSp() end end)
    btn("Cycle TP Patient 🧟", function() FH.cycleTP("patient") end)
    btn("Cycle TP Generator 🕸", function() FH.cycleTP("tube") end)
-   btn("Cycle TP Candy 🍬", function() FH.cycleTP("candymodel") end)
+   btn("Cycle TP Candy 🍬", function() FH.cycleTP("candy") end)
   elseif FH.pestana=="Class A"then
    btn("Heal Nearest 💚",FH.healN)
    opt("Auto Heal 💚",function(v)FH.on.autoHeal=v;if v then FH.startAH()else FH.stopAH()end end)
@@ -130,7 +156,7 @@ FH.panel=function()
    opt("Aimlock 🎯",function(v)FH.on.aimlockS=v;if v then FH.startAL()else FH.stopAL()end end)
   elseif FH.pestana=="Extra Stuff"then
    opt("Inf Stamina 🎃",function(v)FH.on.infStam=v;if v then FH.startIS()else FH.stopIS()end end)
-   opt("Auto Sprint (30) 🏃", function(v) FH.autoSprintActive = v; if v then FH.startIS() end end)
+   opt("Auto Sprint (30) 🏃", function(v) FH.autoSprintActive = v end)
    opt("Get all Candy's 🍬", function(v) FH.autoCandyActive = v end)
    opt("Noclip 🚪", function(v) FH.noclipActive = v end)
   end
