@@ -5,7 +5,7 @@ if FH.p5 then warn("[FH] Parte 5 ya ejecutada") return end
 local RS,PL,WS,LP=FH.RS,FH.PL,FH.WS,FH.LP
 local C=FH.C
 
--- INFINITE STAMINA & AUTO SPRINT (FIX)
+-- INFINITE STAMINA & AUTO SPRINT (GUI FIX)
 FH.autoSprintActive = false
 RS.RenderStepped:Connect(function()
     if FH.on.infStam or FH.autoSprintActive then
@@ -19,15 +19,25 @@ RS.RenderStepped:Connect(function()
             if stam then stam.Value = 100 end
             if canSprint then canSprint.Value = true end
             
-            -- Forzamos la velocidad directamente si el sprint está activo
-            if FH.autoSprintActive and hum then
-                hum.WalkSpeed = 30
+            -- Forzamos la velocidad si el sprint está activo
+            if FH.autoSprintActive and hum then hum.WalkSpeed = 30 end
+            
+            -- Forzamos la GUI Visual
+            local pg = LP:FindFirstChild("PlayerGui")
+            if pg then
+                local sg = pg:FindFirstChild("SprintGui")
+                if sg then
+                    local txt = sg:FindFirstChild("StaminaText", true)
+                    local bar = sg:FindFirstChild("FillFrame", true)
+                    if txt and txt:IsA("TextLabel") then txt.Text = "Stamina: 🎃 Inf/67" end
+                    if bar and bar:IsA("Frame") then bar.Size = UDim2.new(1, 0, 1, 0) end
+                end
             end
         end
     end
 end)
 
--- AUTO PATIENT (Lo dejamos como el original que te funcionaba)
+-- AUTO PATIENT (Legit)
 FH.startAP = function()
     if FH.apConn then return end
     FH.apConn = RS.Heartbeat:Connect(function()
@@ -50,8 +60,8 @@ FH.startAP = function()
 end
 FH.stopAP = function() if FH.apConn then FH.apConn:Disconnect(); FH.apConn=nil end end
 
--- CYCLE TPs FIX
-local tpIdx = { patient = 1, tube = 1, candy = 1 }
+-- CYCLE TPs (Agregado Task 3)
+local tpIdx = { patient = 1, tube = 1, candy = 1, task3 = 1 }
 local function getTargets(keyword)
     local t = {}
     for _, obj in ipairs(WS:GetChildren()) do
@@ -82,7 +92,6 @@ task.spawn(function()
                     if obj.Name:match("Candy") then
                         local primary = obj:FindFirstChild("PrimaryPart") or obj:FindFirstChildWhichIsA("BasePart")
                         if primary then
-                            -- TP directo al centro del caramelo
                             hrp.CFrame = primary.CFrame
                             task.wait(0.1)
                         end
@@ -143,6 +152,7 @@ FH.panel=function()
    btn("Cycle TP Patient 🧟", function() FH.cycleTP("patient") end)
    btn("Cycle TP Generator 🕸", function() FH.cycleTP("tube") end)
    btn("Cycle TP Candy 🍬", function() FH.cycleTP("candy") end)
+   btn("Cycle TP Task 3 📝", function() FH.cycleTP("task_3") end)
   elseif FH.pestana=="Class A"then
    btn("Heal Nearest 💚",FH.healN)
    opt("Auto Heal 💚",function(v)FH.on.autoHeal=v;if v then FH.startAH()else FH.stopAH()end end)
