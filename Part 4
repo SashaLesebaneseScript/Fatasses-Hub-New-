@@ -74,33 +74,42 @@ FH.stopT=function() if trC then trC:Disconnect(); trC=nil end; for _,l in pairs(
 FH.espTasksCache = {}
 FH.startESP = function(v)
     if not v then
-        for _, data in pairs(FH.espTasksCache) do if data.hl then data.hl:Destroy() end; if data.bg then data.bg:Destroy() end end
-        FH.espTasksCache = {}
+        if FH.espTasksCache then
+            for _, data in pairs(FH.espTasksCache) do if data.hl then data.hl:Destroy() end; if data.bg then data.bg:Destroy() end end
+            FH.espTasksCache = {}
+        end
         return
     end
     task.spawn(function()
         while FH.on.espActive do
-            local maps = {WS:FindFirstChild("Map1"), WS:FindFirstChild("Map2")}
-            for _, map in ipairs(maps) do
-                if map then
-                    for _, obj in ipairs(map:GetChildren()) do
-                        if obj:IsA("Model") and obj.Name:match("^Task_%d+$") then
-                            if not FH.espTasksCache[obj] then
-                                local hl = Instance.new("Highlight", obj); hl.FillColor = Color3.fromRGB(255, 120, 20); hl.OutlineColor = Color3.fromRGB(255, 180, 80); hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                                local bg = Instance.new("BillboardGui", obj); bg.Size = UDim2.new(0, 100, 0, 30); bg.StudsOffset = Vector3.new(0, 3, 0); bg.AlwaysOnTop = true
-                                local txt = Instance.new("TextLabel", bg); txt.Size = UDim2.new(1, 0, 1, 0); txt.BackgroundTransparency = 1; txt.Text = "📋 Panel"; txt.TextColor3 = Color3.fromRGB(255, 120, 20); txt.TextStrokeTransparency = 0; txt.Font = Enum.Font.GothamBold; txt.TextScaled = true
-                                FH.espTasksCache[obj] = {hl = hl, bg = bg}
-                            end
-                        end
+            for _, obj in ipairs(WS:GetDescendants()) do
+                if obj:IsA("Model") and (obj.Name:match("^Task_%d+$") or obj.Name:match("^TaskSpawn") or obj.Name:match("^Panel")) then
+                    if not FH.espTasksCache[obj] then
+                        local hl = Instance.new("Highlight")
+                        hl.Parent = obj
+                        hl.Adornee = obj
+                        hl.FillColor = Color3.fromRGB(255, 120, 20)
+                        hl.OutlineColor = Color3.fromRGB(255, 180, 80)
+                        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                        
+                        local bg = Instance.new("BillboardGui")
+                        bg.Parent = obj
+                        bg.Adornee = obj
+                        bg.Size = UDim2.new(0, 100, 0, 30)
+                        bg.StudsOffset = Vector3.new(0, 3, 0)
+                        bg.AlwaysOnTop = true
+                        
+                        local txt = Instance.new("TextLabel", bg)
+                        txt.Size = UDim2.new(1, 0, 1, 0)
+                        txt.BackgroundTransparency = 1
+                        txt.Text = "📋 Panel"
+                        txt.TextColor3 = Color3.fromRGB(255, 120, 20)
+                        txt.TextStrokeTransparency = 0
+                        txt.Font = Enum.Font.GothamBold
+                        txt.TextScaled = true
+                        
+                        FH.espTasksCache[obj] = {hl = hl, bg = bg}
                     end
-                end
-            end
-            -- Limpiar tareas destruidas
-            for obj, data in pairs(FH.espTasksCache) do
-                if not obj.Parent then
-                    if data.hl then data.hl:Destroy() end
-                    if data.bg then data.bg:Destroy() end
-                    FH.espTasksCache[obj] = nil
                 end
             end
             task.wait(1)
@@ -108,8 +117,10 @@ FH.startESP = function(v)
     end)
 end
 FH.stopESP = function()
-    for _, data in pairs(FH.espTasksCache) do if data.hl then data.hl:Destroy() end; if data.bg then data.bg:Destroy() end end
-    FH.espTasksCache = {}
+    if FH.espTasksCache then
+        for _, data in pairs(FH.espTasksCache) do if data.hl then data.hl:Destroy() end; if data.bg then data.bg:Destroy() end end
+        FH.espTasksCache = {}
+    end
 end
 
 -- ===== ESP CANDIES =====
@@ -122,11 +133,19 @@ FH.startCandyESP = function(v)
     end
     task.spawn(function()
         while FH.candyESP_Active do
-            for _, c in ipairs(WS:GetChildren()) do
-                if c.Name:match("Candy") and not FH.candyESP[c] then
-                    local hl = Instance.new("Highlight", c); hl.FillColor = Color3.fromRGB(255, 50, 150); hl.OutlineColor = Color3.new(1,1,1); hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                    local bg = Instance.new("BillboardGui", c); bg.Size = UDim2.new(0, 100, 0, 30); bg.StudsOffset = Vector3.new(0, 3, 0); bg.AlwaysOnTop = true
-                    local txt = Instance.new("TextLabel", bg); txt.Size = UDim2.new(1, 0, 1, 0); txt.BackgroundTransparency = 1; txt.Text = "🍬 Candy"; txt.TextColor3 = Color3.fromRGB(255, 50, 150); txt.TextStrokeTransparency = 0; txt.Font = Enum.Font.GothamBold; txt.TextScaled = true
+            for _, c in ipairs(WS:GetDescendants()) do
+                if c:IsA("Model") and c.Name:match("^Candy") and not FH.candyESP[c] then
+                    local hl = Instance.new("Highlight")
+                    hl.Parent = c; hl.Adornee = c
+                    hl.FillColor = Color3.fromRGB(255, 50, 150); hl.OutlineColor = Color3.new(1,1,1); hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                    
+                    local bg = Instance.new("BillboardGui")
+                    bg.Parent = c; bg.Adornee = c
+                    bg.Size = UDim2.new(0, 100, 0, 30); bg.StudsOffset = Vector3.new(0, 3, 0); bg.AlwaysOnTop = true
+                    
+                    local txt = Instance.new("TextLabel", bg)
+                    txt.Size = UDim2.new(1, 0, 1, 0); txt.BackgroundTransparency = 1; txt.Text = "🍬 Candy"; txt.TextColor3 = Color3.fromRGB(255, 50, 150); txt.TextStrokeTransparency = 0; txt.Font = Enum.Font.GothamBold; txt.TextScaled = true
+                    
                     FH.candyESP[c] = {hl = hl, bg = bg}
                 end
             end
