@@ -4,6 +4,7 @@ if not FH or not FH.p3 then warn("[FH] Ejecuta Partes 1-3 primero") return end
 if FH.p4 then warn("[FH] Parte 4 ya ejecutada") return end
 local RS,PL,LP=FH.RS,FH.PL,FH.LP
 local WS = FH.WS
+local Lighting = game:GetService("Lighting")
 
 -- ===== ESP PLAYERS =====
 local pESP={}
@@ -20,7 +21,6 @@ local function mkP(m,rojo)
     h.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop; h.Adornee=m; h.Parent=m
     if rojo then h.FillColor=Color3.fromRGB(180,30,60); h.OutlineColor=Color3.fromRGB(255,70,120)
     else h.FillColor=Color3.fromRGB(255,120,20); h.OutlineColor=Color3.fromRGB(255,180,80) end
-    
     local bg=Instance.new("BillboardGui")
     bg.Size=UDim2.new(0,160,0,60); bg.StudsOffset=Vector3.new(0,3.5,0); bg.AlwaysOnTop=true; bg.Parent=m
     local n=Instance.new("TextLabel",bg)
@@ -31,30 +31,13 @@ local function mkP(m,rojo)
     s.Size=UDim2.new(1,0,.5,0); s.Position=UDim2.new(0,0,.5,0); s.BackgroundTransparency=1
     s.TextColor3=Color3.fromRGB(255,150,50); s.TextStrokeTransparency=0; s.TextStrokeColor3=Color3.fromRGB(20,5,20)
     s.TextScaled=true; s.Font=Enum.Font.GothamBold; s.Text="100 / 100"
-    
     pESP[m]={h=h,bg=bg,l=s,hp=-1,mx=-1}
 end
-local function delP(m)
-    local d=pESP[m]; if not d then return end
-    d.h:Destroy(); d.bg:Destroy(); pESP[m]=nil
-end
+local function delP(m) local d=pESP[m]; if not d then return end; d.h:Destroy(); d.bg:Destroy(); pESP[m]=nil end
 local function scanP()
     local found={}; local masAlto,altMax=nil,-math.huge
-    for _,p in ipairs(PL:GetPlayers())do
-        if p~=LP and p.Character then
-            local ch=p.Character; local hum=ch:FindFirstChildOfClass("Humanoid")
-            if hum and hum.Health>0 then
-                local ok,sz=pcall(function()return ch:GetExtentsSize().Y end)
-                if ok and sz and sz>altMax then altMax=sz; masAlto=ch end 
-            end 
-        end 
-    end
-    for _,p in ipairs(PL:GetPlayers())do
-        if p~=LP and p.Character then
-            local ch=p.Character; local hum=ch:FindFirstChildOfClass("Humanoid")
-            if hum and hum.Health>0 then mkP(ch,(ch==masAlto)or FH.isKiller(ch)); found[ch]=true end 
-        end 
-    end
+    for _,p in ipairs(PL:GetPlayers())do if p~=LP and p.Character then local ch=p.Character; local hum=ch:FindFirstChildOfClass("Humanoid"); if hum and hum.Health>0 then local ok,sz=pcall(function()return ch:GetExtentsSize().Y end); if ok and sz and sz>altMax then altMax=sz; masAlto=ch end end end end
+    for _,p in ipairs(PL:GetPlayers())do if p~=LP and p.Character then local ch=p.Character; local hum=ch:FindFirstChildOfClass("Humanoid"); if hum and hum.Health>0 then mkP(ch,(ch==masAlto)or FH.isKiller(ch)); found[ch]=true end end end
     for m in pairs(pESP)do if not found[m]or not m.Parent then delP(m)end end
 end
 local pT
@@ -68,21 +51,7 @@ FH.startEP=function()
             task.wait(1)
             if FH.on.espPlActive then
                 scanP()
-                for m,d in pairs(pESP)do
-                    if m and m.Parent and d.l then
-                        local h=m:FindFirstChildOfClass("Humanoid")
-                        if h then
-                            local hp=math.floor(h.Health); local mx=math.floor(h.MaxHealth)
-                            if hp~=d.hp or mx~=d.mx then
-                                d.hp=hp; d.mx=mx; d.l.Text=hp.." / "..mx
-                                local r=hp/math.max(1,mx)
-                                if r>.6 then d.l.TextColor3=Color3.fromRGB(255,150,50)
-                                elseif r>.3 then d.l.TextColor3=Color3.fromRGB(255,220,80)
-                                else d.l.TextColor3=Color3.fromRGB(255,50,50) end
-                            end
-                        end
-                    end
-                end
+                for m,d in pairs(pESP)do if m and m.Parent and d.l then local h=m:FindFirstChildOfClass("Humanoid"); if h then local hp=math.floor(h.Health); local mx=math.floor(h.MaxHealth); if hp~=d.hp or mx~=d.mx then d.hp=hp; d.mx=mx; d.l.Text=hp.." / "..mx; local r=hp/math.max(1,mx); if r>.6 then d.l.TextColor3=Color3.fromRGB(255,150,50) elseif r>.3 then d.l.TextColor3=Color3.fromRGB(255,220,80) else d.l.TextColor3=Color3.fromRGB(255,50,50) end end end end end
             end
         end
         pT=nil
@@ -101,162 +70,103 @@ local function renderT()
     local hr=mc:FindFirstChild("HumanoidRootPart"); if not hr then return end
     local myFoot=hr.Position-Vector3.new(0,2.5,0)
     local cm=workspace.CurrentCamera; if not cm then return end
-    
     local msp, mon, mdepth = cm:WorldToViewportPoint(myFoot)
     if mdepth <= 0 then msp = Vector2.new(cm.ViewportSize.X/2, cm.ViewportSize.Y/2) end
-    
     local masAlto,altMax=nil,-math.huge
-    for _,p in ipairs(PL:GetPlayers())do
-        if p~=LP and p.Character then
-            local h=p.Character:FindFirstChildOfClass("Humanoid")
-            if h and h.Health>0 then
-                local ok,sz=pcall(function()return p.Character:GetExtentsSize().Y end)
-                if ok and sz and sz>altMax then altMax=sz; masAlto=p.Character end 
-            end 
-        end 
-    end
-    
+    for _,p in ipairs(PL:GetPlayers())do if p~=LP and p.Character then local h=p.Character:FindFirstChildOfClass("Humanoid"); if h and h.Health>0 then local ok,sz=pcall(function()return p.Character:GetExtentsSize().Y end); if ok and sz and sz>altMax then altMax=sz; masAlto=p.Character end end end end
     local alive={}
-    for _,p in ipairs(PL:GetPlayers())do
-        if p~=LP and p.Character then
-            local ch=p.Character; local h=ch:FindFirstChildOfClass("Humanoid")
-            if h and h.Health>0 then
-                alive[ch]=true
-                local hh=ch:FindFirstChild("HumanoidRootPart")
-                if hh then
-                    local fp=hh.Position-Vector3.new(0,2.5,0)
-                    local sp, ons, dep = cm:WorldToViewportPoint(fp)
-                    if dep > 0 then
-                        local l=tCache[ch]
-                        if not l or not l.Parent then
-                            l=Instance.new("Frame"); l.BorderSizePixel=0; l.ZIndex=998
-                            l.AnchorPoint=Vector2.new(.5,.5); l.Parent=tGui; tCache[ch]=l 
-                        end
-                        local dx=sp.X-msp.X; local dy=sp.Y-msp.Y
-                        local len=math.sqrt(dx*dx+dy*dy)
-                        
-                        l.Size=UDim2.new(0,len,0,2)
-                        l.Position=UDim2.new(0,(msp.X+sp.X)/2,0,(msp.Y+sp.Y)/2)
-                        l.Rotation=math.deg(math.atan2(dy,dx))
-                        l.Visible=true
-                        l.BackgroundColor3=((ch==masAlto)or FH.isKiller(ch))and Color3.fromRGB(255,30,60)or Color3.fromRGB(255,120,20)
-                    else
-                        local l=tCache[ch]; if l and l.Parent then l.Visible=false end
-                    end
-                end
-            end
-        end
-    end
+    for _,p in ipairs(PL:GetPlayers())do if p~=LP and p.Character then local ch=p.Character; local h=ch:FindFirstChildOfClass("Humanoid"); if h and h.Health>0 then alive[ch]=true; local hh=ch:FindFirstChild("HumanoidRootPart"); if hh then local fp=hh.Position-Vector3.new(0,2.5,0); local sp, ons, dep = cm:WorldToViewportPoint(fp); if dep > 0 then local l=tCache[ch]; if not l or not l.Parent then l=Instance.new("Frame"); l.BorderSizePixel=0; l.ZIndex=998; l.AnchorPoint=Vector2.new(.5,.5); l.Parent=tGui; tCache[ch]=l end; local dx=sp.X-msp.X; local dy=sp.Y-msp.Y; local len=math.sqrt(dx*dx+dy*dy); l.Size=UDim2.new(0,len,0,2); l.Position=UDim2.new(0,(msp.X+sp.X)/2,0,(msp.Y+sp.Y)/2); l.Rotation=math.deg(math.atan2(dy,dx)); l.Visible=true; l.BackgroundColor3=((ch==masAlto)or FH.isKiller(ch))and Color3.fromRGB(255,30,60)or Color3.fromRGB(255,120,20); else local l=tCache[ch]; if l and l.Parent then l.Visible=false end end end end end end
     for ch,l in pairs(tCache)do if not alive[ch]or not ch.Parent then l:Destroy(); tCache[ch]=nil end end
 end
-
 local trC
-FH.startT=function()
-    if trC then return end
-    trC=RS.RenderStepped:Connect(function() if FH.on.tracersActive then pcall(renderT)end end)
-end
-FH.stopT=function()
-    if trC then trC:Disconnect(); trC=nil end
-    for _,l in pairs(tCache)do l:Destroy()end; tCache={}
-end
+FH.startT=function() if trC then return end; trC=RS.RenderStepped:Connect(function() if FH.on.tracersActive then pcall(renderT)end end) end
+FH.stopT=function() if trC then trC:Disconnect(); trC=nil end; for _,l in pairs(tCache)do l:Destroy()end; tCache={} end
 
--- ===== ESP TASKS (Panels) OPTIMIZADO =====
-local espTasksCache = {}
-FH.startESP = function(v)
-    if not v then
-        for _, hl in pairs(espTasksCache) do hl:Destroy() end
-        espTasksCache = {}
-        return
-    end
-    task.spawn(function()
+-- ===== ESP TASKS (Panels) FIX =====
+FH.espTasksCache = {}
+FH._espTaskThread = nil
+FH.startESP = function()
+    if FH._espTaskThread then return end
+    FH._espTaskThread = task.spawn(function()
         while FH.on.espActive do
             for _, obj in ipairs(WS:GetChildren()) do
-                if (obj.Name:match("^Task_%d+$") or obj.Name == "TaskSpawn") and not espTasksCache[obj] then
-                    local hl = Instance.new("Highlight", obj)
-                    hl.FillColor = Color3.fromRGB(255, 120, 20)
-                    hl.OutlineColor = Color3.fromRGB(255, 180, 80)
-                    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                    
-                    local bg = Instance.new("BillboardGui", obj)
-                    bg.Size = UDim2.new(0, 100, 0, 30)
-                    bg.StudsOffset = Vector3.new(0, 3, 0)
-                    bg.AlwaysOnTop = true
-                    local txt = Instance.new("TextLabel", bg)
-                    txt.Size = UDim2.new(1, 0, 1, 0)
-                    txt.BackgroundTransparency = 1
-                    txt.Text = "📋 Panel"
-                    txt.TextColor3 = Color3.fromRGB(255, 120, 20)
-                    txt.TextStrokeTransparency = 0
-                    txt.Font = Enum.Font.GothamBold
-                    txt.TextScaled = true
-                    
-                    espTasksCache[obj] = hl
+                if obj:IsA("Model") and (obj.Name:match("^Task_%d+$") or obj.Name == "TaskSpawn" or obj.Name:match("^Panel")) then
+                    if not FH.espTasksCache[obj] then
+                        local hl = Instance.new("Highlight", obj)
+                        hl.FillColor = Color3.fromRGB(255, 120, 20)
+                        hl.OutlineColor = Color3.fromRGB(255, 180, 80)
+                        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                        
+                        local bg = Instance.new("BillboardGui", obj)
+                        bg.Size = UDim2.new(0, 100, 0, 30)
+                        bg.StudsOffset = Vector3.new(0, 3, 0)
+                        bg.AlwaysOnTop = true
+                        local txt = Instance.new("TextLabel", bg)
+                        txt.Size = UDim2.new(1, 0, 1, 0)
+                        txt.BackgroundTransparency = 1
+                        txt.Text = "📋 Task Panel"
+                        txt.TextColor3 = Color3.fromRGB(255, 120, 20)
+                        txt.TextStrokeTransparency = 0
+                        txt.Font = Enum.Font.GothamBold
+                        txt.TextScaled = true
+                        
+                        FH.espTasksCache[obj] = {hl = hl, bg = bg}
+                    end
                 end
             end
             task.wait(1)
         end
+        FH._espTaskThread = nil
     end)
+end
+FH.stopESP = function()
+    for _, data in pairs(FH.espTasksCache) do
+        if data.hl then data.hl:Destroy() end
+        if data.bg then data.bg:Destroy() end
+    end
+    FH.espTasksCache = {}
 end
 
 -- ===== ESP CANDIES =====
 local candyESP = {}
 local function getCandies() local c = {} for _, v in ipairs(WS:GetChildren()) do if v.Name:match("^CandyModel") then table.insert(c, v) end end return c end
 FH.startCandyESP = function(v)
-    if not v then
-        for _, data in pairs(candyESP) do data.hl:Destroy(); data.bg:Destroy() end
-        candyESP = {}
-        return
-    end
+    if not v then for _, data in pairs(candyESP) do data.hl:Destroy(); data.bg:Destroy() end; candyESP = {}; return end
     for _, c in ipairs(getCandies()) do
         if not candyESP[c] then
-            local hl = Instance.new("Highlight", c)
-            hl.FillColor = Color3.fromRGB(255, 50, 150)
-            hl.OutlineColor = Color3.new(1,1,1)
-            hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-            
-            local bg = Instance.new("BillboardGui", c)
-            bg.Size = UDim2.new(0, 100, 0, 30)
-            bg.StudsOffset = Vector3.new(0, 3, 0)
-            bg.AlwaysOnTop = true
-            local txt = Instance.new("TextLabel", bg)
-            txt.Size = UDim2.new(1, 0, 1, 0)
-            txt.BackgroundTransparency = 1
-            txt.Text = "🍬 Candy"
-            txt.TextColor3 = Color3.fromRGB(255, 50, 150)
-            txt.TextStrokeTransparency = 0
-            txt.Font = Enum.Font.GothamBold
-            txt.TextScaled = true
-            
+            local hl = Instance.new("Highlight", c); hl.FillColor = Color3.fromRGB(255, 50, 150); hl.OutlineColor = Color3.new(1,1,1); hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            local bg = Instance.new("BillboardGui", c); bg.Size = UDim2.new(0, 100, 0, 30); bg.StudsOffset = Vector3.new(0, 3, 0); bg.AlwaysOnTop = true
+            local txt = Instance.new("TextLabel", bg); txt.Size = UDim2.new(1, 0, 1, 0); txt.BackgroundTransparency = 1; txt.Text = "🍬 Candy"; txt.TextColor3 = Color3.fromRGB(255, 50, 150); txt.TextStrokeTransparency = 0; txt.Font = Enum.Font.GothamBold; txt.TextScaled = true
             candyESP[c] = {hl = hl, bg = bg}
         end
     end
 end
 
--- ===== FULLBRIGHT (FIX A PRUEBA DE FALLOS) =====
-local function setFB(v, alt)
-    local ok, lighting = pcall(function() return game:GetService("Lighting") end)
-    if not ok or not lighting then return end -- Si falla, no hace nada y evita el crash
-    
+-- ===== FULLBRIGHT & NO FOG =====
+local defaultFogEnd = Lighting.FogEnd
+FH.setFullbright = function(v, alt)
     if v then
-        lighting.Brightness = 3
-        lighting.ClockTime = 12
+        Lighting.Brightness = 3
+        Lighting.ClockTime = 12
+        Lighting.FogEnd = 100000
         if alt then
-            lighting.Ambient = Color3.fromRGB(150, 150, 150)
-            lighting.OutdoorAmbient = Color3.fromRGB(150, 150, 150)
+            Lighting.Ambient = Color3.fromRGB(150, 150, 150)
+            Lighting.OutdoorAmbient = Color3.fromRGB(150, 150, 150)
         else
-            lighting.Ambient = Color3.fromRGB(255, 255, 255)
-            lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
-            lighting.FogEnd = 100000
+            Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+            Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
         end
     else
-        lighting.Brightness = 1
-        lighting.ClockTime = 14
-        lighting.Ambient = Color3.fromRGB(70, 70, 70)
-        lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
-        lighting.FogEnd = 100000
+        Lighting.Brightness = 1
+        Lighting.ClockTime = 14
+        Lighting.Ambient = Color3.fromRGB(70, 70, 70)
+        Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+        Lighting.FogEnd = defaultFogEnd
     end
 end
-FH.setFullbright = setFB
+FH.setNoFog = function(v)
+    if v then Lighting.FogEnd = 100000 else Lighting.FogEnd = defaultFogEnd end
+end
 
 FH.p4=true
 print("🎃 [4/5] ESP & Fullbright OK")
