@@ -16,21 +16,13 @@ local function mkP(m,rojo)
         else h.FillColor=Color3.fromRGB(255,120,20); h.OutlineColor=Color3.fromRGB(255,180,80) end
         return
     end
-    local h=Instance.new("Highlight")
-    h.FillTransparency=.6; h.OutlineTransparency=0
+    local h=Instance.new("Highlight"); h.FillTransparency=.6; h.OutlineTransparency=0
     h.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop; h.Adornee=m; h.Parent=m
     if rojo then h.FillColor=Color3.fromRGB(180,30,60); h.OutlineColor=Color3.fromRGB(255,70,120)
     else h.FillColor=Color3.fromRGB(255,120,20); h.OutlineColor=Color3.fromRGB(255,180,80) end
-    local bg=Instance.new("BillboardGui")
-    bg.Size=UDim2.new(0,160,0,60); bg.StudsOffset=Vector3.new(0,3.5,0); bg.AlwaysOnTop=true; bg.Parent=m
-    local n=Instance.new("TextLabel",bg)
-    n.Size=UDim2.new(1,0,.5,0); n.BackgroundTransparency=1
-    n.TextColor3=Color3.fromRGB(255,220,180); n.TextStrokeTransparency=0; n.TextStrokeColor3=Color3.fromRGB(20,5,20)
-    n.TextScaled=true; n.Font=Enum.Font.GothamBold; n.Text="🎃 "..m.Name
-    local s=Instance.new("TextLabel",bg)
-    s.Size=UDim2.new(1,0,.5,0); s.Position=UDim2.new(0,0,.5,0); s.BackgroundTransparency=1
-    s.TextColor3=Color3.fromRGB(255,150,50); s.TextStrokeTransparency=0; s.TextStrokeColor3=Color3.fromRGB(20,5,20)
-    s.TextScaled=true; s.Font=Enum.Font.GothamBold; s.Text="100 / 100"
+    local bg=Instance.new("BillboardGui"); bg.Size=UDim2.new(0,160,0,60); bg.StudsOffset=Vector3.new(0,3.5,0); bg.AlwaysOnTop=true; bg.Parent=m
+    local n=Instance.new("TextLabel",bg); n.Size=UDim2.new(1,0,.5,0); n.BackgroundTransparency=1; n.TextColor3=Color3.fromRGB(255,220,180); n.TextStrokeTransparency=0; n.TextStrokeColor3=Color3.fromRGB(20,5,20); n.TextScaled=true; n.Font=Enum.Font.GothamBold; n.Text="🎃 "..m.Name
+    local s=Instance.new("TextLabel",bg); s.Size=UDim2.new(1,0,.5,0); s.Position=UDim2.new(0,0,.5,0); s.BackgroundTransparency=1; s.TextColor3=Color3.fromRGB(255,150,50); s.TextStrokeTransparency=0; s.TextStrokeColor3=Color3.fromRGB(20,5,20); s.TextScaled=true; s.Font=Enum.Font.GothamBold; s.Text="100 / 100"
     pESP[m]={h=h,bg=bg,l=s,hp=-1,mx=-1}
 end
 local function delP(m) local d=pESP[m]; if not d then return end; d.h:Destroy(); d.bg:Destroy(); pESP[m]=nil end
@@ -60,16 +52,12 @@ end
 FH.stopEP=function() pT=nil; for m in pairs(pESP)do delP(m)end end
 
 -- ===== TRACERS =====
-local tGui=Instance.new("ScreenGui")
-tGui.Name="FatassesTracers"; tGui.ResetOnSpawn=false; tGui.IgnoreGuiInset=true
-tGui.DisplayOrder=998; tGui.Parent=FH.parent
+local tGui=Instance.new("ScreenGui"); tGui.Name="FatassesTracers"; tGui.ResetOnSpawn=false; tGui.IgnoreGuiInset=true; tGui.DisplayOrder=998; tGui.Parent=FH.parent
 local tCache={}
 local function renderT()
     if not FH.on.tracersActive then for _,l in pairs(tCache)do if l.Parent then l.Visible=false end end; return end
-    local mc=LP.Character; if not mc then return end
-    local hr=mc:FindFirstChild("HumanoidRootPart"); if not hr then return end
-    local myFoot=hr.Position-Vector3.new(0,2.5,0)
-    local cm=workspace.CurrentCamera; if not cm then return end
+    local mc=LP.Character; if not mc then return end; local hr=mc:FindFirstChild("HumanoidRootPart"); if not hr then return end
+    local myFoot=hr.Position-Vector3.new(0,2.5,0); local cm=workspace.CurrentCamera; if not cm then return end
     local msp, mon, mdepth = cm:WorldToViewportPoint(myFoot)
     if mdepth <= 0 then msp = Vector2.new(cm.ViewportSize.X/2, cm.ViewportSize.Y/2) end
     local masAlto,altMax=nil,-math.huge
@@ -82,91 +70,71 @@ local trC
 FH.startT=function() if trC then return end; trC=RS.RenderStepped:Connect(function() if FH.on.tracersActive then pcall(renderT)end end) end
 FH.stopT=function() if trC then trC:Disconnect(); trC=nil end; for _,l in pairs(tCache)do l:Destroy()end; tCache={} end
 
--- ===== ESP TASKS (Panels) FIX =====
+-- ===== ESP TASKS (PANELS) =====
 FH.espTasksCache = {}
-FH._espTaskThread = nil
-FH.startESP = function()
-    if FH._espTaskThread then return end
-    FH._espTaskThread = task.spawn(function()
+FH.startESP = function(v)
+    if not v then
+        for _, data in pairs(FH.espTasksCache) do if data.hl then data.hl:Destroy() end; if data.bg then data.bg:Destroy() end end
+        FH.espTasksCache = {}
+        return
+    end
+    task.spawn(function()
         while FH.on.espActive do
             for _, obj in ipairs(WS:GetChildren()) do
-                if obj:IsA("Model") and (obj.Name:match("^Task_%d+$") or obj.Name == "TaskSpawn" or obj.Name:match("^Panel")) then
+                -- Busca CUALQUIER cosa que empiece con Task
+                if obj:IsA("Model") and (obj.Name:match("Task") or obj.Name:match("Panel")) then
                     if not FH.espTasksCache[obj] then
-                        local hl = Instance.new("Highlight", obj)
-                        hl.FillColor = Color3.fromRGB(255, 120, 20)
-                        hl.OutlineColor = Color3.fromRGB(255, 180, 80)
-                        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                        
-                        local bg = Instance.new("BillboardGui", obj)
-                        bg.Size = UDim2.new(0, 100, 0, 30)
-                        bg.StudsOffset = Vector3.new(0, 3, 0)
-                        bg.AlwaysOnTop = true
-                        local txt = Instance.new("TextLabel", bg)
-                        txt.Size = UDim2.new(1, 0, 1, 0)
-                        txt.BackgroundTransparency = 1
-                        txt.Text = "📋 Task Panel"
-                        txt.TextColor3 = Color3.fromRGB(255, 120, 20)
-                        txt.TextStrokeTransparency = 0
-                        txt.Font = Enum.Font.GothamBold
-                        txt.TextScaled = true
-                        
+                        local hl = Instance.new("Highlight", obj); hl.FillColor = Color3.fromRGB(255, 120, 20); hl.OutlineColor = Color3.fromRGB(255, 180, 80); hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                        local bg = Instance.new("BillboardGui", obj); bg.Size = UDim2.new(0, 100, 0, 30); bg.StudsOffset = Vector3.new(0, 3, 0); bg.AlwaysOnTop = true
+                        local txt = Instance.new("TextLabel", bg); txt.Size = UDim2.new(1, 0, 1, 0); txt.BackgroundTransparency = 1; txt.Text = "📋 Panel"; txt.TextColor3 = Color3.fromRGB(255, 120, 20); txt.TextStrokeTransparency = 0; txt.Font = Enum.Font.GothamBold; txt.TextScaled = true
                         FH.espTasksCache[obj] = {hl = hl, bg = bg}
                     end
                 end
             end
             task.wait(1)
         end
-        FH._espTaskThread = nil
     end)
 end
 FH.stopESP = function()
-    for _, data in pairs(FH.espTasksCache) do
-        if data.hl then data.hl:Destroy() end
-        if data.bg then data.bg:Destroy() end
-    end
+    for _, data in pairs(FH.espTasksCache) do if data.hl then data.hl:Destroy() end; if data.bg then data.bg:Destroy() end end
     FH.espTasksCache = {}
 end
 
 -- ===== ESP CANDIES =====
-local candyESP = {}
-local function getCandies() local c = {} for _, v in ipairs(WS:GetChildren()) do if v.Name:match("^CandyModel") then table.insert(c, v) end end return c end
+FH.candyESP = {}
 FH.startCandyESP = function(v)
-    if not v then for _, data in pairs(candyESP) do data.hl:Destroy(); data.bg:Destroy() end; candyESP = {}; return end
-    for _, c in ipairs(getCandies()) do
-        if not candyESP[c] then
-            local hl = Instance.new("Highlight", c); hl.FillColor = Color3.fromRGB(255, 50, 150); hl.OutlineColor = Color3.new(1,1,1); hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-            local bg = Instance.new("BillboardGui", c); bg.Size = UDim2.new(0, 100, 0, 30); bg.StudsOffset = Vector3.new(0, 3, 0); bg.AlwaysOnTop = true
-            local txt = Instance.new("TextLabel", bg); txt.Size = UDim2.new(1, 0, 1, 0); txt.BackgroundTransparency = 1; txt.Text = "🍬 Candy"; txt.TextColor3 = Color3.fromRGB(255, 50, 150); txt.TextStrokeTransparency = 0; txt.Font = Enum.Font.GothamBold; txt.TextScaled = true
-            candyESP[c] = {hl = hl, bg = bg}
-        end
+    if not v then
+        for _, data in pairs(FH.candyESP) do if data.hl then data.hl:Destroy() end; if data.bg then data.bg:Destroy() end end
+        FH.candyESP = {}
+        return
     end
+    task.spawn(function()
+        while FH.candyESP_Active do
+            for _, c in ipairs(WS:GetChildren()) do
+                if c.Name:match("Candy") and not FH.candyESP[c] then
+                    local hl = Instance.new("Highlight", c); hl.FillColor = Color3.fromRGB(255, 50, 150); hl.OutlineColor = Color3.new(1,1,1); hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                    local bg = Instance.new("BillboardGui", c); bg.Size = UDim2.new(0, 100, 0, 30); bg.StudsOffset = Vector3.new(0, 3, 0); bg.AlwaysOnTop = true
+                    local txt = Instance.new("TextLabel", bg); txt.Size = UDim2.new(1, 0, 1, 0); txt.BackgroundTransparency = 1; txt.Text = "🍬 Candy"; txt.TextColor3 = Color3.fromRGB(255, 50, 150); txt.TextStrokeTransparency = 0; txt.Font = Enum.Font.GothamBold; txt.TextScaled = true
+                    FH.candyESP[c] = {hl = hl, bg = bg}
+                end
+            end
+            task.wait(1)
+        end
+    end)
 end
 
 -- ===== FULLBRIGHT & NO FOG =====
 local defaultFogEnd = Lighting.FogEnd
 FH.setFullbright = function(v, alt)
     if v then
-        Lighting.Brightness = 3
-        Lighting.ClockTime = 12
-        Lighting.FogEnd = 100000
-        if alt then
-            Lighting.Ambient = Color3.fromRGB(150, 150, 150)
-            Lighting.OutdoorAmbient = Color3.fromRGB(150, 150, 150)
-        else
-            Lighting.Ambient = Color3.fromRGB(255, 255, 255)
-            Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
-        end
+        Lighting.Brightness = 3; Lighting.ClockTime = 12; Lighting.FogEnd = 100000
+        if alt then Lighting.Ambient = Color3.fromRGB(150, 150, 150); Lighting.OutdoorAmbient = Color3.fromRGB(150, 150, 150)
+        else Lighting.Ambient = Color3.fromRGB(255, 255, 255); Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255) end
     else
-        Lighting.Brightness = 1
-        Lighting.ClockTime = 14
-        Lighting.Ambient = Color3.fromRGB(70, 70, 70)
-        Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
-        Lighting.FogEnd = defaultFogEnd
+        Lighting.Brightness = 1; Lighting.ClockTime = 14; Lighting.Ambient = Color3.fromRGB(70, 70, 70); Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128); Lighting.FogEnd = defaultFogEnd
     end
 end
-FH.setNoFog = function(v)
-    if v then Lighting.FogEnd = 100000 else Lighting.FogEnd = defaultFogEnd end
-end
+FH.setNoFog = function(v) if v then Lighting.FogEnd = 100000 else Lighting.FogEnd = defaultFogEnd end end
 
 FH.p4=true
 print("🎃 [4/5] ESP & Fullbright OK")
