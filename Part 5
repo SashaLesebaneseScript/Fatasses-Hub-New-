@@ -6,46 +6,57 @@ local RS,PL,WS,LP=FH.RS,FH.PL,FH.WS,FH.LP
 local C=FH.C
 local UIS = game:GetService("UserInputService")
 
--- VARIABLES DE STAMINA Y VELOCIDAD
-FH.infV1 = false
-FH.infV2 = false
-FH.infV3 = false
-FH.noAimSpeed = false
+FH.sashaSprint = false
+FH.isSprintingManually = false
 
--- LOOP PARA EL V3 (Fast Regen) con Delta Time
-RS.Heartbeat:Connect(function(dt)
-    if FH.infV3 then
-        local char = LP.Character
-        if char then
-            local stam = char:FindFirstChild("Stam")
-            if stam and stam.Value < 100 then
-                -- Suma 150 de stamina por segundo (150 * dt)
-                stam.Value = math.min(100, stam.Value + (150 * dt))
+-- Detectar cuando el jugador mantiene el boton de sprint en movil
+task.spawn(function()
+    while true do
+        local pg = LP:FindFirstChild("PlayerGui")
+        if pg then
+            local sg = pg:FindFirstChild("SprintGui")
+            if sg then
+                local btn = sg:FindFirstChild("SprintButton", true)
+                if btn and not btn:GetAttribute("FH_HOOKED") then
+                    btn:SetAttribute("FH_HOOKED", true)
+                    btn.InputBegan:Connect(function(input)
+                        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+                            FH.isSprintingManually = true
+                        end
+                    end)
+                    btn.InputEnded:Connect(function(input)
+                        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+                            FH.isSprintingManually = false
+                        end
+                    end)
+                    -- Si suelta el dedo de la pantalla en general
+                    UIS.InputEnded:Connect(function(input)
+                        if input.UserInputType == Enum.UserInputType.Touch then FH.isSprintingManually = false end
+                    end)
+                end
             end
         end
+        task.wait(1)
     end
 end)
 
--- LOOP PRINCIPAL (Velocidad, UI, V1, V2, No Aim Speed)
+-- LOOP PRINCIPAL (Fuerza Velocidad y Color)
 RS.RenderStepped:Connect(function()
+    if not FH.sashaSprint then return end
+    
     local char = LP.Character
-    if not char then return end
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    local stam = char:FindFirstChild("Stam")
-    local canSprint = char:FindFirstChild("CanSprint")
-
-    -- 1. INFINITE STAMINA V1 (Can Sprint = true)
-    if FH.infV1 and canSprint then
-        canSprint.Value = true
-    end
-
-    -- 2. INFINITE STAMINA V2 (Stam = 100 siempre)
-    if FH.infV2 and stam then
-        stam.Value = 100
-    end
-
-    -- 3. UI (Si cualquiera de las 3 está activa)
-    if FH.infV1 or FH.infV2 or FH.infV3 then
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        local stam = char:FindFirstChild("Stam")
+        
+        -- Verificar si esta corriendo (Shift o Boton Movil)
+        local isShift = UIS:IsKeyDown(Enum.KeyCode.LeftShift)
+        if isShift or FH.isSprintingManually then
+            if hum then hum.WalkSpeed = 30 end
+            if stam then stam.Value = 100 end
+        end
+        
+        -- Cambiar color de la barra a Rosa
         local pg = LP:FindFirstChild("PlayerGui")
         if pg then
             local sg = pg:FindFirstChild("SprintGui")
@@ -53,37 +64,10 @@ RS.RenderStepped:Connect(function()
                 local txt = sg:FindFirstChild("StaminaText", true)
                 local bar = sg:FindFirstChild("FillFrame", true)
                 if txt and txt:IsA("TextLabel") then txt.Text = "Sasha Wuz Here 👀" end
-                if bar and bar:IsA("Frame") then bar.Size = UDim2.new(1, 0, 1, 0) end
-            end
-        end
-    end
-
-    -- 4. NO AIMING SPEED (Bypass de velocidad al apuntar)
-    if FH.noAimSpeed and hum then
-        local isAiming = char:GetAttribute("IsAiming") or false
-        if isAiming then
-            -- Detectar si el jugador está intentando correr (Shift, L3, o botón móvil)
-            local isSprinting = UIS:IsKeyDown(Enum.KeyCode.LeftShift) or UIS:IsKeyDown(Enum.KeyCode.ButtonL3)
-            
-            -- En móvil, si se está moviendo y el botón de sprint es visible, asumimos que lo mantiene
-            if not isSprinting and UIS.TouchEnabled then
-                local pg = LP:FindFirstChild("PlayerGui")
-                if pg then
-                    local sg = pg:FindFirstChild("SprintGui")
-                    if sg then
-                        local sprBtn = sg:FindFirstChild("SprintButton", true)
-                        if sprBtn and sprBtn.Visible and hum.MoveDirection.Magnitude > 0 then
-                            isSprinting = true
-                        end
-                    end
+                if bar and bar:IsA("Frame") then 
+                    bar.Size = UDim2.new(1, 0, 1, 0)
+                    bar.BackgroundColor3 = Color3.fromRGB(255, 105, 180) -- Color Rosa
                 end
-            end
-
-            -- Aplicar la velocidad: 30 si corre, 10 si camina
-            if isSprinting then
-                hum.WalkSpeed = 30
-            else
-                hum.WalkSpeed = 10
             end
         end
     end
@@ -264,7 +248,6 @@ FH.panel=function()
    opt("Auto heal self 🩹",function(v)FH.on.autoHealSelf=v;if v then FH.startAHS()else FH.stopAHS()end end)
   elseif FH.pestana=="Class S"then
    opt("Aimlock 🎯",function(v)FH.on.aimlockS=v;if v then FH.startAL()else FH.stopAL()end end)
-   opt("No Aiming Speed 🎯", function(v) FH.noAimSpeed = v end) -- NUEVO TOGGLE
    mkNameInput("Blacklist", FH.blacklist)
   elseif FH.pestana=="Experiment"then
    opt("Auto Punch 👊",function(v)FH.k8.autoPunch=v end)
@@ -272,9 +255,7 @@ FH.panel=function()
    opt("Hitbox Tp 👻",function(v)FH.k8.hitboxTp=v end)
    mkNameInput("Whitelist", FH.whitelist)
   elseif FH.pestana=="Extra Stuff"then
-   opt("Inf Stamina V1 🎃",function(v)FH.infV1=v end) -- NUEVO V1
-   opt("Inf Stamina V2 🎃",function(v)FH.infV2=v end) -- NUEVO V2
-   opt("Inf Stamina V3 (Regen) 🎃",function(v)FH.infV3=v end) -- NUEVO V3
+   opt("Inf Stamina (Sasha) 🎃",function(v)FH.sashaSprint=v end) -- NUEVO TOGGLE
    opt("Get all Candy's 🍬", function(v) FH.autoCandyActive = v end)
    opt("Noclip 🚪", function(v) FH.noclipActive = v end)
   end
