@@ -4,7 +4,7 @@ if not FH or not FH.p1 then warn("[FH] Ejecuta Parte 1 primero") return end
 if FH.p2 then warn("[FH] Parte 2 ya ejecutada") return end
 local RS,PL,WS,RST,LP=FH.RS,FH.PL,FH.WS,FH.RST,FH.LP
 
-FH.whitelist = {} -- Tabla global de protegidos
+FH.whitelist = {}
 
 FH.vision=function(t) if not t then return false end; local mc=LP.Character;if not mc then return false end; local mh=mc:FindFirstChild("Head")or mc:FindFirstChild("HumanoidRootPart"); local th=t:FindFirstChild("Head")or t:FindFirstChild("HumanoidRootPart"); if not mh or not th then return false end; local rp=RaycastParams.new(); rp.FilterType=Enum.RaycastFilterType.Exclude;rp.FilterDescendantsInstances={mc,t}; return not WS:Raycast(mh.Position,th.Position-mh.Position,rp) end
 
@@ -12,28 +12,29 @@ local evCache={}
 FH.getEv=function(n) if evCache[n] and evCache[n].Parent then return evCache[n]end; local e=RST:FindFirstChild(n); if e and e:IsA("RemoteEvent")then evCache[n]=e;return e end; for _,v in ipairs(RST:GetDescendants())do if v:IsA("RemoteEvent")and v.Name==n then evCache[n]=v;return v end end end
 FH.getHealEv=function() local hs=RST:FindFirstChild("HealingAbility"); if hs then local e=hs:FindFirstChild("HealingEvent");if e then evCache.heal=e;return e end end; if evCache.heal and evCache.heal.Parent then return evCache.heal end; return FH.getEv("HealingEvent") end
 
-FH.killerCache=nil; FH.killerCacheTime=0
-FH.updateKiller=function() 
-    if tick()-FH.killerCacheTime<0.5 then return FH.killerCache end
-    local best,bestH=nil,0
-    for _,p in ipairs(PL:GetPlayers())do 
-        if p.Character and not FH.whitelist[p.Name] then -- WHITELIST CHECK
-            local h=p.Character:FindFirstChildOfClass("Humanoid")
-            if h and h.Health>0 then 
-                local ok,sz=pcall(function()return p.Character:GetExtentsSize().Y end)
-                if ok and sz and sz>bestH then bestH=sz;best=p.Character end 
-            end 
-        end 
+-- LÓGICA DEL EXPERIMENT
+FH.getExperiment = function()
+    for _, p in ipairs(PL:GetPlayers()) do
+        if p.Character then
+            local exp = p.Character:FindFirstChild("Experiment")
+            if exp and (exp:IsA("BoolValue") or exp:IsA("ObjectValue") or exp:IsA("StringValue")) and (exp.Value == true or exp.Value == p) then
+                return p
+            end
+        end
     end
-    if bestH<7 then best=nil end
-    FH.killerCache=best; FH.killerCacheTime=tick(); return best 
+    return nil
 end
-FH.isKiller=function(m) if not m then return false end return m==FH.updateKiller() end
+
+FH.updateKiller = function()
+    local exp = FH.getExperiment()
+    return exp and exp.Character or nil
+end
+FH.isKiller = function(m) if not m then return false end return m==FH.updateKiller() end
 
 FH.nearest=function(maxD) 
     maxD=maxD or math.huge; local mc=LP.Character;if not mc then return nil end; local mh=mc:FindFirstChild("HumanoidRootPart");if not mh then return nil end; local b,bd=nil,maxD
     for _,p in ipairs(PL:GetPlayers())do 
-        if p~=LP and not FH.whitelist[p.Name] and p.Character then -- WHITELIST CHECK
+        if p~=LP and not FH.whitelist[p.Name] and p.Character then
             local ch=p.Character;local h=ch:FindFirstChildOfClass("Humanoid");local hr=ch:FindFirstChild("HumanoidRootPart")
             if h and h.Health>0 and hr then local d=(mh.Position-hr.Position).Magnitude; if d<bd then bd=d;b={Player=p,Char=ch,HRP=hr}end end 
         end 
@@ -44,7 +45,7 @@ end
 FH.injPlayer=function(maxD) 
     maxD=maxD or 20; local mc=LP.Character;if not mc then return nil end; local mh=mc:FindFirstChild("HumanoidRootPart");if not mh then return nil end; local b,bd=nil,maxD
     for _,p in ipairs(PL:GetPlayers())do 
-        if p~=LP and not FH.whitelist[p.Name] and p.Character then -- WHITELIST CHECK
+        if p~=LP and not FH.whitelist[p.Name] and p.Character then
             local ch=p.Character;local h=ch:FindFirstChildOfClass("Humanoid");local hr=ch:FindFirstChild("HumanoidRootPart")
             if h and hr and h.Health>0 and h.Health<h.MaxHealth then 
                 local ex=p:FindFirstChild("Experiment")
@@ -61,7 +62,6 @@ if TR then TR.OnClientEvent:Connect(function(a,id,gui) if a=="OpenGui"then FH.ta
 
 FH.complete=function() if not FH.TR or not FH.tarea then return false end; local id = FH.tarea.id; if not id then return false end; local ok = pcall(function() FH.TR:FireServer("CompleteStep", id) end); return ok end
 
--- SPAM COMPLETE
 local spT = nil
 local lastSpamId = nil
 FH.startSp=function()
@@ -79,7 +79,6 @@ FH.startSp=function()
 end
 FH.stopSp=function() FH.on.spamComplete=false; spT=nil; lastSpamId=nil end
 
--- HEALING FUNCTIONS
 FH.healT=function(t) local e=FH.getHealEv(); if not e or not t then return false end; pcall(function() e:FireServer("StartVisuals",t) end); task.spawn(function() for i=1,6 do pcall(function() e:FireServer("HealTick",t) end); task.wait(.1) end; pcall(function() e:FireServer("GiveSpeedBoost") end); pcall(function() e:FireServer("StartCooldown") end) end); return true end
 FH.healN=function() return FH.healT(FH.injPlayer(100)) end
 FH.healS=function() return FH.healT(LP) end
@@ -90,7 +89,6 @@ end
 FH.resetCd=function() local e=FH.getHealEv(); if not e then return end; task.spawn(function() for i=1,15 do pcall(function() e:FireServer("RequestCooldownCheck") end); task.wait(.05) end end) end
 FH.boost=function() local e=FH.getHealEv(); if not e then return end; for i=1,5 do pcall(function() e:FireServer("GiveSpeedBoost") end) end end
 
--- AUTO HEAL THREADS
 FH.ahT = nil
 FH.startAH=function() if FH.ahT then return end; FH.ahT=task.spawn(function() while FH.on.autoHeal do task.wait(.3); if FH.on.autoHeal then local t=FH.injPlayer(100); if t then FH.healT(t); task.wait(.5) end end end FH.ahT=nil end) end
 FH.stopAH=function() FH.on.autoHeal=false; FH.ahT=nil end
@@ -98,10 +96,9 @@ FH.ahsT = nil
 FH.startAHS=function() if FH.ahsT then return end; FH.ahsT=task.spawn(function() while FH.on.autoHealSelf do FH.healS(); task.wait(1) end FH.ahsT=nil end) end
 FH.stopAHS=function() FH.on.autoHealSelf=false; FH.ahsT=nil end
 
--- JACKPOT THREAD
 FH.jT = nil
 FH.startJ=function() if FH.jT then return end; FH.jT=task.spawn(function() while FH.on.jackpot do FH.boost(); task.wait(0.1) end FH.jT=nil end) end
 FH.stopJ=function() FH.on.jackpot=false; FH.jT=nil end
 
 FH.p2=true
-print("🎃 [2/5] Core + Whitelist OK")
+print("🎃 [2/5] Core + Experiment Logic OK")
