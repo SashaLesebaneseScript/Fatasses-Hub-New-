@@ -22,7 +22,7 @@ if TR then TR.OnClientEvent:Connect(function(a,id,gui) if a=="OpenGui"then FH.ta
 
 FH.complete=function() if not FH.TR or not FH.tarea then return false end; local id = FH.tarea.id; if not id then return false end; local ok = pcall(function() FH.TR:FireServer("CompleteStep", id) end); return ok end
 
--- SPAM COMPLETE (Funciona en cada tarea nueva)
+-- SPAM COMPLETE
 local spT = nil
 local lastSpamId = nil
 FH.startSp=function()
@@ -40,16 +40,33 @@ FH.startSp=function()
 end
 FH.stopSp=function() FH.on.spamComplete=false; spT=nil; lastSpamId=nil end
 
--- AUTO HEAL FIX
+-- HEALING FUNCTIONS (FIX)
 FH.healT=function(t) local e=FH.getHealEv(); if not e or not t then return false end; pcall(function() e:FireServer("StartVisuals",t) end); task.spawn(function() for i=1,6 do pcall(function() e:FireServer("HealTick",t) end); task.wait(.1) end; pcall(function() e:FireServer("GiveSpeedBoost") end); pcall(function() e:FireServer("StartCooldown") end) end); return true end
 FH.healN=function() return FH.healT(FH.injPlayer(100)) end
 FH.healS=function() return FH.healT(LP) end
+FH.healAll=function()
+    local e=FH.getHealEv(); if not e then return end
+    for _,p in ipairs(PL:GetPlayers())do if p~=LP and p.Character then local h=p.Character:FindFirstChildOfClass("Humanoid"); if h and h.Health>0 and h.Health<h.MaxHealth then task.spawn(function() pcall(function() e:FireServer("StartVisuals",p) end); for i=1,6 do pcall(function() e:FireServer("HealTick",p) end); task.wait(.08) end; pcall(function() e:FireServer("GiveSpeedBoost") end) end) end end end
+end
+FH.resetCd=function() local e=FH.getHealEv(); if not e then return end; task.spawn(function() for i=1,15 do pcall(function() e:FireServer("RequestCooldownCheck") end); task.wait(.05) end end) end
+FH.boost=function() local e=FH.getHealEv(); if not e then return end; for i=1,5 do pcall(function() e:FireServer("GiveSpeedBoost") end) end end
 
+-- AUTO HEAL THREADS (FIX)
+FH.ahT = nil
+FH.startAH=function() if FH.ahT then return end; FH.ahT=task.spawn(function() while FH.on.autoHeal do task.wait(.3); if FH.on.autoHeal then local t=FH.injPlayer(100); if t then FH.healT(t); task.wait(.5) end end end FH.ahT=nil end) end
+FH.stopAH=function() FH.on.autoHeal=false; FH.ahT=nil end
+FH.ahsT = nil
+FH.startAHS=function() if FH.ahsT then return end; FH.ahsT=task.spawn(function() while FH.on.autoHealSelf do FH.healS(); task.wait(1) end FH.ahsT=nil end) end
+FH.stopAHS=function() FH.on.autoHealSelf=false; FH.ahsT=nil end
+
+-- JACKPOT THREAD
+FH.jT = nil
+FH.startJ=function() if FH.jT then return end; FH.jT=task.spawn(function() while FH.on.jackpot do FH.boost(); task.wait(0.1) end FH.jT=nil end) end
+FH.stopJ=function() FH.on.jackpot=false; FH.jT=nil end
+
+-- PROMPTS (Auto Start / Requeue)
 FH.getPrompts=function() local l = {}; local mc = LP.Character; if not mc then return l end; local hrp = mc:FindFirstChild("HumanoidRootPart"); if not hrp then return l end; local mp = hrp.Position; for _, pp in ipairs(WS:GetDescendants()) do if pp:IsA("ProximityPrompt") and pp.Enabled then local model = pp.Parent; if model then local ref = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChildWhichIsA("BasePart"); if not ref and model.Parent then ref = model.Parent:FindFirstChildWhichIsA("BasePart") end; if ref then table.insert(l, {pp=pp, d=(mp-ref.Position).Magnitude}) end end end end; table.sort(l, function(a,b) return a.d < b.d end); return l end
 FH.firePrompt=function(pp) if not pp then return false end; pcall(function() if not pp.Enabled then pp.Enabled = true end; if fireproximityprompt then fireproximityprompt(pp); return end; if firesignal then pcall(firesignal, pp.PromptButtonHoldBegan); pcall(firesignal, pp.PromptButtonHoldEnded); pcall(firesignal, pp.Triggered); return end; if pp.HoldDuration and pp.HoldDuration > 0 then keypress(Enum.KeyCode.E); task.wait(pp.HoldDuration + .05); keyrelease(Enum.KeyCode.E) else keypress(Enum.KeyCode.E); task.wait(.05); keyrelease(Enum.KeyCode.E) end end); return true end
 
-local m1C,lp=nil,0
-FH.startM1=function() if m1C then return end; m1C=RS.Heartbeat:Connect(function() if not FH.on.autoM1 then return end; if not FH.isKiller(LP.Character)then return end; if tick()-lp<.6 then return end; local t=FH.nearest(9);if not t then return end; local e=FH.getEv("PunchEvent");if not e then return end; pcall(function()e:FireServer()end);lp=tick()end)end
-FH.stopM1=function()if m1C then m1C:Disconnect();m1C=nil end end
 FH.p2=true
-print("🎃 [2/5] Core Fixes OK")
+print("🎃 [2/5] Class A Functions & Core Fixes OK")
