@@ -29,7 +29,6 @@ task.spawn(function()
                             FH.isSprintingManually = false
                         end
                     end)
-                    -- Si suelta el dedo de la pantalla en general
                     UIS.InputEnded:Connect(function(input)
                         if input.UserInputType == Enum.UserInputType.Touch then FH.isSprintingManually = false end
                     end)
@@ -43,20 +42,17 @@ end)
 -- LOOP PRINCIPAL (Fuerza Velocidad y Color)
 RS.RenderStepped:Connect(function()
     if not FH.sashaSprint then return end
-    
     local char = LP.Character
     if char then
         local hum = char:FindFirstChildOfClass("Humanoid")
         local stam = char:FindFirstChild("Stam")
         
-        -- Verificar si esta corriendo (Shift o Boton Movil)
         local isShift = UIS:IsKeyDown(Enum.KeyCode.LeftShift)
         if isShift or FH.isSprintingManually then
             if hum then hum.WalkSpeed = 30 end
             if stam then stam.Value = 100 end
         end
         
-        -- Cambiar color de la barra a Rosa
         local pg = LP:FindFirstChild("PlayerGui")
         if pg then
             local sg = pg:FindFirstChild("SprintGui")
@@ -223,8 +219,13 @@ FH.panel=function()
   if FH.pestana=="Esp"then
    opt("ESP Tasks 👁",function(v)FH.on.espActive=v;if v then FH.startESP(true)else FH.stopESP()end end)
    opt("ESP Players 🎃",function(v)FH.on.espPlActive=v;if v then FH.startEP()else FH.stopEP()end end)
-   opt("Tracers 📏",function(v)FH.on.tracersActive=v;if v then FH.startT()else FH.stopT()end end)
    opt("ESP Candies 🍬", function(v) FH.candyESP_Active=v; if v then FH.startCandyESP(true) else FH.startCandyESP(false) end end)
+   
+   -- NUEVOS TRACERS
+   opt("Killer Tracer 🔴",function(v) FH.on.tracersActive = v; FH.tracerKiller = v end)
+   opt("Scientist Tracer 🔵",function(v) FH.on.tracersActive = v; FH.tracerScientist = v end)
+   opt("Tasks Tracer 🟢",function(v) FH.on.tracersActive = v; FH.tracerTasks = v end)
+   
    opt("Full Bright ☀️", function(v) FH.setFullbright(v, false) end)
    opt("Alt Full Bright 🌤️", function(v) FH.setFullbright(v, true) end)
    opt("No Fog 🌫️", function(v) FH.setNoFog(v) end)
@@ -255,7 +256,7 @@ FH.panel=function()
    opt("Hitbox Tp 👻",function(v)FH.k8.hitboxTp=v end)
    mkNameInput("Whitelist", FH.whitelist)
   elseif FH.pestana=="Extra Stuff"then
-   opt("Inf Stamina (Sasha) 🎃",function(v)FH.sashaSprint=v end) -- NUEVO TOGGLE
+   opt("Inf Stamina (Sasha) 🎃",function(v)FH.sashaSprint=v end)
    opt("Get all Candy's 🍬", function(v) FH.autoCandyActive = v end)
    opt("Noclip 🚪", function(v) FH.noclipActive = v end)
   end
