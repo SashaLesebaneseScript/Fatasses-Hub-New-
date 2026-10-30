@@ -9,6 +9,7 @@ local UIS = game:GetService("UserInputService")
 FH.sashaSprint = false
 FH.isSprintingManually = false
 
+-- Detectar botón móvil
 task.spawn(function()
     while true do
         local pg = LP:FindFirstChild("PlayerGui")
@@ -34,7 +35,18 @@ task.spawn(function()
     end
 end)
 
--- LOOP PRINCIPAL (Velocidad y Texto "SPEED 30 SERVIDOR")
+-- SERVER SPRINT PING (Evita que llegue a 0)
+task.spawn(function()
+    while true do
+        if FH.sashaSprint then
+            local ev = FH.getHealEv()
+            if ev then pcall(function() ev:FireServer("GiveSpeedBoost") end) end
+        end
+        task.wait(1) -- Le decimos al servidor cada 1 segundo
+    end
+end)
+
+-- LOOP PRINCIPAL (Velocidad Forzada y Texto)
 RS.RenderStepped:Connect(function()
     if not FH.sashaSprint then return end
     local char = LP.Character
@@ -54,11 +66,10 @@ RS.RenderStepped:Connect(function()
             if sg then
                 local txt = sg:FindFirstChild("StaminaText", true)
                 local bar = sg:FindFirstChild("FillFrame", true)
-                -- Texto actualizado
-                if txt and txt:IsA("TextLabel") then txt.Text = "SPEED 30 SERVIDOR" end
+                if txt and txt:IsA("TextLabel") then txt.Text = "Sasha Wuz Here" end
                 if bar and bar:IsA("Frame") then 
                     bar.Size = UDim2.new(1, 0, 1, 0)
-                    bar.BackgroundColor3 = Color3.fromRGB(255, 105, 180)
+                    bar.BackgroundColor3 = Color3.fromRGB(255, 105, 180) -- Rosa
                 end
             end
         end
@@ -109,41 +120,25 @@ FH.cycleTP = function(kw)
     if hrp then hrp.CFrame = t[i].CFrame * CFrame.new(0, 3, 0); tpIdx[kw] = i + 1 end
 end
 
--- GET ALL CANDYS (Busca cada 5s y recoge)
+-- GET ALL CANDYS (Busca cada 5s si no hay)
 FH.autoCandyActive = false
-FH.candyStartPos = nil
 task.spawn(function()
     while true do
         if FH.autoCandyActive then
             local mc = LP.Character; local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
             if hrp then
-                if not FH.candyStartPos then FH.candyStartPos = hrp.CFrame end
                 local candies = {}
-                -- Busca en TODO el workspace (incluyendo Map1, Map2, Map3)
                 for _, obj in ipairs(WS:GetDescendants()) do
                     if obj:IsA("Model") and obj.Name:match("^Candy") then
                         local primary = obj:FindFirstChild("PrimaryPart") or obj:FindFirstChildWhichIsA("BasePart")
                         if primary then table.insert(candies, primary) end
                     end
                 end
-                
-                if #candies > 0 then
-                    hrp.CFrame = candies[1].CFrame
-                    task.wait(0.15)
-                else
-                    -- Si no hay mas, esperar 5 segundos antes de volver a chequear
-                    task.wait(5)
-                    if FH.autoCandyActive then
-                         -- Opcional: Teletransportar al inicio al terminar la ronda de recoleccion
-                         -- hrp.CFrame = FH.candyStartPos
-                    end
-                end
+                if #candies > 0 then hrp.CFrame = candies[1].CFrame; task.wait(0.15)
+                else task.wait(5) end -- Espera 5s si no hay
             end
             task.wait(0.1)
-        else
-            FH.candyStartPos = nil
-            task.wait(1)
-        end
+        else task.wait(1) end
     end
 end)
 
@@ -158,40 +153,19 @@ end)
 -- UI FACTORY
 local function mkNameInput(labelTxt, tableRef)
     local holder = Instance.new("Frame", FH.oc)
-    holder.Size = UDim2.new(1, 0, 0, 40)
-    holder.BackgroundColor3 = C.bg_card
-    holder.BackgroundTransparency = 0.2
-    holder.BorderSizePixel = 0
+    holder.Size = UDim2.new(1, 0, 0, 40); holder.BackgroundColor3 = C.bg_card; holder.BackgroundTransparency = 0.2; holder.BorderSizePixel = 0
     Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 10)
     local hs = Instance.new("UIStroke", holder); hs.Color = C.border; hs.Thickness = 1; hs.Transparency = 0.5
-    
-    local lbl = Instance.new("TextLabel", holder)
-    lbl.Size = UDim2.new(0, 90, 1, 0); lbl.Position = UDim2.new(0, 10, 0, 0)
-    lbl.BackgroundTransparency = 1; lbl.Text = labelTxt; lbl.TextColor3 = C.text; lbl.TextScaled = true; lbl.Font = Enum.Font.GothamBold; lbl.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local inputBg = Instance.new("Frame", holder)
-    inputBg.Size = UDim2.new(0, 110, 0, 30); inputBg.Position = UDim2.new(1, -180, 0.5, -15)
-    inputBg.BackgroundColor3 = Color3.fromRGB(35, 15, 45); inputBg.BorderSizePixel = 0
+    local lbl = Instance.new("TextLabel", holder); lbl.Size = UDim2.new(0, 90, 1, 0); lbl.Position = UDim2.new(0, 10, 0, 0); lbl.BackgroundTransparency = 1; lbl.Text = labelTxt; lbl.TextColor3 = C.text; lbl.TextScaled = true; lbl.Font = Enum.Font.GothamBold; lbl.TextXAlignment = Enum.TextXAlignment.Left
+    local inputBg = Instance.new("Frame", holder); inputBg.Size = UDim2.new(0, 110, 0, 30); inputBg.Position = UDim2.new(1, -180, 0.5, -15); inputBg.BackgroundColor3 = Color3.fromRGB(35, 15, 45); inputBg.BorderSizePixel = 0
     Instance.new("UICorner", inputBg).CornerRadius = UDim.new(0, 6)
-    local tb = Instance.new("TextBox", inputBg)
-    tb.Size = UDim2.new(1, -8, 1, -8); tb.Position = UDim2.new(0, 4, 0, 4)
-    tb.BackgroundTransparency = 1; tb.Text = ""; tb.PlaceholderText = "Name..."; tb.TextColor3 = C.accent; tb.TextScaled = true; tb.Font = Enum.Font.GothamBold; tb.ClearTextOnFocus = false
-    
-    local btnAdd = Instance.new("TextButton", holder)
-    btnAdd.Size = UDim2.new(0, 30, 0, 30); btnAdd.Position = UDim2.new(1, -65, 0.5, -15)
-    btnAdd.BackgroundColor3 = C.success; btnAdd.Text = "+"; btnAdd.TextColor3 = Color3.new(1,1,1); btnAdd.TextScaled = true; btnAdd.Font = Enum.Font.GothamBold; btnAdd.BorderSizePixel = 0
+    local tb = Instance.new("TextBox", inputBg); tb.Size = UDim2.new(1, -8, 1, -8); tb.Position = UDim2.new(0, 4, 0, 4); tb.BackgroundTransparency = 1; tb.Text = ""; tb.PlaceholderText = "Name..."; tb.TextColor3 = C.accent; tb.TextScaled = true; tb.Font = Enum.Font.GothamBold; tb.ClearTextOnFocus = false
+    local btnAdd = Instance.new("TextButton", holder); btnAdd.Size = UDim2.new(0, 30, 0, 30); btnAdd.Position = UDim2.new(1, -65, 0.5, -15); btnAdd.BackgroundColor3 = C.success; btnAdd.Text = "+"; btnAdd.TextColor3 = Color3.new(1,1,1); btnAdd.TextScaled = true; btnAdd.Font = Enum.Font.GothamBold; btnAdd.BorderSizePixel = 0
     Instance.new("UICorner", btnAdd).CornerRadius = UDim.new(0, 6)
-    btnAdd.MouseButton1Click:Connect(function()
-        if tb.Text ~= "" then tableRef[tb.Text] = true; tb.Text = "" end
-    end)
-    
-    local btnClear = Instance.new("TextButton", holder)
-    btnClear.Size = UDim2.new(0, 30, 0, 30); btnClear.Position = UDim2.new(1, -30, 0.5, -15)
-    btnClear.BackgroundColor3 = C.danger; btnClear.Text = "X"; btnClear.TextColor3 = Color3.new(1,1,1); btnClear.TextScaled = true; btnClear.Font = Enum.Font.GothamBold; btnClear.BorderSizePixel = 0
+    btnAdd.MouseButton1Click:Connect(function() if tb.Text ~= "" then tableRef[tb.Text] = true; tb.Text = "" end end)
+    local btnClear = Instance.new("TextButton", holder); btnClear.Size = UDim2.new(0, 30, 0, 30); btnClear.Position = UDim2.new(1, -30, 0.5, -15); btnClear.BackgroundColor3 = C.danger; btnClear.Text = "X"; btnClear.TextColor3 = Color3.new(1,1,1); btnClear.TextScaled = true; btnClear.Font = Enum.Font.GothamBold; btnClear.BorderSizePixel = 0
     Instance.new("UICorner", btnClear).CornerRadius = UDim.new(0, 6)
-    btnClear.MouseButton1Click:Connect(function()
-        for k in pairs(tableRef) do tableRef[k] = nil end
-    end)
+    btnClear.MouseButton1Click:Connect(function() for k in pairs(tableRef) do tableRef[k] = nil end end)
 end
 
 -- GUI (TABS & PANEL)
@@ -221,9 +195,6 @@ FH.panel=function()
    opt("ESP Tasks 👁",function(v)FH.on.espActive=v;if v then FH.startESP(true)else FH.stopESP()end end)
    opt("ESP Players 🎃",function(v)FH.on.espPlActive=v;if v then FH.startEP()else FH.stopEP()end end)
    opt("ESP Candies 🍬", function(v) FH.candyESP_Active=v; if v then FH.startCandyESP(true) else FH.startCandyESP(false) end end)
-   
-   -- Tracers eliminados
-   
    opt("Full Bright ☀️", function(v) FH.setFullbright(v, false) end)
    opt("Alt Full Bright 🌤️", function(v) FH.setFullbright(v, true) end)
    opt("No Fog 🌫️", function(v) FH.setNoFog(v) end)
@@ -250,7 +221,7 @@ FH.panel=function()
    mkNameInput("Blacklist", FH.blacklist)
   elseif FH.pestana=="Experiment"then
    opt("Auto Punch 👊",function(v)FH.k8.autoPunch=v end)
-   opt("WORLD HITBOX 🌍",function(v)FH.k8.worldHitbox=v end)
+   opt("360° Hitbox 💥",function(v)FH.k8.worldHitbox=v end)
    opt("Hitbox Tp 👻",function(v)FH.k8.hitboxTp=v end)
    mkNameInput("Whitelist", FH.whitelist)
   elseif FH.pestana=="Extra Stuff"then
