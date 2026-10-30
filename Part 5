@@ -6,7 +6,7 @@ local RS,PL,WS,LP=FH.RS,FH.PL,FH.WS,FH.LP
 local UI = FH.UI
 local C=FH.C
 
--- ===== SPRINT FIX =====
+-- SPRINT FIX
 local sprHeld=false; sprintConn=nil
 FH.autoSprintActive = false
 FH.startIS = function()
@@ -17,7 +17,6 @@ FH.startIS = function()
             if char then
                 local stam = char:FindFirstChild("Stam")
                 local canSprint = char:FindFirstChild("CanSprint")
-                -- Forzamos las variables del juego para que NOSOTROS controlemos la velocidad
                 if stam and stam.Value < 100 then stam.Value = 100 end
                 if canSprint and canSprint.Value == false then canSprint.Value = true end
             end
@@ -26,104 +25,41 @@ FH.startIS = function()
 end
 FH.stopIS = function() if sprintConn then sprintConn:Disconnect(); sprintConn = nil end end
 
--- ===== HEAL SELF FIX =====
+-- HEAL SELF FIX
 FH.healS = function()
     local ev = FH.getHealEv()
     if not ev then return false end
     pcall(function() ev:FireServer("StartVisuals", LP) end)
     task.spawn(function()
-        for i = 1, 6 do
-            pcall(function() ev:FireServer("HealTick", LP) end)
-            task.wait(0.15)
-        end
+        for i = 1, 6 do pcall(function() ev:FireServer("HealTick", LP) end); task.wait(0.15) end
         pcall(function() ev:FireServer("GiveSpeedBoost") end)
     end)
     return true
 end
 
--- ===== PANEL ESP & CYCLE TP =====
+-- PANEL ESP & CYCLE TP
 local panelESP = {}
-local function getPanels()
-    local p = {}
-    for _, v in ipairs(WS:GetChildren()) do
-        if v.Name:match("^Task_%d+$") then table.insert(p, v) end
-    end
-    return p
-end
-FH.startPanelESP = function(v)
-    if not v then
-        for _, hl in pairs(panelESP) do hl:Destroy() end
-        panelESP = {}
-        return
-    end
-    for _, pnl in ipairs(getPanels()) do
-        if not panelESP[pnl] then
-            local hl = Instance.new("Highlight", pnl)
-            hl.FillColor = Color3.fromRGB(255, 100, 0)
-            hl.OutlineColor = Color3.new(1,1,1)
-            hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-            panelESP[pnl] = hl
-        end
-    end
-end
-
+local function getPanels() local p = {} for _, v in ipairs(WS:GetChildren()) do if v.Name:match("^Task_%d+$") then table.insert(p, v) end end return p end
+FH.startPanelESP = function(v) if not v then for _, hl in pairs(panelESP) do hl:Destroy() end; panelESP = {}; return end; for _, pnl in ipairs(getPanels()) do if not panelESP[pnl] then local hl = Instance.new("Highlight", pnl); hl.FillColor = Color3.fromRGB(255, 100, 0); hl.OutlineColor = Color3.new(1,1,1); hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop; panelESP[pnl] = hl end end end
 local panelIdx = 1
-FH.cyclePanelTP = function()
-    local p = getPanels()
-    if #p == 0 then return end
-    if panelIdx > #p then panelIdx = 1 end
-    local target = p[panelIdx]
-    local hrp = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChildWhichIsA("BasePart")
-    if hrp and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
-        LP.Character.HumanoidRootPart.CFrame = hrp.CFrame + Vector3.new(0, 3, 0)
-        panelIdx = panelIdx + 1
-    end
-end
+FH.cyclePanelTP = function() local p = getPanels(); if #p == 0 then return end; if panelIdx > #p then panelIdx = 1 end; local target = p[panelIdx]; local hrp = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChildWhichIsA("BasePart"); if hrp and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then LP.Character.HumanoidRootPart.CFrame = hrp.CFrame + Vector3.new(0, 3, 0); panelIdx = panelIdx + 1 end end
 
--- ===== CANDY ESP & AUTO COLLECT =====
+-- CANDY ESP & AUTO COLLECT
 local candyESP = {}
-local function getCandies()
-    local c = {}
-    for _, v in ipairs(WS:GetChildren()) do
-        if v.Name:match("^CandyModel") then table.insert(c, v) end
-    end
-    return c
-end
-FH.startCandyESP = function(v)
-    if not v then
-        for _, hl in pairs(candyESP) do hl:Destroy() end
-        candyESP = {}
-        return
-    end
-    for _, c in ipairs(getCandies()) do
-        if not candyESP[c] then
-            local hl = Instance.new("Highlight", c)
-            hl.FillColor = Color3.fromRGB(255, 50, 150)
-            hl.OutlineColor = Color3.new(1,1,1)
-            hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-            candyESP[c] = hl
-        end
-    end
-end
-
+local function getCandies() local c = {} for _, v in ipairs(WS:GetChildren()) do if v.Name:match("^CandyModel") then table.insert(c, v) end end return c end
+FH.startCandyESP = function(v) if not v then for _, hl in pairs(candyESP) do hl:Destroy() end; candyESP = {}; return end; for _, c in ipairs(getCandies()) do if not candyESP[c] then local hl = Instance.new("Highlight", c); hl.FillColor = Color3.fromRGB(255, 50, 150); hl.OutlineColor = Color3.new(1,1,1); hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop; candyESP[c] = hl end end end
 FH.autoCandyActive = false
 task.spawn(function()
     while true do
         if FH.autoCandyActive then
             local candies = getCandies()
             if candies[1] then
-                local mc = LP.Character
-                local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
+                local mc = LP.Character; local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
                 local primary = candies[1]:FindFirstChild("PrimaryPart") or candies[1]:FindFirstChildWhichIsA("BasePart")
-                if hrp and primary then
-                    -- TP simple a 2 studs de la candy
-                    hrp.CFrame = primary.CFrame * CFrame.new(0, 2, 2)
-                end
+                if hrp and primary then hrp.CFrame = primary.CFrame * CFrame.new(0, 2, 2) end
             end
             task.wait(0.2)
-        else
-            task.wait(1)
-        end
+        else task.wait(1) end
     end
 end)
 
@@ -157,8 +93,10 @@ FH.panel=function()
    opt("ESP Panels 📋", function(v) FH.startPanelESP(v) end)
    opt("ESP Candies 🍬", function(v) FH.startCandyESP(v) end)
   elseif FH.pestana=="Scientist"then
-   opt("Auto Patient 🧟",function(v)FH.on.autoPatient=v;if v then FH.startAP()else FH.stopAP()end end)
-   opt("Auto Generator 🕸",function(v)FH.on.autoGen=v;if v then FH.startGen()else FH.stopGen()end end)
+   opt("Auto Patient (Legit) 🧟",function(v)FH.autoPatientLegit=v end)
+   opt("Auto Generator (Legit) 🕸",function(v)FH.autoTubeLegit=v end)
+   opt("Auto Task 3 (Legit) 📝",function(v)FH.autoTask3Legit=v end)
+   opt("Spam Complete 🔁", function(v) FH.on.spamComplete = v; if v then FH.startSp() else FH.stopSp() end end)
    btn("Cycle TP Panel 🖲", function() FH.cyclePanelTP() end)
   elseif FH.pestana=="Class A"then
    btn("Heal Nearest 💚",FH.healN)
