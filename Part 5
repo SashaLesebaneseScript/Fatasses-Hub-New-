@@ -4,8 +4,9 @@ if not FH or not FH.p4 then warn("[FH] Ejecuta Partes 1-4 primero") return end
 if FH.p5 then warn("[FH] Parte 5 ya ejecutada") return end
 local RS,PL,WS,LP=FH.RS,FH.PL,FH.WS,FH.LP
 local C=FH.C
+local UIS = game:GetService("UserInputService")
 
--- INFINITE STAMINA & AUTO SPRINT (Forzar Velocidad)
+-- INFINITE STAMINA & AUTO SPRINT
 FH.autoSprintActive = false
 RS.RenderStepped:Connect(function()
     if FH.on.infStam or FH.autoSprintActive then
@@ -18,29 +19,28 @@ RS.RenderStepped:Connect(function()
             if stam then stam.Value = 100 end
             if canSprint then canSprint.Value = true end
             
-            -- FORZAR VELOCIDAD: Si se está moviendo, forzamos speed 30
-            if hum and hum.MoveDirection.Magnitude > 0 then
-                if FH.autoSprintActive or FH.on.infStam then
-                    hum.WalkSpeed = 30
-                end
-            end
+            local isRunning = false
+            if UIS:IsKeyDown(Enum.KeyCode.LeftShift) or UIS:IsKeyDown(Enum.KeyCode.ButtonL3) then isRunning = true end
             
-            -- GUI VISUAL
             local pg = LP:FindFirstChild("PlayerGui")
             if pg then
                 local sg = pg:FindFirstChild("SprintGui")
                 if sg then
+                    local sprintBtn = sg:FindFirstChild("SprintButton", true)
+                    if sprintBtn and sprintBtn.Visible and hum and hum.MoveDirection.Magnitude > 0 then isRunning = true end
                     local txt = sg:FindFirstChild("StaminaText", true)
                     local bar = sg:FindFirstChild("FillFrame", true)
                     if txt and txt:IsA("TextLabel") then txt.Text = "Sasha Wuz Here 👀" end
                     if bar and bar:IsA("Frame") then bar.Size = UDim2.new(1, 0, 1, 0) end
                 end
             end
+
+            if (FH.autoSprintActive or isRunning) and hum then hum.WalkSpeed = 30 end
         end
     end
 end)
 
--- AUTO PATIENT (Legit)
+-- AUTO PATIENT
 FH.startAP = function()
     if FH.apConn then return end
     FH.apConn = RS.Heartbeat:Connect(function()
@@ -84,7 +84,7 @@ FH.cycleTP = function(kw)
     if hrp then hrp.CFrame = t[i].CFrame * CFrame.new(0, 3, 0); tpIdx[kw] = i + 1 end
 end
 
--- GET ALL CANDYS (Devuelve al inicio y se apaga)
+-- GET ALL CANDYS
 FH.autoCandyActive = false
 FH.candyStartPos = nil
 task.spawn(function()
@@ -125,9 +125,48 @@ RS.Stepped:Connect(function()
     end
 end)
 
+-- UI FACTORY
+local function mkNameInput(labelTxt, tableRef)
+    local holder = Instance.new("Frame", FH.oc)
+    holder.Size = UDim2.new(1, 0, 0, 40)
+    holder.BackgroundColor3 = C.bg_card
+    holder.BackgroundTransparency = 0.2
+    holder.BorderSizePixel = 0
+    Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 10)
+    local hs = Instance.new("UIStroke", holder); hs.Color = C.border; hs.Thickness = 1; hs.Transparency = 0.5
+    
+    local lbl = Instance.new("TextLabel", holder)
+    lbl.Size = UDim2.new(0, 90, 1, 0); lbl.Position = UDim2.new(0, 10, 0, 0)
+    lbl.BackgroundTransparency = 1; lbl.Text = labelTxt; lbl.TextColor3 = C.text; lbl.TextScaled = true; lbl.Font = Enum.Font.GothamBold; lbl.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local inputBg = Instance.new("Frame", holder)
+    inputBg.Size = UDim2.new(0, 110, 0, 30); inputBg.Position = UDim2.new(1, -180, 0.5, -15)
+    inputBg.BackgroundColor3 = Color3.fromRGB(35, 15, 45); inputBg.BorderSizePixel = 0
+    Instance.new("UICorner", inputBg).CornerRadius = UDim.new(0, 6)
+    local tb = Instance.new("TextBox", inputBg)
+    tb.Size = UDim2.new(1, -8, 1, -8); tb.Position = UDim2.new(0, 4, 0, 4)
+    tb.BackgroundTransparency = 1; tb.Text = ""; tb.PlaceholderText = "Name..."; tb.TextColor3 = C.accent; tb.TextScaled = true; tb.Font = Enum.Font.GothamBold; tb.ClearTextOnFocus = false
+    
+    local btnAdd = Instance.new("TextButton", holder)
+    btnAdd.Size = UDim2.new(0, 30, 0, 30); btnAdd.Position = UDim2.new(1, -65, 0.5, -15)
+    btnAdd.BackgroundColor3 = C.success; btnAdd.Text = "+"; btnAdd.TextColor3 = Color3.new(1,1,1); btnAdd.TextScaled = true; btnAdd.Font = Enum.Font.GothamBold; btnAdd.BorderSizePixel = 0
+    Instance.new("UICorner", btnAdd).CornerRadius = UDim.new(0, 6)
+    btnAdd.MouseButton1Click:Connect(function()
+        if tb.Text ~= "" then tableRef[tb.Text] = true; tb.Text = "" end
+    end)
+    
+    local btnClear = Instance.new("TextButton", holder)
+    btnClear.Size = UDim2.new(0, 30, 0, 30); btnClear.Position = UDim2.new(1, -30, 0.5, -15)
+    btnClear.BackgroundColor3 = C.danger; btnClear.Text = "X"; btnClear.TextColor3 = Color3.new(1,1,1); btnClear.TextScaled = true; btnClear.Font = Enum.Font.GothamBold; btnClear.BorderSizePixel = 0
+    Instance.new("UICorner", btnClear).CornerRadius = UDim.new(0, 6)
+    btnClear.MouseButton1Click:Connect(function()
+        for k in pairs(tableRef) do tableRef[k] = nil end
+    end)
+end
+
 -- GUI (TABS & PANEL)
 local function getIcon(n) if n=="Esp" then return "👁" end; if n=="Scientist" then return "🧪" end; if n=="Class A" then return "💚" end; if n=="Class S" then return "🎯" end; if n=="Extra Stuff" then return "⚡" end; return "🎃" end
-local TABS={"Esp","Scientist","Class A","Class S","Extra Stuff"}
+local TABS={"Esp","Scientist","Class A","Class S","Extra Stuff","Experiment"}
 local tabs={};FH.tabs=tabs;FH.pestana="Esp"
 local function mkTab(n,cs)
  local t=Instance.new("TextButton",FH.sb); t.Size=UDim2.new(1,-6,0,32); t.BackgroundColor3=C.bg_card; t.BackgroundTransparency=.2; t.Text=""; t.BorderSizePixel=0; t.AutoButtonColor=false
@@ -176,8 +215,14 @@ FH.panel=function()
    opt("Auto heal self 🩹",function(v)FH.on.autoHealSelf=v;if v then FH.startAHS()else FH.stopAHS()end end)
   elseif FH.pestana=="Class S"then
    opt("Aimlock 🎯",function(v)FH.on.aimlockS=v;if v then FH.startAL()else FH.stopAL()end end)
+   mkNameInput("Blacklist", FH.blacklist) -- UI Blacklist
+  elseif FH.pestana=="Experiment"then
+   opt("Auto Punch 👊",function(v)FH.k8.autoPunch=v end)
+   opt("WORLD HITBOX 🌍",function(v)FH.k8.worldHitbox=v end)
+   opt("Hitbox Tp 👻",function(v)FH.k8.hitboxTp=v end)
+   mkNameInput("Whitelist", FH.whitelist) -- UI Whitelist
   elseif FH.pestana=="Extra Stuff"then
-   opt("Inf Stamina 🎃",function(v)FH.on.infStam=v;if v then FH.startIS()else FH.stopIS()end end)
+   opt("Inf Stamina 🎃",function(v)FH.on.infStam=v end)
    opt("Auto Sprint (30) 🏃", function(v) FH.autoSprintActive = v end)
    opt("Get all Candy's 🍬", function(v) FH.autoCandyActive = v end)
    opt("Noclip 🚪", function(v) FH.noclipActive = v end)
