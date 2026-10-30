@@ -6,32 +6,51 @@ local RS,PL,LP=FH.RS,FH.PL,FH.LP
 local WS = FH.WS
 local Lighting = game:GetService("Lighting")
 
--- ===== ESP PLAYERS =====
+-- ===== ESP PLAYERS (Colores por Experiment) =====
 local pESP={}
-local function mkP(m,rojo)
+local function mkP(m,color)
     if not m then return end
     if pESP[m] then
         local h=pESP[m].h
-        if rojo then h.FillColor=Color3.fromRGB(180,30,60); h.OutlineColor=Color3.fromRGB(255,70,120)
-        else h.FillColor=Color3.fromRGB(255,120,20); h.OutlineColor=Color3.fromRGB(255,180,80) end
+        h.FillColor = color
+        h.OutlineColor = color
         return
     end
     local h=Instance.new("Highlight"); h.FillTransparency=.6; h.OutlineTransparency=0
     h.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop; h.Adornee=m; h.Parent=m
-    if rojo then h.FillColor=Color3.fromRGB(180,30,60); h.OutlineColor=Color3.fromRGB(255,70,120)
-    else h.FillColor=Color3.fromRGB(255,120,20); h.OutlineColor=Color3.fromRGB(255,180,80) end
+    h.FillColor = color; h.OutlineColor = color
+    
     local bg=Instance.new("BillboardGui"); bg.Size=UDim2.new(0,160,0,60); bg.StudsOffset=Vector3.new(0,3.5,0); bg.AlwaysOnTop=true; bg.Parent=m
-    local n=Instance.new("TextLabel",bg); n.Size=UDim2.new(1,0,.5,0); n.BackgroundTransparency=1; n.TextColor3=Color3.fromRGB(255,220,180); n.TextStrokeTransparency=0; n.TextStrokeColor3=Color3.fromRGB(20,5,20); n.TextScaled=true; n.Font=Enum.Font.GothamBold; n.Text="🎃 "..m.Name
-    local s=Instance.new("TextLabel",bg); s.Size=UDim2.new(1,0,.5,0); s.Position=UDim2.new(0,0,.5,0); s.BackgroundTransparency=1; s.TextColor3=Color3.fromRGB(255,150,50); s.TextStrokeTransparency=0; s.TextStrokeColor3=Color3.fromRGB(20,5,20); s.TextScaled=true; s.Font=Enum.Font.GothamBold; s.Text="100 / 100"
+    local n=Instance.new("TextLabel",bg); n.Size=UDim2.new(1,0,.5,0); n.BackgroundTransparency=1; n.TextColor3=color; n.TextStrokeTransparency=0; n.TextStrokeColor3=Color3.fromRGB(20,5,20); n.TextScaled=true; n.Font=Enum.Font.GothamBold; n.Text="🎃 "..m.Name
+    local s=Instance.new("TextLabel",bg); s.Size=UDim2.new(1,0,.5,0); s.Position=UDim2.new(0,0,.5,0); s.BackgroundTransparency=1; s.TextColor3=color; s.TextStrokeTransparency=0; s.TextStrokeColor3=Color3.fromRGB(20,5,20); s.TextScaled=true; s.Font=Enum.Font.GothamBold; s.Text="100 / 100"
     pESP[m]={h=h,bg=bg,l=s,hp=-1,mx=-1}
 end
 local function delP(m) local d=pESP[m]; if not d then return end; d.h:Destroy(); d.bg:Destroy(); pESP[m]=nil end
+
 local function scanP()
-    local found={}; local masAlto,altMax=nil,-math.huge
-    for _,p in ipairs(PL:GetPlayers())do if p~=LP and p.Character then local ch=p.Character; local hum=ch:FindFirstChildOfClass("Humanoid"); if hum and hum.Health>0 then local ok,sz=pcall(function()return ch:GetExtentsSize().Y end); if ok and sz and sz>altMax then altMax=sz; masAlto=ch end end end end
-    for _,p in ipairs(PL:GetPlayers())do if p~=LP and p.Character then local ch=p.Character; local hum=ch:FindFirstChildOfClass("Humanoid"); if hum and hum.Health>0 then mkP(ch,(ch==masAlto)or FH.isKiller(ch)); found[ch]=true end end end
+    local found={}; 
+    local expPlayer = FH.getExperiment()
+    local isLocalExp = (expPlayer == LP)
+    
+    for _,p in ipairs(PL:GetPlayers())do 
+        if p~=LP and p.Character then 
+            local ch=p.Character; local hum=ch:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health>0 then 
+                -- Lógica de Colores
+                local color = Color3.fromRGB(150, 150, 150) -- Gris por defecto
+                if isLocalExp then 
+                    color = Color3.fromRGB(50, 255, 50) -- Verde (Yo soy el Exp)
+                elseif expPlayer and p == expPlayer then 
+                    color = Color3.fromRGB(255, 30, 30) -- Rojo (Él es el Exp)
+                end
+                mkP(ch, color)
+                found[ch]=true 
+            end 
+        end 
+    end
     for m in pairs(pESP)do if not found[m]or not m.Parent then delP(m)end end
 end
+
 local pT
 FH.startEP=function()
     if pT then return end
@@ -43,7 +62,17 @@ FH.startEP=function()
             task.wait(1)
             if FH.on.espPlActive then
                 scanP()
-                for m,d in pairs(pESP)do if m and m.Parent and d.l then local h=m:FindFirstChildOfClass("Humanoid"); if h then local hp=math.floor(h.Health); local mx=math.floor(h.MaxHealth); if hp~=d.hp or mx~=d.mx then d.hp=hp; d.mx=mx; d.l.Text=hp.." / "..mx; local r=hp/math.max(1,mx); if r>.6 then d.l.TextColor3=Color3.fromRGB(255,150,50) elseif r>.3 then d.l.TextColor3=Color3.fromRGB(255,220,80) else d.l.TextColor3=Color3.fromRGB(255,50,50) end end end end end
+                for m,d in pairs(pESP)do 
+                    if m and m.Parent and d.l then 
+                        local h=m:FindFirstChildOfClass("Humanoid"); 
+                        if h then 
+                            local hp=math.floor(h.Health); local mx=math.floor(h.MaxHealth); 
+                            if hp~=d.hp or mx~=d.mx then 
+                                d.hp=hp; d.mx=mx; d.l.Text=hp.." / "..mx
+                            end 
+                        end 
+                    end 
+                end
             end
         end
         pT=nil
@@ -51,111 +80,7 @@ FH.startEP=function()
 end
 FH.stopEP=function() pT=nil; for m in pairs(pESP)do delP(m)end end
 
--- ===== TRACERS (NUEVO SISTEMA) =====
-local tGui=Instance.new("ScreenGui"); tGui.Name="FatassesTracers"; tGui.ResetOnSpawn=false; tGui.IgnoreGuiInset=true; tGui.DisplayOrder=998; tGui.Parent=FH.parent
-local tCache = { killer = {}, scientist = {}, tasks = {} }
-
-local function getLine(tbl, key)
-    if not tbl[key] or not tbl[key].Parent then
-        local l = Instance.new("Frame")
-        l.BorderSizePixel = 0
-        l.ZIndex = 998
-        l.AnchorPoint = Vector2.new(0.5, 0.5)
-        l.Parent = tGui
-        tbl[key] = l
-        return l
-    end
-    return tbl[key]
-end
-
-local function drawLine(tbl, key, targetPos, color)
-    local cm = workspace.CurrentCamera
-    if not cm then return end
-    local sp, ons, dep = cm:WorldToViewportPoint(targetPos)
-    
-    -- Si el objetivo esta al frente (dep > 0), dibuja la linea
-    if dep > 0 then
-        local l = getLine(tbl, key)
-        local origin = Vector2.new(cm.ViewportSize.X / 2, cm.ViewportSize.Y) -- Sale desde el centro-abajo de tu pantalla
-        local dx = sp.X - origin.X
-        local dy = sp.Y - origin.Y
-        local len = math.sqrt(dx*dx + dy*dy)
-        local angle = math.deg(math.atan2(dy, dx))
-        
-        l.Size = UDim2.new(0, len, 0, 2)
-        l.Position = UDim2.new(0, (origin.X + sp.X) / 2, 0, (origin.Y + sp.Y) / 2)
-        l.Rotation = angle
-        l.BackgroundColor3 = color
-        l.Visible = true
-    else
-        if tbl[key] and tbl[key].Parent then tbl[key].Visible = false end
-    end
-end
-
-RS.RenderStepped:Connect(function()
-    local cm = workspace.CurrentCamera
-    if not cm then return end
-    
-    local mc = LP.Character
-    if not mc then return end
-    
-    -- Ocultar todo por defecto
-    if not FH.on.tracersActive then
-        for _, tbl in pairs(tCache) do for _, l in pairs(tbl) do if l.Parent then l.Visible = false end end end
-        return
-    end
-
-    -- 1. KILLER TRACER
-    if FH.tracerKiller then
-        local kChar = FH.updateKiller()
-        if kChar then
-            local h = kChar:FindFirstChild("HumanoidRootPart")
-            if h then drawLine(tCache.killer, kChar, h.Position, Color3.fromRGB(255, 30, 60)) end
-        end
-    else
-        for _, l in pairs(tCache.killer) do if l.Parent then l.Visible = false end end
-    end
-
-    -- 2. SCIENTIST TRACER (A todos los demas jugadores)
-    if FH.tracerScientist then
-        local kChar = FH.updateKiller()
-        for _, p in ipairs(PL:GetPlayers()) do
-            if p ~= LP and p.Character and p.Character ~= kChar then
-                local h = p.Character:FindFirstChild("HumanoidRootPart")
-                local hum = p.Character:FindFirstChildOfClass("Humanoid")
-                if h and hum and hum.Health > 0 then
-                    drawLine(tCache.scientist, p.Character, h.Position, Color3.fromRGB(50, 150, 255)) -- Color Azul
-                end
-            end
-        end
-    else
-        for _, l in pairs(tCache.scientist) do if l.Parent then l.Visible = false end end
-    end
-
-    -- 3. TASKS TRACER (A los paneles, Patient y Tube)
-    if FH.tracerTasks then
-        local folders = {WS, WS:FindFirstChild("Map1"), WS:FindFirstChild("Map2")}
-        for _, folder in ipairs(folders) do
-            if folder then
-                for _, obj in ipairs(folder:GetChildren()) do
-                    if obj:IsA("Model") and (obj.Name:match("^Task_%d+$") or obj.Name == "Patient" or obj.Name == "Tube") then
-                        local h = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")
-                        if h then drawLine(tCache.tasks, obj, h.Position, Color3.fromRGB(50, 255, 50)) end -- Color Verde
-                    end
-                end
-            end
-        end
-    else
-        for _, l in pairs(tCache.tasks) do if l.Parent then l.Visible = false end end
-    end
-end)
-
-FH.stopT = function()
-    for _, tbl in pairs(tCache) do for _, l in pairs(tbl) do l:Destroy() end end
-    tCache = { killer = {}, scientist = {}, tasks = {} }
-end
-
--- ===== ESP TASKS (PANELS + PATIENT + TUBE) =====
+-- ===== ESP TASKS (Por Mapa) =====
 FH.espTasksCache = {}
 FH.startESP = function(v)
     if not v then
@@ -167,31 +92,41 @@ FH.startESP = function(v)
     end
     task.spawn(function()
         while FH.on.espActive do
-            local folders = {WS, WS:FindFirstChild("Map1"), WS:FindFirstChild("Map2")}
-            for _, folder in ipairs(folders) do
-                if folder then
-                    for _, obj in ipairs(folder:GetDescendants()) do
-                        if obj:IsA("Model") and (obj.Name:match("^Task_%d+$") or obj.Name == "Patient" or obj.Name == "Tube" or obj.Name:match("^TaskSpawn")) then
-                            if not FH.espTasksCache[obj] then
-                                local hl = Instance.new("Highlight")
-                                hl.Parent = obj; hl.Adornee = obj
-                                hl.FillColor = Color3.fromRGB(255, 120, 20); hl.OutlineColor = Color3.fromRGB(255, 180, 80); hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                                
-                                local bg = Instance.new("BillboardGui")
-                                bg.Parent = obj; bg.Adornee = obj
-                                bg.Size = UDim2.new(0, 60, 0, 20) -- Tamaño pequeño
-                                bg.StudsOffset = Vector3.new(0, 2, 0)
-                                bg.AlwaysOnTop = true
-                                
-                                local txt = Instance.new("TextLabel", bg)
-                                txt.Size = UDim2.new(1, 0, 1, 0); txt.BackgroundTransparency = 1; txt.Text = "📋 Task"; txt.TextColor3 = Color3.fromRGB(255, 120, 20); txt.TextStrokeTransparency = 0; txt.Font = Enum.Font.GothamBold; txt.TextScaled = true
-                                
-                                FH.espTasksCache[obj] = {hl = hl, bg = bg}
-                            end
+            -- Detectar Mapa
+            local map1 = WS:FindFirstChild("Map1")
+            local map2 = WS:FindFirstChild("Map2")
+            local map3 = WS:FindFirstChild("Map3")
+            
+            local targetName = nil
+            if map1 then targetName = "Patient"
+            elseif map2 then targetName = "Tube"
+            elseif map3 then targetName = "Task_3" -- Asumimos que el tercero es Task 3 o similar
+            end
+
+            if targetName then
+                local folder = map1 or map2 or map3
+                for _, obj in ipairs(folder:GetDescendants()) do
+                    if obj:IsA("Model") and (obj.Name == targetName or obj.Name:match("^Task_%d+$")) then
+                        if not FH.espTasksCache[obj] then
+                            local hl = Instance.new("Highlight")
+                            hl.Parent = obj; hl.Adornee = obj
+                            hl.FillColor = Color3.fromRGB(255, 120, 20); hl.OutlineColor = Color3.fromRGB(255, 180, 80); hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                            
+                            local bg = Instance.new("BillboardGui")
+                            bg.Parent = obj; bg.Adornee = obj
+                            bg.Size = UDim2.new(0, 60, 0, 20)
+                            bg.StudsOffset = Vector3.new(0, 2, 0)
+                            bg.AlwaysOnTop = true
+                            
+                            local txt = Instance.new("TextLabel", bg)
+                            txt.Size = UDim2.new(1, 0, 1, 0); txt.BackgroundTransparency = 1; txt.Text = "📋 "..obj.Name; txt.TextColor3 = Color3.fromRGB(255, 120, 20); txt.TextStrokeTransparency = 0; txt.Font = Enum.Font.GothamBold; txt.TextScaled = true
+                            
+                            FH.espTasksCache[obj] = {hl = hl, bg = bg}
                         end
                     end
                 end
             end
+            
             for obj, data in pairs(FH.espTasksCache) do
                 if not obj.Parent then
                     if data.hl then data.hl:Destroy() end
