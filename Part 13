@@ -1,28 +1,19 @@
--- ============ PARTE 13/13 - Jackpot Fast ============
+-- ============ PARTE 13/13 - Jackpot Fast (Anti-Lag) ============
 local FH = getgenv().FH
 if not FH or not FH.p12 then warn("[FH] Ejecuta Partes 1-12 primero") return end
 if FH.p13 then warn("[FH] Parte 13 ya ejecutada") return end
 local RS = FH.RS
-
 local jT = nil
-
 FH.startJ = function()
     if jT then return end
     jT = task.spawn(function()
         while FH.on.jackpot do
-            for i = 1, 10 do
-                FH.boost()
-            end
-            task.wait()
+            FH.boost()
+            task.wait(0.1) -- Fix lag (Antes era 0)
         end
         jT = nil
     end)
 end
-
-FH.stopJ = function()
-    FH.on.jackpot = false
-    jT = nil
-end
-
+FH.stopJ = function() FH.on.jackpot = false; jT = nil end
 FH.p13 = true
-print("🎃 [13/13] Jackpot Fast OK")
+print("🎃 [13/13] Jackpot Fast OK (Anti-Lag)")
