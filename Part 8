@@ -1,26 +1,18 @@
--- ============ PARTE 8/8 - Killer & Tasks (v28) ============
+-- ============ PARTE 8/8 - Killer & Tasks (v29) ============
 local FH = getgenv().FH
 if not FH or not FH.p7 then warn("[FH] Ejecuta Partes 1-7 primero") return end
 if FH.p8 then warn("[FH] Parte 8 ya ejecutada") return end
 local RS,PL,WS,RST,LP = FH.RS,FH.PL,FH.WS,FH.RST,FH.LP
 local C = FH.C
 
--- TASKS LEGIT & SPAM COMPLETE
+-- TASKS LEGIT
 FH.autoPatientLegit = false; FH.autoTubeLegit = false; FH.autoTask3Legit = false
 if FH.TR then
     FH.TR.OnClientEvent:Connect(function(accion, taskID, guiName)
         if accion == "OpenGui" then
-            if FH.on.spamComplete then
-                task.spawn(function()
-                    for i = 1, 5 do pcall(function() FH.TR:FireServer("CompleteStep", taskID) end); task.wait(0.1) end
-                end)
-            end
-            if guiName == "TaskGuiMap2" and FH.autoTubeLegit then
-                task.spawn(function() task.wait(math.random(20, 65) / 10); if FH.tarea and FH.tarea.id == taskID then pcall(function() FH.TR:FireServer("CompleteStep", taskID) end) end end)
-            end
-            if guiName == "TaskGuiMap3" and FH.autoTask3Legit then
-                task.spawn(function() task.wait(15); if FH.tarea and FH.tarea.id == taskID then pcall(function() FH.TR:FireServer("CompleteStep", taskID) end) end end)
-            end
+            if FH.on.spamComplete then task.spawn(function() for i = 1, 5 do pcall(function() FH.TR:FireServer("CompleteStep", taskID) end); task.wait(0.1) end end) end
+            if guiName == "TaskGuiMap2" and FH.autoTubeLegit then task.spawn(function() task.wait(math.random(20, 65) / 10); if FH.tarea and FH.tarea.id == taskID then pcall(function() FH.TR:FireServer("CompleteStep", taskID) end) end end) end
+            if guiName == "TaskGuiMap3" and FH.autoTask3Legit then task.spawn(function() task.wait(15); if FH.tarea and FH.tarea.id == taskID then pcall(function() FH.TR:FireServer("CompleteStep", taskID) end) end end) end
         end
     end)
 end
@@ -45,63 +37,52 @@ task.spawn(function()
     end
 end)
 
--- KILL ALL (Restaurado)
+-- KILL ALL
 task.spawn(function()
     while true do
         if K.killAll and soyKiller() then
             local survivor = FH.nearest(1000)
             if survivor then
                 local mc = LP.Character; local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
-                if hrp and survivor.HRP then
-                    hrp.CFrame = survivor.HRP.CFrame * CFrame.new(0, 0, 2)
-                    for _, v in pairs(mc:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = false end end
-                end
+                if hrp and survivor.HRP then hrp.CFrame = survivor.HRP.CFrame * CFrame.new(0, 0, 2); for _, v in pairs(mc:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = false end end end
             end
         end
         task.wait(0.2)
     end
 end)
 
--- Extras On-Click
+-- Extras On-Click (WORLD HITBOX MAS PEQUEÑO & TP HITBOX ARREGLADO)
 local function triggerExtras()
     if EXTRA_MODE or not soyKiller() or estoyStuneado() then return end
     local ev=getPunchEv(); if not ev then return end; local mc=LP.Character; local mh=mc and mc:FindFirstChild("HumanoidRootPart"); if not mh then return end; EXTRA_MODE=true
     
-    -- WORLD HITBOX
+    -- WORLD HITBOX (Reducido para evitar lag)
     if K.worldHitbox then
         K.attackId = K.attackId + 1
         local id = K.attackId
         local origin = mh.Position
-        for x = -3, 3 do
-            for y = -3, 3 do
-                for z = -3, 3 do
-                    local offset = Vector3.new(x * 60, y * 60, z * 60)
+        -- Reducido a 1 step y radio 15
+        for x = -1, 1 do
+            for y = -1, 1 do
+                for z = -1, 1 do
+                    local offset = Vector3.new(x * 15, y * 15, z * 15)
                     pcall(function() ev:FireServer({AttackId=id, Position=origin + offset, Velocity=Vector3.new(0,0,0), Direction=Vector3.new(0,1,0)}) end)
                 end
             end
         end
     end
 
-    -- TP HITBOX 5x5 CON LOS
+    -- TP HITBOX (Directo al enemigo, sin volar)
     if K.hitboxTp then 
-        local t=FH.nearest(K.range) 
-        if t and FH.vision(t.Char) then -- Verifica Linea de Vision
-            local th=t.Char:FindFirstChild("Head") or t.Char:FindFirstChild("HumanoidRootPart")
+        local t=FH.nearest(100) -- Busca en un rango mas amplio
+        if t and FH.vision(t.Char) then
+            local th = t.HRP -- Apunta directo al HumanoidRootPart
             if th then 
                 K.attackId=K.attackId+1
                 local id=K.attackId
-                local center = th.Position
-                local step = 3
-                -- Genera un cuadrado 5x5 alrededor del enemigo
-                for dx = -2, 2 do
-                    for dy = -2, 2 do
-                        for dz = -2, 2 do
-                            local pos = center + Vector3.new(dx*step, dy*step, dz*step)
-                            local dir = (pos - mh.Position).Unit
-                            pcall(function() ev:FireServer({AttackId=id, Position=pos, Velocity=Vector3.new(0,0,0), Direction=dir}) end)
-                        end
-                    end
-                end
+                local dir = (th.Position - mh.Position).Unit
+                -- Manda el golpe directo a su posicion
+                pcall(function() ev:FireServer({AttackId=id, Position=th.Position, Velocity=Vector3.new(0,0,0), Direction=dir}) end)
             end 
         end 
     end
@@ -123,7 +104,6 @@ local stunConns={}; local function nukeStun(v) if v:GetAttribute("FH_STUN") then
 local function findStunValues() local mc=LP.Character; if not mc then return end; for _,d in ipairs(mc:GetDescendants()) do if d.Name:lower():find("stun") or d.Name:lower():find("slow") then if (d:IsA("BoolValue") or d:IsA("IntValue") or d:IsA("NumberValue")) then nukeStun(d) end end end end
 local antiStunConn=nil; local function startAntiStun() findStunValues(); if antiStunConn then return end; antiStunConn=RS.Heartbeat:Connect(function() if K.antiStun or K.antiSlow then findStunValues() end end) end; local function stopAntiStun() K.antiStun=false; K.antiSlow=false; if antiStunConn then antiStunConn:Disconnect(); antiStunConn=nil end; for _,c in ipairs(stunConns) do pcall(function() c:Disconnect() end) end; stunConns={} end
 
--- El UI de Killer se genera aqui
 local origPanel=FH.panel
 FH.panel=function() origPanel(); if FH.pestana~="Experiment" then return end; local opt=FH.crearOpcion
     opt("Anti Stun 🛡",function(v) K.antiStun=v; if v or K.antiSlow then startAntiStun() else stopAntiStun() end end)
@@ -135,4 +115,4 @@ FH.panel=function() origPanel(); if FH.pestana~="Experiment" then return end; lo
 end
 if FH.pestana=="Experiment" then FH.panel() end
 FH.p8=true
-print("🎃 [8/8] Killer & Tasks OK (v28)")
+print("🎃 [8/8] Killer & Tasks OK (v29)")
