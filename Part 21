@@ -1,0 +1,58 @@
+-- ============ PARTE 21/21 - Habilidades de Asesino ============
+local FH = getgenv().FH
+if not FH or not FH.p20 then warn("[FH] Ejecuta Partes 1-20 primero") return end
+if FH.p21 then warn("[FH] Parte 21 ya ejecutada") return end
+local RS,PL,WS,LP = FH.RS,FH.PL,FH.WS,FH.LP
+local RST = FH.RST
+
+FH.assassin = { melodicControllable = false, melodicAntiCrash = false, melodicGiantHitbox = false, megaScream = false, tpLeeking = false, leekingSpeed = false }
+local function getNearestSurvivor() local mc = LP.Character; if not mc then return nil end; local mh = mc:FindFirstChild("HumanoidRootPart"); if not mh then return nil end; local best, bd = nil, math.huge; for _, p in ipairs(PL:GetPlayers()) do if p ~= LP and p.Character then local h = p.Character:FindFirstChildOfClass("Humanoid"); local hrp = p.Character:FindFirstChild("HumanoidRootPart"); if h and h.Health > 0 and hrp then local d = (mh.Position - hrp.Position).Magnitude; if d < bd then bd = d; best = p.Character end end end end return best end
+
+local mrConn = nil
+local function startMelodicRush()
+    if mrConn then return end
+    mrConn = RS.RenderStepped:Connect(function()
+        local mc = LP.Character; if not mc then return end
+        local hrp = mc:FindFirstChild("HumanoidRootPart"); if not hrp then return end
+        local lv = hrp:FindFirstChildOfClass("LinearVelocity"); local ao = hrp:FindFirstChildOfClass("AlignOrientation")
+        if lv then
+            if FH.assassin.melodicAntiCrash and lv.VectorVelocity.Magnitude > 150 then lv.VectorVelocity = lv.VectorVelocity.Unit * 150 end
+            if FH.assassin.melodicControllable then
+                local camLook = workspace.CurrentCamera.CFrame.LookVector; local flatLook = Vector3.new(camLook.X, 0, camLook.Z).Unit
+                lv.VectorVelocity = flatLook * lv.VectorVelocity.Magnitude
+                if ao then ao.CFrame = CFrame.lookAt(Vector3.new(0,0,0), flatLook) end
+            end
+            if FH.assassin.melodicGiantHitbox then
+                local ev = FH.getEv("PunchEvent")
+                if ev then pcall(function() ev:FireServer({AttackId = math.random(1,999999), Position = hrp.Position, Velocity = hrp.AssemblyLinearVelocity, Direction = hrp.CFrame.LookVector}) end) end
+            end
+        end
+    end)
+end
+startMelodicRush()
+
+local function fireLeeking()
+    local ev = FH.getEv("AbilityEvent"); if not ev then return end
+    if FH.assassin.tpLeeking then local target = getNearestSurvivor(); if target then local hrp = target:FindFirstChild("HumanoidRootPart"); local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart"); if hrp and myHrp then myHrp.CFrame = hrp.CFrame * CFrame.new(0,0,2) end end end
+    pcall(function() ev:FireServer() end)
+    if FH.assassin.leekingSpeed then
+        task.spawn(function() local mc = LP.Character; if mc then local hrp = mc:FindFirstChild("HumanoidRootPart"); if hrp then local bv = Instance.new("BodyVelocity", hrp); bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge); bv.Velocity = workspace.CurrentCamera.CFrame.LookVector * 200; task.wait(0.5); bv:Destroy() end end end)
+    end
+end
+
+task.spawn(function() while true do if FH.assassin.megaScream then local ev = FH.getEv("AbilityEvent2"); if ev then for i = 1, 5 do pcall(function() ev:FireServer(3) end) end end; task.wait(1) end; task.wait(0.5) end end)
+
+local origPanel = FH.panel
+FH.panel = function()
+    origPanel(); if FH.pestana ~= "Experiment" then return end; if not FH.isKiller(LP.Character) then return end; local opt = FH.crearOpcion; local btn = FH.crearBotonAccion
+    opt("Melodic: Controlable 🎮", function(v) FH.assassin.melodicControllable = v end)
+    opt("Melodic: Anti-Crash 🛡", function(v) FH.assassin.melodicAntiCrash = v end)
+    opt("Melodic: Giant Hitbox 💥", function(v) FH.assassin.melodicGiantHitbox = v end)
+    opt("Mega Scream 📢", function(v) FH.assassin.megaScream = v end)
+    opt("Tp Leeking 🌀", function(v) FH.assassin.tpLeeking = v end)
+    opt("Leeking MEGA SPEED 💨", function(v) FH.assassin.leekingSpeed = v end)
+    btn("Use Leeking Heat 🔥", fireLeeking)
+end
+if FH.pestana == "Experiment" then FH.panel() end
+FH.p21 = true
+print("🎃 [21/21] Habilidades de Asesino OK")
