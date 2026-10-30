@@ -4,7 +4,6 @@ if not FH or not FH.p3 then warn("[FH] Ejecuta Partes 1-3 primero") return end
 if FH.p4 then warn("[FH] Parte 4 ya ejecutada") return end
 local RS,PL,LP=FH.RS,FH.PL,FH.LP
 local WS = FH.WS
-local Lighting = game:GetService("Lighting") -- FIX: Faltaba definir Lighting
 
 -- ===== ESP PLAYERS =====
 local pESP={}
@@ -194,7 +193,7 @@ FH.startESP = function(v)
                     espTasksCache[obj] = hl
                 end
             end
-            task.wait(1) -- Optimizacion: escanea cada 1 seg en vez de cada frame
+            task.wait(1)
         end
     end)
 end
@@ -233,34 +232,31 @@ FH.startCandyESP = function(v)
     end
 end
 
--- ===== FULLBRIGHT (FIX) =====
-local oldLighting = {
-    Brightness = Lighting.Brightness, 
-    ClockTime = Lighting.ClockTime, 
-    Ambient = Lighting.Ambient, 
-    OutdoorAmbient = Lighting.OutdoorAmbient, 
-    FogEnd = Lighting.FogEnd
-}
-FH.setFullbright = function(v, alt)
+-- ===== FULLBRIGHT (FIX A PRUEBA DE FALLOS) =====
+local function setFB(v, alt)
+    local ok, lighting = pcall(function() return game:GetService("Lighting") end)
+    if not ok or not lighting then return end -- Si falla, no hace nada y evita el crash
+    
     if v then
-        Lighting.Brightness = 3
-        Lighting.ClockTime = 12
+        lighting.Brightness = 3
+        lighting.ClockTime = 12
         if alt then
-            Lighting.Ambient = Color3.fromRGB(150, 150, 150)
-            Lighting.OutdoorAmbient = Color3.fromRGB(150, 150, 150)
+            lighting.Ambient = Color3.fromRGB(150, 150, 150)
+            lighting.OutdoorAmbient = Color3.fromRGB(150, 150, 150)
         else
-            Lighting.Ambient = Color3.fromRGB(255, 255, 255)
-            Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
-            Lighting.FogEnd = 100000
+            lighting.Ambient = Color3.fromRGB(255, 255, 255)
+            lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+            lighting.FogEnd = 100000
         end
     else
-        Lighting.Brightness = oldLighting.Brightness
-        Lighting.ClockTime = oldLighting.ClockTime
-        Lighting.Ambient = oldLighting.Ambient
-        Lighting.OutdoorAmbient = oldLighting.OutdoorAmbient
-        Lighting.FogEnd = oldLighting.FogEnd
+        lighting.Brightness = 1
+        lighting.ClockTime = 14
+        lighting.Ambient = Color3.fromRGB(70, 70, 70)
+        lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+        lighting.FogEnd = 100000
     end
 end
+FH.setFullbright = setFB
 
 FH.p4=true
 print("🎃 [4/5] ESP & Fullbright OK")
