@@ -14,15 +14,10 @@ RS.RenderStepped:Connect(function()
             local hum = char:FindFirstChildOfClass("Humanoid")
             local stam = char:FindFirstChild("Stam")
             local canSprint = char:FindFirstChild("CanSprint")
-            
-            -- Forzamos las variables del juego
             if stam then stam.Value = 100 end
             if canSprint then canSprint.Value = true end
-            
-            -- Forzamos la velocidad si el sprint está activo
             if FH.autoSprintActive and hum then hum.WalkSpeed = 30 end
             
-            -- Forzamos la GUI Visual
             local pg = LP:FindFirstChild("PlayerGui")
             if pg then
                 local sg = pg:FindFirstChild("SprintGui")
@@ -60,12 +55,12 @@ FH.startAP = function()
 end
 FH.stopAP = function() if FH.apConn then FH.apConn:Disconnect(); FH.apConn=nil end end
 
--- CYCLE TPs (Agregado Task 3)
+-- CYCLE TPs
 local tpIdx = { patient = 1, tube = 1, candy = 1, task3 = 1 }
 local function getTargets(keyword)
     local t = {}
-    for _, obj in ipairs(WS:GetChildren()) do
-        if obj.Name:lower():find(keyword) then
+    for _, obj in ipairs(WS:GetDescendants()) do
+        if obj:IsA("Model") and obj.Name:lower():find(keyword) then
             local hrp = obj:FindFirstChild("PrimaryPart") or obj:FindFirstChildWhichIsA("BasePart")
             if hrp then table.insert(t, hrp) end
         end
@@ -81,25 +76,38 @@ FH.cycleTP = function(kw)
     if hrp then hrp.CFrame = t[i].CFrame * CFrame.new(0, 3, 0); tpIdx[kw] = i + 1 end
 end
 
--- GET ALL CANDYS FIX (TP al centro)
+-- GET ALL CANDYS (Devuelve al inicio y se apaga)
 FH.autoCandyActive = false
+FH.candyStartPos = nil
 task.spawn(function()
     while true do
         if FH.autoCandyActive then
             local mc = LP.Character; local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
             if hrp then
-                for _, obj in ipairs(WS:GetChildren()) do
-                    if obj.Name:match("Candy") then
+                -- Guardar posición inicial
+                if not FH.candyStartPos then FH.candyStartPos = hrp.CFrame end
+                
+                local candies = {}
+                for _, obj in ipairs(WS:GetDescendants()) do
+                    if obj:IsA("Model") and obj.Name:match("^Candy") then
                         local primary = obj:FindFirstChild("PrimaryPart") or obj:FindFirstChildWhichIsA("BasePart")
-                        if primary then
-                            hrp.CFrame = primary.CFrame
-                            task.wait(0.1)
-                        end
+                        if primary then table.insert(candies, primary) end
                     end
                 end
+                
+                if #candies > 0 then
+                    hrp.CFrame = candies[1].CFrame
+                    task.wait(0.15)
+                else
+                    -- No hay más candy's, regresar al inicio
+                    hrp.CFrame = FH.candyStartPos
+                    FH.autoCandyActive = false
+                    FH.candyStartPos = nil
+                end
             end
-            task.wait(0.5)
+            task.wait(0.1)
         else
+            FH.candyStartPos = nil
             task.wait(1)
         end
     end
