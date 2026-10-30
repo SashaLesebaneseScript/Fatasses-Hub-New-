@@ -1,69 +1,105 @@
--- ============ PARTE 5/5 ============
+-- ============ PARTE 5/5 - GUI & Main Logic ============
 local FH=getgenv().FH
 if not FH or not FH.p4 then warn("[FH] Ejecuta Partes 1-4 primero") return end
 if FH.p5 then warn("[FH] Parte 5 ya ejecutada") return end
 local RS,PL,WS,LP=FH.RS,FH.PL,FH.WS,FH.LP
-local UI = FH.UI
 local C=FH.C
 
--- SPRINT FIX
-local sprHeld=false; sprintConn=nil
-FH.autoSprintActive = false
+-- INFINITE STAMINA & FORCE SPEED (Ahora forzado directo)
+local sprintConn = nil
 FH.startIS = function()
     if sprintConn then return end
-    sprintConn = RS.Heartbeat:Connect(function()
+    sprintConn = RS.RenderStepped:Connect(function()
         if FH.on.infStam or FH.autoSprintActive then
             local char = LP.Character
             if char then
                 local stam = char:FindFirstChild("Stam")
                 local canSprint = char:FindFirstChild("CanSprint")
-                if stam and stam.Value < 100 then stam.Value = 100 end
-                if canSprint and canSprint.Value == false then canSprint.Value = true end
+                if stam then stam.Value = 100 end
+                if canSprint then canSprint.Value = true end
             end
         end
     end)
 end
 FH.stopIS = function() if sprintConn then sprintConn:Disconnect(); sprintConn = nil end end
+FH.autoSprintActive = false
 
--- HEAL SELF FIX
-FH.healS = function()
-    local ev = FH.getHealEv()
-    if not ev then return false end
-    pcall(function() ev:FireServer("StartVisuals", LP) end)
-    task.spawn(function()
-        for i = 1, 6 do pcall(function() ev:FireServer("HealTick", LP) end); task.wait(0.15) end
-        pcall(function() ev:FireServer("GiveSpeedBoost") end)
+-- AUTO PATIENT & GENERATOR (Restaurado al original)
+FH.startAP = function()
+    if FH.apConn then return end
+    FH.apConn = RS.Heartbeat:Connect(function()
+        if not FH.autoPatientLegit then return end
+        local gui = LP.PlayerGui:FindFirstChild("TaskGuiMap1")
+        if not gui or not gui.Enabled then return end
+        local fm = gui:FindFirstChild("Frame"); if not fm or not fm.Visible then return end
+        local catcher = fm:FindFirstChild("Catcher"); if not catcher then return end
+        for _, h in ipairs(fm:GetChildren()) do
+            if h.Name == "Note" and h:IsA("Frame") then
+                local a = h:GetAttribute("Angle")
+                if a then local d = math.abs(a - (math.pi/2)); if d > math.pi then d = 2*math.pi - d end; if d > 0.3 then h:SetAttribute("Angle", math.pi/2) end end
+            end
+        end
+        local ac = math.pi/2 + math.pi/2
+        catcher.Position = UDim2.new(math.cos(ac)*0.42+0.5, 0, math.sin(ac)*0.42+0.5, 0)
+        catcher.Rotation = math.deg(ac)+90
+        catcher.BackgroundColor3 = Color3.fromRGB(255, 120, 20)
     end)
-    return true
+end
+FH.stopAP = function() if FH.apConn then FH.apConn:Disconnect(); FH.apConn=nil end end
+
+-- CYCLE TPs
+local tpIdx = { patient = 1, tube = 1, candy = 1 }
+local function getTargets(keyword)
+    local t = {}
+    for _, obj in ipairs(WS:GetChildren()) do
+        if obj.Name:lower():find(keyword) then
+            local hrp = obj:FindFirstChild("PrimaryPart") or obj:FindFirstChildWhichIsA("BasePart")
+            if hrp then table.insert(t, hrp) end
+        end
+    end
+    return t
+end
+FH.cycleTP = function(kw)
+    local t = getTargets(kw)
+    if #t == 0 then return end
+    local i = tpIdx[kw] or 1
+    if i > #t then i = 1 end
+    local mc = LP.Character; local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
+    if hrp then hrp.CFrame = t[i].CFrame * CFrame.new(0, 3, 0); tpIdx[kw] = i + 1 end
 end
 
--- PANEL ESP & CYCLE TP
-local panelESP = {}
-local function getPanels() local p = {} for _, v in ipairs(WS:GetChildren()) do if v.Name:match("^Task_%d+$") then table.insert(p, v) end end return p end
-FH.startPanelESP = function(v) if not v then for _, hl in pairs(panelESP) do hl:Destroy() end; panelESP = {}; return end; for _, pnl in ipairs(getPanels()) do if not panelESP[pnl] then local hl = Instance.new("Highlight", pnl); hl.FillColor = Color3.fromRGB(255, 100, 0); hl.OutlineColor = Color3.new(1,1,1); hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop; panelESP[pnl] = hl end end end
-local panelIdx = 1
-FH.cyclePanelTP = function() local p = getPanels(); if #p == 0 then return end; if panelIdx > #p then panelIdx = 1 end; local target = p[panelIdx]; local hrp = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChildWhichIsA("BasePart"); if hrp and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then LP.Character.HumanoidRootPart.CFrame = hrp.CFrame + Vector3.new(0, 3, 0); panelIdx = panelIdx + 1 end end
-
--- CANDY ESP & AUTO COLLECT
-local candyESP = {}
-local function getCandies() local c = {} for _, v in ipairs(WS:GetChildren()) do if v.Name:match("^CandyModel") then table.insert(c, v) end end return c end
-FH.startCandyESP = function(v) if not v then for _, hl in pairs(candyESP) do hl:Destroy() end; candyESP = {}; return end; for _, c in ipairs(getCandies()) do if not candyESP[c] then local hl = Instance.new("Highlight", c); hl.FillColor = Color3.fromRGB(255, 50, 150); hl.OutlineColor = Color3.new(1,1,1); hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop; candyESP[c] = hl end end end
-FH.autoCandyActive = false
-task.spawn(function()
-    while true do
-        if FH.autoCandyActive then
-            local candies = getCandies()
-            if candies[1] then
-                local mc = LP.Character; local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
-                local primary = candies[1]:FindFirstChild("PrimaryPart") or candies[1]:FindFirstChildWhichIsA("BasePart")
-                if hrp and primary then hrp.CFrame = primary.CFrame * CFrame.new(0, 2, 2) end
-            end
-            task.wait(0.2)
-        else task.wait(1) end
+-- NOCLIP & FLY
+FH.noclipActive = false
+RS.Stepped:Connect(function()
+    if FH.noclipActive and LP.Character then
+        for _, v in pairs(LP.Character:GetDescendants()) do
+            if v:IsA("BasePart") and v.CanCollide then v.CanCollide = false end
+        end
     end
 end)
 
--- Tabs
+FH.flyActive = false
+local flyBV, flyBG = nil, nil
+FH.toggleFly = function(v)
+    FH.flyActive = v
+    local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    if v and hrp then
+        flyBV = Instance.new("BodyVelocity", hrp); flyBV.MaxForce = Vector3.new(math.huge, math.huge, math.huge); flyBV.Velocity = Vector3.new(0,0,0)
+        flyBG = Instance.new("BodyGyro", hrp); flyBG.MaxTorque = Vector3.new(math.huge, math.huge, math.huge); flyBG.P = 1000
+    else
+        if flyBV then flyBV:Destroy(); flyBV = nil end
+        if flyBG then flyBG:Destroy(); flyBG = nil end
+    end
+end
+RS.RenderStepped:Connect(function()
+    if FH.flyActive and flyBV and LP.Character then
+        local cam = workspace.CurrentCamera
+        flyBV.Velocity = cam.CFrame.LookVector * 50
+        flyBG.CFrame = cam.CFrame
+    end
+end)
+
+-- GUI (TABS & PANEL)
 local function getIcon(n) if n=="Esp" then return "👁" end; if n=="Scientist" then return "🧪" end; if n=="Class A" then return "💚" end; if n=="Class S" then return "🎯" end; if n=="Extra Stuff" then return "⚡" end; return "🎃" end
 local TABS={"Esp","Scientist","Class A","Class S","Extra Stuff"}
 local tabs={};FH.tabs=tabs;FH.pestana="Esp"
@@ -90,14 +126,17 @@ FH.panel=function()
    opt("ESP Tasks 👁",function(v)FH.on.espActive=v;if v then FH.startESP()else FH.stopESP()end end)
    opt("ESP Players 🎃",function(v)FH.on.espPlActive=v;if v then FH.startEP()else FH.stopEP()end end)
    opt("Tracers 📏",function(v)FH.on.tracersActive=v;if v then FH.startT()else FH.stopT()end end)
-   opt("ESP Panels 📋", function(v) FH.startPanelESP(v) end)
    opt("ESP Candies 🍬", function(v) FH.startCandyESP(v) end)
+   opt("Full Bright ☀️", function(v) FH.setFullbright(v, false) end)
+   opt("Alt Full Bright 🌤️", function(v) FH.setFullbright(v, true) end)
   elseif FH.pestana=="Scientist"then
-   opt("Auto Patient (Legit) 🧟",function(v)FH.autoPatientLegit=v end)
+   opt("Auto Patient (Legit) 🧟",function(v)FH.autoPatientLegit=v; if v then FH.startAP() else FH.stopAP() end end)
    opt("Auto Generator (Legit) 🕸",function(v)FH.autoTubeLegit=v end)
    opt("Auto Task 3 (Legit) 📝",function(v)FH.autoTask3Legit=v end)
    opt("Spam Complete 🔁", function(v) FH.on.spamComplete = v; if v then FH.startSp() else FH.stopSp() end end)
-   btn("Cycle TP Panel 🖲", function() FH.cyclePanelTP() end)
+   btn("Cycle TP Patient 🧟", function() FH.cycleTP("patient") end)
+   btn("Cycle TP Generator 🕸", function() FH.cycleTP("tube") end)
+   btn("Cycle TP Candy 🍬", function() FH.cycleTP("candymodel") end)
   elseif FH.pestana=="Class A"then
    btn("Heal Nearest 💚",FH.healN)
    opt("Auto Heal 💚",function(v)FH.on.autoHeal=v;if v then FH.startAH()else FH.stopAH()end end)
@@ -113,6 +152,8 @@ FH.panel=function()
    opt("Inf Stamina 🎃",function(v)FH.on.infStam=v;if v then FH.startIS()else FH.stopIS()end end)
    opt("Auto Sprint (30) 🏃", function(v) FH.autoSprintActive = v; if v then FH.startIS() end end)
    opt("Get all Candy's 🍬", function(v) FH.autoCandyActive = v end)
+   opt("Noclip 🚪", function(v) FH.noclipActive = v end)
+   opt("Fly ✈️", function(v) FH.toggleFly(v) end)
   end
  end)
  pupd=false 
@@ -125,4 +166,4 @@ local sl2=Instance.new("TextLabel",tbtn); sl2.Size=UDim2.new(1,0,1,0); sl2.Backg
 tbtn.MouseButton1Click:Connect(function()FH.fr.Visible=not FH.fr.Visible end)
 FH.panel()
 FH.p5=true
-print("🎃 [5/5] TODO LISTO. GUI activa.")
+print("🎃 [5/5] GUI & Main Logic OK")
