@@ -1,11 +1,167 @@
--- ============ PARTE 4/5 - ESP Fixes ============
+-- ============ PARTE 4/5 - ESP & Lighting Fixes ============
 local FH=getgenv().FH
 if not FH or not FH.p3 then warn("[FH] Ejecuta Partes 1-3 primero") return end
 if FH.p4 then warn("[FH] Parte 4 ya ejecutada") return end
 local RS,PL,LP=FH.RS,FH.PL,FH.LP
 local WS = FH.WS
+local Lighting = game:GetService("Lighting") -- FIX: Faltaba definir Lighting
 
--- ESP Tasks (Panels) OPTIMIZADO
+-- ===== ESP PLAYERS =====
+local pESP={}
+local function mkP(m,rojo)
+    if not m then return end
+    if pESP[m] then
+        local h=pESP[m].h
+        if rojo then h.FillColor=Color3.fromRGB(180,30,60); h.OutlineColor=Color3.fromRGB(255,70,120)
+        else h.FillColor=Color3.fromRGB(255,120,20); h.OutlineColor=Color3.fromRGB(255,180,80) end
+        return
+    end
+    local h=Instance.new("Highlight")
+    h.FillTransparency=.6; h.OutlineTransparency=0
+    h.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop; h.Adornee=m; h.Parent=m
+    if rojo then h.FillColor=Color3.fromRGB(180,30,60); h.OutlineColor=Color3.fromRGB(255,70,120)
+    else h.FillColor=Color3.fromRGB(255,120,20); h.OutlineColor=Color3.fromRGB(255,180,80) end
+    
+    local bg=Instance.new("BillboardGui")
+    bg.Size=UDim2.new(0,160,0,60); bg.StudsOffset=Vector3.new(0,3.5,0); bg.AlwaysOnTop=true; bg.Parent=m
+    local n=Instance.new("TextLabel",bg)
+    n.Size=UDim2.new(1,0,.5,0); n.BackgroundTransparency=1
+    n.TextColor3=Color3.fromRGB(255,220,180); n.TextStrokeTransparency=0; n.TextStrokeColor3=Color3.fromRGB(20,5,20)
+    n.TextScaled=true; n.Font=Enum.Font.GothamBold; n.Text="🎃 "..m.Name
+    local s=Instance.new("TextLabel",bg)
+    s.Size=UDim2.new(1,0,.5,0); s.Position=UDim2.new(0,0,.5,0); s.BackgroundTransparency=1
+    s.TextColor3=Color3.fromRGB(255,150,50); s.TextStrokeTransparency=0; s.TextStrokeColor3=Color3.fromRGB(20,5,20)
+    s.TextScaled=true; s.Font=Enum.Font.GothamBold; s.Text="100 / 100"
+    
+    pESP[m]={h=h,bg=bg,l=s,hp=-1,mx=-1}
+end
+local function delP(m)
+    local d=pESP[m]; if not d then return end
+    d.h:Destroy(); d.bg:Destroy(); pESP[m]=nil
+end
+local function scanP()
+    local found={}; local masAlto,altMax=nil,-math.huge
+    for _,p in ipairs(PL:GetPlayers())do
+        if p~=LP and p.Character then
+            local ch=p.Character; local hum=ch:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health>0 then
+                local ok,sz=pcall(function()return ch:GetExtentsSize().Y end)
+                if ok and sz and sz>altMax then altMax=sz; masAlto=ch end 
+            end 
+        end 
+    end
+    for _,p in ipairs(PL:GetPlayers())do
+        if p~=LP and p.Character then
+            local ch=p.Character; local hum=ch:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health>0 then mkP(ch,(ch==masAlto)or FH.isKiller(ch)); found[ch]=true end 
+        end 
+    end
+    for m in pairs(pESP)do if not found[m]or not m.Parent then delP(m)end end
+end
+local pT
+FH.startEP=function()
+    if pT then return end
+    scanP()
+    PL.PlayerAdded:Connect(function() if FH.on.espPlActive then task.wait(.3); scanP() end end)
+    PL.PlayerRemoving:Connect(function() task.wait(.3); scanP() end)
+    pT=task.spawn(function()
+        while FH.on.espPlActive do
+            task.wait(1)
+            if FH.on.espPlActive then
+                scanP()
+                for m,d in pairs(pESP)do
+                    if m and m.Parent and d.l then
+                        local h=m:FindFirstChildOfClass("Humanoid")
+                        if h then
+                            local hp=math.floor(h.Health); local mx=math.floor(h.MaxHealth)
+                            if hp~=d.hp or mx~=d.mx then
+                                d.hp=hp; d.mx=mx; d.l.Text=hp.." / "..mx
+                                local r=hp/math.max(1,mx)
+                                if r>.6 then d.l.TextColor3=Color3.fromRGB(255,150,50)
+                                elseif r>.3 then d.l.TextColor3=Color3.fromRGB(255,220,80)
+                                else d.l.TextColor3=Color3.fromRGB(255,50,50) end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        pT=nil
+    end)
+end
+FH.stopEP=function() pT=nil; for m in pairs(pESP)do delP(m)end end
+
+-- ===== TRACERS =====
+local tGui=Instance.new("ScreenGui")
+tGui.Name="FatassesTracers"; tGui.ResetOnSpawn=false; tGui.IgnoreGuiInset=true
+tGui.DisplayOrder=998; tGui.Parent=FH.parent
+local tCache={}
+local function renderT()
+    if not FH.on.tracersActive then for _,l in pairs(tCache)do if l.Parent then l.Visible=false end end; return end
+    local mc=LP.Character; if not mc then return end
+    local hr=mc:FindFirstChild("HumanoidRootPart"); if not hr then return end
+    local myFoot=hr.Position-Vector3.new(0,2.5,0)
+    local cm=workspace.CurrentCamera; if not cm then return end
+    
+    local msp, mon, mdepth = cm:WorldToViewportPoint(myFoot)
+    if mdepth <= 0 then msp = Vector2.new(cm.ViewportSize.X/2, cm.ViewportSize.Y/2) end
+    
+    local masAlto,altMax=nil,-math.huge
+    for _,p in ipairs(PL:GetPlayers())do
+        if p~=LP and p.Character then
+            local h=p.Character:FindFirstChildOfClass("Humanoid")
+            if h and h.Health>0 then
+                local ok,sz=pcall(function()return p.Character:GetExtentsSize().Y end)
+                if ok and sz and sz>altMax then altMax=sz; masAlto=p.Character end 
+            end 
+        end 
+    end
+    
+    local alive={}
+    for _,p in ipairs(PL:GetPlayers())do
+        if p~=LP and p.Character then
+            local ch=p.Character; local h=ch:FindFirstChildOfClass("Humanoid")
+            if h and h.Health>0 then
+                alive[ch]=true
+                local hh=ch:FindFirstChild("HumanoidRootPart")
+                if hh then
+                    local fp=hh.Position-Vector3.new(0,2.5,0)
+                    local sp, ons, dep = cm:WorldToViewportPoint(fp)
+                    if dep > 0 then
+                        local l=tCache[ch]
+                        if not l or not l.Parent then
+                            l=Instance.new("Frame"); l.BorderSizePixel=0; l.ZIndex=998
+                            l.AnchorPoint=Vector2.new(.5,.5); l.Parent=tGui; tCache[ch]=l 
+                        end
+                        local dx=sp.X-msp.X; local dy=sp.Y-msp.Y
+                        local len=math.sqrt(dx*dx+dy*dy)
+                        
+                        l.Size=UDim2.new(0,len,0,2)
+                        l.Position=UDim2.new(0,(msp.X+sp.X)/2,0,(msp.Y+sp.Y)/2)
+                        l.Rotation=math.deg(math.atan2(dy,dx))
+                        l.Visible=true
+                        l.BackgroundColor3=((ch==masAlto)or FH.isKiller(ch))and Color3.fromRGB(255,30,60)or Color3.fromRGB(255,120,20)
+                    else
+                        local l=tCache[ch]; if l and l.Parent then l.Visible=false end
+                    end
+                end
+            end
+        end
+    end
+    for ch,l in pairs(tCache)do if not alive[ch]or not ch.Parent then l:Destroy(); tCache[ch]=nil end end
+end
+
+local trC
+FH.startT=function()
+    if trC then return end
+    trC=RS.RenderStepped:Connect(function() if FH.on.tracersActive then pcall(renderT)end end)
+end
+FH.stopT=function()
+    if trC then trC:Disconnect(); trC=nil end
+    for _,l in pairs(tCache)do l:Destroy()end; tCache={}
+end
+
+-- ===== ESP TASKS (Panels) OPTIMIZADO =====
 local espTasksCache = {}
 FH.startESP = function(v)
     if not v then
@@ -43,7 +199,7 @@ FH.startESP = function(v)
     end)
 end
 
--- ESP Candies (Con Texto)
+-- ===== ESP CANDIES =====
 local candyESP = {}
 local function getCandies() local c = {} for _, v in ipairs(WS:GetChildren()) do if v.Name:match("^CandyModel") then table.insert(c, v) end end return c end
 FH.startCandyESP = function(v)
@@ -77,24 +233,14 @@ FH.startCandyESP = function(v)
     end
 end
 
--- Get all Candys (TP al centro exacto)
-FH.autoCandyActive = false
-task.spawn(function()
-    while true do
-        if FH.autoCandyActive then
-            local candies = getCandies()
-            if candies[1] then
-                local mc = LP.Character; local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
-                local primary = candies[1]:FindFirstChild("PrimaryPart") or candies[1]:FindFirstChildWhichIsA("BasePart")
-                if hrp and primary then hrp.CFrame = primary.CFrame end -- TP al centro
-            end
-            task.wait(0.2)
-        else task.wait(1) end
-    end
-end)
-
--- FULLBRIGHT
-local oldLighting = {Brightness = Lighting.Brightness, ClockTime = Lighting.ClockTime, Ambient = Lighting.Ambient, OutdoorAmbient = Lighting.OutdoorAmbient, FogEnd = Lighting.FogEnd}
+-- ===== FULLBRIGHT (FIX) =====
+local oldLighting = {
+    Brightness = Lighting.Brightness, 
+    ClockTime = Lighting.ClockTime, 
+    Ambient = Lighting.Ambient, 
+    OutdoorAmbient = Lighting.OutdoorAmbient, 
+    FogEnd = Lighting.FogEnd
+}
 FH.setFullbright = function(v, alt)
     if v then
         Lighting.Brightness = 3
@@ -115,5 +261,6 @@ FH.setFullbright = function(v, alt)
         Lighting.FogEnd = oldLighting.FogEnd
     end
 end
+
 FH.p4=true
 print("🎃 [4/5] ESP & Fullbright OK")
