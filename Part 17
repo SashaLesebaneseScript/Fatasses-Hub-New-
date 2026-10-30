@@ -3,19 +3,34 @@ local FH = getgenv().FH
 if not FH or not FH.p16 then warn("[FH] Ejecuta Partes 1-16 primero") return end
 if FH.p17 then warn("[FH] Parte 17 ya ejecutada") return end
 local RS,PL,LP = FH.RS,FH.PL,FH.LP
-local RST, WS = FH.RST,FH.WS
+local RST = FH.RST
+local WS = FH.WS
 local C = FH.C
 
 local GunEvent = nil
 local function getGun() if GunEvent and GunEvent.Parent then return GunEvent end; GunEvent = RST:FindFirstChild("GunEvent"); return GunEvent end
 
-FH.gun = { silentAim=false, sniper=false, legitBigger=false, megaHitbox=false, noCollision=false }
+FH.gun = { silentAim=false }
+FH.blacklist = {} -- Tabla Blacklist local
 
-local function getKiller() local b, bh=nil,6.5; for _,p in ipairs(PL:GetPlayers()) do if p~=LP and p.Character then local h=p.Character:FindFirstChildOfClass("Humanoid"); if h and h.Health>0 then local ok,sz=pcall(function() return p.Character:GetExtentsSize().Y end); if ok and sz and sz>bh then bh=sz; b=p.Character end end end end return b end
-local function getChest(c) if not c then return nil end return c:FindFirstChild("UpperTorso") or c:FindFirstChild("Torso") or c:FindFirstChild("HumanoidRootPart") end
-local function isAiming() local mc=LP.Character return mc and mc:GetAttribute("IsAiming")==true end
+local function getKiller()
+    local best, bestH = nil, 6.5
+    for _, p in ipairs(PL:GetPlayers()) do 
+        -- Filtro de Blacklist
+        if p ~= LP and p.Character and not FH.blacklist[p.Name] then
+            local h = p.Character:FindFirstChildOfClass("Humanoid")
+            if h and h.Health > 0 then 
+                local ok, sz = pcall(function() return p.Character:GetExtentsSize().Y end)
+                if ok and sz and sz > bestH then bestH = sz; best = p.Character end 
+            end 
+        end 
+    end
+    return best
+end
 
--- Lógica de Disparo (Silent Aim + Modos)
+local function getChest(char) if not char then return nil end return char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso") or char:FindFirstChild("HumanoidRootPart") end
+local function isAiming() local mc = LP.Character return mc and mc:GetAttribute("IsAiming") == true end
+
 task.spawn(function()
     while true do
         local ev = getGun()
@@ -24,31 +39,7 @@ task.spawn(function()
             if target then
                 local chest = getChest(target)
                 if chest then
-                    local basePos = chest.Position
-                    local dir = (basePos - LP.Character.HumanoidRootPart.Position).Unit
-                    
-                    if FH.gun.sniper then
-                        -- Hitbox Larga (Sniper): Dispara varios puntos en linea recta hacia el enemigo
-                        for i = 1, 5 do
-                            pcall(function() ev:FireServer("Shoot", basePos + (dir * (i * 5))) end)
-                        end
-                    elseif FH.gun.megaHitbox then
-                        -- Mega Hitbox: Dispara en cruz (arriba, abajo, izquierda, derecha)
-                        local up = Vector3.new(0, 5, 0)
-                        local right = dir:Cross(Vector3.new(0,1,0)).Unit * 5
-                        pcall(function() ev:FireServer("Shoot", basePos + up) end)
-                        pcall(function() ev:FireServer("Shoot", basePos - up) end)
-                        pcall(function() ev:FireServer("Shoot", basePos + right) end)
-                        pcall(function() ev:FireServer("Shoot", basePos - right) end)
-                        pcall(function() ev:FireServer("Shoot", basePos) end)
-                    elseif FH.gun.legitBigger then
-                        -- Legit Bigger: Dispara cerca del pecho
-                        pcall(function() ev:FireServer("Shoot", basePos + Vector3.new(math.random(-2,2), math.random(-2,2), math.random(-2,2))) end)
-                        pcall(function() ev:FireServer("Shoot", basePos) end)
-                    else
-                        -- Normal (Solo al pecho)
-                        pcall(function() ev:FireServer("Shoot", basePos) end)
-                    end
+                    pcall(function() ev:FireServer("Shoot", chest.Position) end)
                 end
             end
         end
@@ -62,12 +53,8 @@ FH.panel = function()
     if FH.pestana ~= "Class S" then return end
     local opt = FH.crearOpcion
     opt("Silent Aim (To Killer) 🎯", function(v) FH.gun.silentAim = v end)
-    opt("Sniper Mode (Line) 🔭", function(v) FH.gun.sniper = v; if v then FH.gun.megaHitbox=false; FH.gun.legitBigger=false end end)
-    opt("Legit Bigger (Small Area) 📦", function(v) FH.gun.legitBigger = v; if v then FH.gun.megaHitbox=false; FH.gun.sniper=false end end)
-    opt("Mega Hitbox (Cross) 🌌", function(v) FH.gun.megaHitbox = v; if v then FH.gun.sniper=false; FH.gun.legitBigger=false end end)
-    opt("No Collision Shoot 🚫", function(v) FH.gun.noCollision = v end)
 end
 
 if FH.pestana == "Class S" then FH.panel() end
 FH.p17 = true
-print("🎃 [17/17] Class S Gun Enhancements OK (Modos Listos)")
+print("🎃 [17/17] Class S Gun Enhancements OK (Blacklist)")
