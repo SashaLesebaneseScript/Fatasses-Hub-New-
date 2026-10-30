@@ -16,6 +16,9 @@ local URLS = {
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%2016",
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%2017",
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%2018",
+    "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%2019",
+    "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%2020",
+    "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%2021",
 }
 
 local DELAY = 2
