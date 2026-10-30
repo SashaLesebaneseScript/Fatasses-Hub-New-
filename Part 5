@@ -5,139 +5,129 @@ if FH.p5 then warn("[FH] Parte 5 ya ejecutada") return end
 local RS,PL,WS,LP=FH.RS,FH.PL,FH.WS,FH.LP
 local UI = FH.UI
 local C=FH.C
-local sprHeld=false; sprBtn=nil; ifC=nil; humHk=nil
+
+-- ===== SPRINT FIX =====
+local sprHeld=false; sprintConn=nil
 FH.autoSprintActive = false
-
-local function hayM()return WS:FindFirstChild("Map1")~=nil or WS:FindFirstChild("Map2")~=nil end
-local function tSpeed()
- if not hayM()then return 16 end
- if sprHeld or FH.autoSprintActive then return 30 end
- return 10 end
-local function forzStam()
- local ch=LP.Character;if not ch then return end
- for _,o in ipairs(ch:GetDescendants())do
-  if o:IsA("IntValue")or o:IsA("NumberValue")then
-   local n=string.lower(o.Name)
-   if n=="stam"or n=="stamina"then if o.Value<1000 then pcall(function()o.Value=100000 end)end end end end end
-local function hookH(h)
- if not h or h==humHk then return end
- humHk=h
- pcall(function()
-  local mt=getrawmetatable(h);if not mt then return end
-  if setreadonly then setreadonly(mt,false)end
-  local old=mt.__newindex
-  mt.__newindex=function(s,k,v)
-   if k=="WalkSpeed"and s==h and (FH.on.infStam or FH.autoSprintActive) then
-    local t=tSpeed();if v~=t then return old(s,k,t)end end
-   return old(s,k,v)end
-  if setreadonly then setreadonly(mt,true)end end)end
-local function uiStam()
- local s=LP.PlayerGui:FindFirstChild("SprintGui");if not s then return end
- local t=s:FindFirstChild("StaminaText",true)
- if t and t:IsA("TextLabel")then
-  if t.Text~="Stamina: 🎃 Inf/67"then t.Text="Stamina: 🎃 Inf/67"end
-  t.TextColor3=Color3.fromRGB(255,150,50)end end
-local function hookBtn()
- local s=LP.PlayerGui:FindFirstChild("SprintGui")
- if not s then sprBtn=nil;return end
- local b=s:FindFirstChild("SprintButton",true)
- if not b or b==sprBtn then return end
- sprBtn=b
- b.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then sprHeld=true end end)
- b.InputEnded:Connect(function(i)if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then sprHeld=false end end)
-end
-FH.startIS=function()
- if ifC then return end
- local ch=LP.Character
- if ch then hookH(ch:FindFirstChildOfClass("Humanoid"))end
- ifC=RS.Heartbeat:Connect(function()
-  if not FH.on.infStam and not FH.autoSprintActive then return end
-  pcall(forzStam);pcall(uiStam);pcall(hookBtn)
-  local c2=LP.Character
-  if c2 then local h2=c2:FindFirstChildOfClass("Humanoid")
-   if h2 and h2~=humHk then humHk=nil;hookH(h2)end end 
-  
-  if FH.autoSprintActive then
-      local char = LP.Character
-      if char then
-          local h = char:FindFirstChildOfClass("Humanoid")
-          if h and h.WalkSpeed ~= 30 then h.WalkSpeed = 30 end
-      end
-  end
- end)
-end
-FH.stopIS=function()if ifC then ifC:Disconnect();ifC=nil end;sprHeld=false end
-
--- Teleports Ciclicos
-local tpIndex = { patient = 1, tube = 1 }
-local function cycleTP(keyword)
-    local mc = LP.Character; if not mc then return end
-    local mh = mc:FindFirstChild("HumanoidRootPart"); if not mh then return end
-    local targets = {}
-    for _, obj in ipairs(WS:GetDescendants()) do
-        if obj:IsA("Model") and string.find(string.lower(obj.Name), keyword) then
-            local hrp = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")
-            if hrp then table.insert(targets, hrp) end
-        end
-    end
-    if #targets == 0 then return end
-    local idx = tpIndex[keyword] or 1
-    if idx > #targets then idx = 1 end
-    tpIndex[keyword] = idx + 1
-    local target = targets[idx]
-    mh.CFrame = CFrame.new(target.Position + Vector3.new(0, 3, 0))
-end
-
--- Spectator GUI
-local specGui = nil; local specList = nil; local specActive = false
-local function updateSpecList()
-    if not specGui or not specList then return end
-    for _, c in ipairs(specList:GetChildren()) do if c:IsA("TextLabel") then c:Destroy() end end
-    local count = 0
-    for _, p in ipairs(PL:GetPlayers()) do
-        if p ~= LP and p.Character then
-            local hum = p.Character:FindFirstChildOfClass("Humanoid")
-            -- Solo si esta muerto (Especteando)
-            if hum and hum.Health <= 0 then
-                count = count + 1
-                local lbl = Instance.new("TextLabel", specList)
-                lbl.Size = UDim2.new(1, 0, 0, 20); lbl.BackgroundTransparency = 1
-                lbl.Text = "👁 " .. p.Name; lbl.TextColor3 = Color3.fromRGB(255, 200, 200)
-                lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Font = Enum.Font.GothamBold; lbl.TextScaled = true
+FH.startIS = function()
+    if sprintConn then return end
+    sprintConn = RS.Heartbeat:Connect(function()
+        if FH.on.infStam or FH.autoSprintActive then
+            local char = LP.Character
+            if char then
+                local stam = char:FindFirstChild("Stam")
+                local canSprint = char:FindFirstChild("CanSprint")
+                -- Forzamos las variables del juego para que NOSOTROS controlemos la velocidad
+                if stam and stam.Value < 100 then stam.Value = 100 end
+                if canSprint and canSprint.Value == false then canSprint.Value = true end
             end
         end
+    end)
+end
+FH.stopIS = function() if sprintConn then sprintConn:Disconnect(); sprintConn = nil end end
+
+-- ===== HEAL SELF FIX =====
+FH.healS = function()
+    local ev = FH.getHealEv()
+    if not ev then return false end
+    pcall(function() ev:FireServer("StartVisuals", LP) end)
+    task.spawn(function()
+        for i = 1, 6 do
+            pcall(function() ev:FireServer("HealTick", LP) end)
+            task.wait(0.15)
+        end
+        pcall(function() ev:FireServer("GiveSpeedBoost") end)
+    end)
+    return true
+end
+
+-- ===== PANEL ESP & CYCLE TP =====
+local panelESP = {}
+local function getPanels()
+    local p = {}
+    for _, v in ipairs(WS:GetChildren()) do
+        if v.Name:match("^Task_%d+$") then table.insert(p, v) end
     end
-    local topBar = specGui:FindFirstChild("Frame") and specGui.Frame:FindFirstChild("TopBar")
-    local title = topBar and topBar:FindFirstChild("TextLabel")
-    if title then title.Text = "Spectators: " .. count end
+    return p
 end
-local function startSpectator()
-    if specGui then return end
-    specGui = Instance.new("ScreenGui"); specGui.Name = "FH_Spectators"; specGui.ResetOnSpawn = false; specGui.Parent = FH.parent
-    local frame = Instance.new("Frame", specGui); frame.Name = "Frame"; frame.Size = UDim2.new(0, 180, 0, 250); frame.Position = UDim2.new(0, 20, 0.2, 0)
-    frame.BackgroundColor3 = Color3.fromRGB(20, 10, 28); frame.BorderSizePixel = 0; Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
-    local topBar = Instance.new("Frame", frame); topBar.Name = "TopBar"; topBar.Size = UDim2.new(1, 0, 0, 30); topBar.BackgroundColor3 = Color3.fromRGB(35, 15, 45); topBar.BorderSizePixel = 0; Instance.new("UICorner", topBar).CornerRadius = UDim.new(0, 8)
-    local title = Instance.new("TextLabel", topBar); title.Size = UDim2.new(1, 0, 1, 0); title.BackgroundTransparency = 1; title.Text = "Spectators: 0"; title.TextColor3 = Color3.new(1,1,1); title.Font = Enum.Font.GothamBold; title.TextScaled = true
-    specList = Instance.new("ScrollingFrame", frame); specList.Size = UDim2.new(1, -10, 1, -40); specList.Position = UDim2.new(0, 5, 0, 35); specList.BackgroundTransparency = 1; specList.BorderSizePixel = 0; specList.ScrollBarThickness = 2
-    Instance.new("UIListLayout", specList).Padding = UDim.new(0, 5)
-    local dragging, dragStart, startPos
-    topBar.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true; dragStart = input.Position; startPos = frame.Position end end)
-    UI.InputChanged:Connect(function(input) if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then local delta = input.Position - dragStart; frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end)
-    UI.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
-    task.spawn(function() while specActive do updateSpecList(); task.wait(2) end end)
+FH.startPanelESP = function(v)
+    if not v then
+        for _, hl in pairs(panelESP) do hl:Destroy() end
+        panelESP = {}
+        return
+    end
+    for _, pnl in ipairs(getPanels()) do
+        if not panelESP[pnl] then
+            local hl = Instance.new("Highlight", pnl)
+            hl.FillColor = Color3.fromRGB(255, 100, 0)
+            hl.OutlineColor = Color3.new(1,1,1)
+            hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            panelESP[pnl] = hl
+        end
+    end
 end
-local function stopSpectator() if specGui then specGui:Destroy(); specGui = nil end end
 
--- Class S / Tabs
-local camC,charT,ultD=nil,nil,0
-local function countScr(m) if not m or not m:IsA("Model")then return 0 end; local n=0; for _,x in ipairs(m:GetDescendants())do if x:IsA("Script")or x:IsA("LocalScript")or x:IsA("ModuleScript")then n=n+1 end end return n end
-local function findK() local bk,bs=nil,0; for _,p in ipairs(PL:GetPlayers())do if p~=LP and p.Character then local ch=p.Character;local h=ch:FindFirstChildOfClass("Humanoid"); if h and h.Health>0 then local n=countScr(ch);local a=ch:GetExtentsSize().Y; if n>=FH.KST then local sc=1000+n;if sc>bs then bs=sc;bk=ch end elseif a>bs then bs=a;bk=ch end end end end; return bk end
-local function aim()local mc=LP.Character;return mc and mc:GetAttribute("IsAiming")==true end
-local function getChest(c)return c and(c:FindFirstChild("UpperTorso")or c:FindFirstChild("Torso")or c:FindFirstChild("HumanoidRootPart"))end
-local function predPos(c) local ch=getChest(c);if not ch then return nil end; local v=Vector3.new(0,0,0); local hr=c:FindFirstChild("HumanoidRootPart"); if hr then v=hr.AssemblyLinearVelocity;if v.Magnitude<.1 then v=hr.Velocity end end; local p=v*.12;if p.Magnitude>3 then p=p.Unit*3 end; return ch.Position+p end
-FH.startAL=function() if camC then return end; camC=RS.RenderStepped:Connect(function() if not FH.on.aimlockS then return end; if not aim()then return end; if not charT or not charT.Parent then charT=findK()end; if charT and charT.Parent then local p=predPos(charT); if p then workspace.CurrentCamera.CFrame=CFrame.lookAt(workspace.CurrentCamera.CFrame.Position,p)end end end)end
-FH.stopAL=function()if camC then camC:Disconnect();camC=nil end;charT=nil end
+local panelIdx = 1
+FH.cyclePanelTP = function()
+    local p = getPanels()
+    if #p == 0 then return end
+    if panelIdx > #p then panelIdx = 1 end
+    local target = p[panelIdx]
+    local hrp = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChildWhichIsA("BasePart")
+    if hrp and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+        LP.Character.HumanoidRootPart.CFrame = hrp.CFrame + Vector3.new(0, 3, 0)
+        panelIdx = panelIdx + 1
+    end
+end
 
+-- ===== CANDY ESP & AUTO COLLECT =====
+local candyESP = {}
+local function getCandies()
+    local c = {}
+    for _, v in ipairs(WS:GetChildren()) do
+        if v.Name:match("^CandyModel") then table.insert(c, v) end
+    end
+    return c
+end
+FH.startCandyESP = function(v)
+    if not v then
+        for _, hl in pairs(candyESP) do hl:Destroy() end
+        candyESP = {}
+        return
+    end
+    for _, c in ipairs(getCandies()) do
+        if not candyESP[c] then
+            local hl = Instance.new("Highlight", c)
+            hl.FillColor = Color3.fromRGB(255, 50, 150)
+            hl.OutlineColor = Color3.new(1,1,1)
+            hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            candyESP[c] = hl
+        end
+    end
+end
+
+FH.autoCandyActive = false
+task.spawn(function()
+    while true do
+        if FH.autoCandyActive then
+            local candies = getCandies()
+            if candies[1] then
+                local mc = LP.Character
+                local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
+                local primary = candies[1]:FindFirstChild("PrimaryPart") or candies[1]:FindFirstChildWhichIsA("BasePart")
+                if hrp and primary then
+                    -- TP simple a 2 studs de la candy
+                    hrp.CFrame = primary.CFrame * CFrame.new(0, 2, 2)
+                end
+            end
+            task.wait(0.2)
+        else
+            task.wait(1)
+        end
+    end
+end)
+
+-- Tabs
 local function getIcon(n) if n=="Esp" then return "👁" end; if n=="Scientist" then return "🧪" end; if n=="Class A" then return "💚" end; if n=="Class S" then return "🎯" end; if n=="Extra Stuff" then return "⚡" end; return "🎃" end
 local TABS={"Esp","Scientist","Class A","Class S","Extra Stuff"}
 local tabs={};FH.tabs=tabs;FH.pestana="Esp"
@@ -164,11 +154,12 @@ FH.panel=function()
    opt("ESP Tasks 👁",function(v)FH.on.espActive=v;if v then FH.startESP()else FH.stopESP()end end)
    opt("ESP Players 🎃",function(v)FH.on.espPlActive=v;if v then FH.startEP()else FH.stopEP()end end)
    opt("Tracers 📏",function(v)FH.on.tracersActive=v;if v then FH.startT()else FH.stopT()end end)
+   opt("ESP Panels 📋", function(v) FH.startPanelESP(v) end)
+   opt("ESP Candies 🍬", function(v) FH.startCandyESP(v) end)
   elseif FH.pestana=="Scientist"then
    opt("Auto Patient 🧟",function(v)FH.on.autoPatient=v;if v then FH.startAP()else FH.stopAP()end end)
    opt("Auto Generator 🕸",function(v)FH.on.autoGen=v;if v then FH.startGen()else FH.stopGen()end end)
-   btn("Cycle TP to Patient 🧟", function() cycleTP("patient") end)
-   btn("Cycle TP to Generator 🕸", function() cycleTP("tube") end)
+   btn("Cycle TP Panel 🖲", function() FH.cyclePanelTP() end)
   elseif FH.pestana=="Class A"then
    btn("Heal Nearest 💚",FH.healN)
    opt("Auto Heal 💚",function(v)FH.on.autoHeal=v;if v then FH.startAH()else FH.stopAH()end end)
@@ -183,7 +174,7 @@ FH.panel=function()
   elseif FH.pestana=="Extra Stuff"then
    opt("Inf Stamina 🎃",function(v)FH.on.infStam=v;if v then FH.startIS()else FH.stopIS()end end)
    opt("Auto Sprint (30) 🏃", function(v) FH.autoSprintActive = v; if v then FH.startIS() end end)
-   opt("Spectators GUI 👁", function(v) specActive = v; if v then startSpectator() else stopSpectator() end end)
+   opt("Get all Candy's 🍬", function(v) FH.autoCandyActive = v end)
   end
  end)
  pupd=false 
