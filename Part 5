@@ -5,7 +5,7 @@ if FH.p5 then warn("[FH] Parte 5 ya ejecutada") return end
 local RS,PL,WS,LP=FH.RS,FH.PL,FH.WS,FH.LP
 local C=FH.C
 
--- INFINITE STAMINA & AUTO SPRINT (GUI FIX)
+-- INFINITE STAMINA & AUTO SPRINT (Forzar Velocidad)
 FH.autoSprintActive = false
 RS.RenderStepped:Connect(function()
     if FH.on.infStam or FH.autoSprintActive then
@@ -14,17 +14,24 @@ RS.RenderStepped:Connect(function()
             local hum = char:FindFirstChildOfClass("Humanoid")
             local stam = char:FindFirstChild("Stam")
             local canSprint = char:FindFirstChild("CanSprint")
+            
             if stam then stam.Value = 100 end
             if canSprint then canSprint.Value = true end
-            if FH.autoSprintActive and hum then hum.WalkSpeed = 30 end
             
+            -- FORZAR VELOCIDAD: Si se está moviendo, forzamos speed 30
+            if hum and hum.MoveDirection.Magnitude > 0 then
+                if FH.autoSprintActive or FH.on.infStam then
+                    hum.WalkSpeed = 30
+                end
+            end
+            
+            -- GUI VISUAL
             local pg = LP:FindFirstChild("PlayerGui")
             if pg then
                 local sg = pg:FindFirstChild("SprintGui")
                 if sg then
                     local txt = sg:FindFirstChild("StaminaText", true)
                     local bar = sg:FindFirstChild("FillFrame", true)
-                    -- AQUI ESTA EL CAMBIO DEL TEXTO
                     if txt and txt:IsA("TextLabel") then txt.Text = "Sasha Wuz Here 👀" end
                     if bar and bar:IsA("Frame") then bar.Size = UDim2.new(1, 0, 1, 0) end
                 end
