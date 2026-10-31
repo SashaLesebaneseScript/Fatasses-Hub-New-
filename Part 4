@@ -6,19 +6,20 @@ local RS,PL,LP=FH.RS,FH.PL,FH.LP
 local WS = FH.WS
 local Lighting = game:GetService("Lighting")
 
--- ===== ESP PLAYERS =====
+-- ===== ESP PLAYERS (Sincronizado) =====
 local pESP={}
 local function mkP(m,color)
     if not m then return end
     if pESP[m] then
         local d=pESP[m]
         d.h.FillColor = color; d.h.OutlineColor = color
-        d.n.TextColor3 = color; d.s.TextColor3 = color
+        d.n.TextColor3 = color
         return
     end
     local h=Instance.new("Highlight"); h.FillTransparency=.6; h.OutlineTransparency=0
     h.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop; h.Adornee=m; h.Parent=m
     h.FillColor = color; h.OutlineColor = color
+    
     local bg=Instance.new("BillboardGui"); bg.Size=UDim2.new(0,160,0,60); bg.StudsOffset=Vector3.new(0,3.5,0); bg.AlwaysOnTop=true; bg.Parent=m
     local n=Instance.new("TextLabel",bg); n.Size=UDim2.new(1,0,.5,0); n.BackgroundTransparency=1; n.TextColor3=color; n.TextStrokeTransparency=0; n.TextStrokeColor3=Color3.fromRGB(20,5,20); n.TextScaled=true; n.Font=Enum.Font.GothamBold; n.Text=m.Name
     local s=Instance.new("TextLabel",bg); s.Size=UDim2.new(1,0,.5,0); s.Position=UDim2.new(0,0,.5,0); s.BackgroundTransparency=1; s.TextColor3=color; s.TextStrokeTransparency=0; s.TextStrokeColor3=Color3.fromRGB(20,5,20); s.TextScaled=true; s.Font=Enum.Font.GothamBold; s.Text="100 / 100"
@@ -38,7 +39,7 @@ local function scanP()
                 local color = Color3.fromRGB(150, 150, 150)
                 local dist = myHRP and (myHRP.Position - hrp.Position).Magnitude or 0
                 
-                if dist > 600 then color = Color3.fromRGB(150, 150, 150) -- Gris
+                if dist > 600 then color = Color3.fromRGB(150, 150, 150) -- Gris (Lobby)
                 else
                     if FH.isKiller(ch) then color = Color3.fromRGB(255, 75, 125) -- Coral
                     elseif expPlayer then color = Color3.fromRGB(152, 255, 152) -- Menta
@@ -57,17 +58,35 @@ local pT
 FH.startEP=function()
     if pT then return end
     scanP()
-    PL.PlayerAdded:Connect(function() if FH.on.espPlActive then task.wait(.3); scanP() end end)
-    PL.PlayerRemoving:Connect(function() task.wait(.3); scanP() end)
+    
+    -- Detectar jugadores nuevos o respawns
+    local function checkPlayer(p)
+        p.CharacterAdded:Connect(function() 
+            if FH.on.espPlActive then task.wait(0.5); scanP() end 
+        end)
+    end
+    
+    for _,p in ipairs(PL:GetPlayers()) do checkPlayer(p) end
+    PL.PlayerAdded:Connect(checkPlayer)
+    PL.PlayerRemoving:Connect(function() if FH.on.espPlActive then task.wait(0.5); scanP() end end)
+
     pT=task.spawn(function()
         while FH.on.espPlActive do
             task.wait(0.5)
             if FH.on.espPlActive then
                 scanP()
+                -- Actualizar vida
                 for m,d in pairs(pESP)do 
                     if m and m.Parent and d.l then 
                         local h=m:FindFirstChildOfClass("Humanoid"); 
-                        if h then local hp=math.floor(h.Health); local mx=math.floor(h.MaxHealth); if hp~=d.hp or mx~=d.mx then d.hp=hp; d.mx=mx; d.l.Text=hp.." / "..mx end end 
+                        if h then 
+                            local hp=math.floor(h.Health); local mx=math.floor(h.MaxHealth)
+                            d.l.Text=hp.." / "..mx
+                            local r = hp / math.max(1, mx)
+                            if r > 0.6 then d.l.TextColor3 = d.n.TextColor3
+                            elseif r > 0.3 then d.l.TextColor3 = Color3.fromRGB(255, 220, 80)
+                            else d.l.TextColor3 = Color3.fromRGB(255, 50, 50) end
+                        end 
                     end 
                 end
             end
@@ -132,17 +151,22 @@ FH.startCandyESP = function(v)
     end
     task.spawn(function()
         while FH.candyESP_Active do
-            for _, c in ipairs(WS:GetDescendants()) do
-                if c:IsA("Model") and c.Name:match("^Candy") and not FH.candyESP[c] then
-                    local hl = Instance.new("Highlight")
-                    hl.Parent = c; hl.Adornee = c
-                    hl.FillColor = Color3.fromRGB(255, 50, 150); hl.OutlineColor = Color3.new(1,1,1); hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                    local bg = Instance.new("BillboardGui")
-                    bg.Parent = c; bg.Adornee = c
-                    bg.Size = UDim2.new(0, 60, 0, 20); bg.StudsOffset = Vector3.new(0, 2, 0); bg.AlwaysOnTop = true
-                    local txt = Instance.new("TextLabel", bg)
-                    txt.Size = UDim2.new(1, 0, 1, 0); txt.BackgroundTransparency = 1; txt.Text = "🍬 Candy"; txt.TextColor3 = Color3.fromRGB(255, 50, 150); txt.TextStrokeTransparency = 0; txt.Font = Enum.Font.GothamBold; txt.TextScaled = true
-                    FH.candyESP[c] = {hl = hl, bg = bg}
+            local folders = {WS, WS:FindFirstChild("Map1"), WS:FindFirstChild("Map2"), WS:FindFirstChild("Map3")}
+            for _, folder in ipairs(folders) do
+                if folder then
+                    for _, c in ipairs(folder:GetChildren()) do
+                        if c:IsA("Model") and c.Name:match("^Candy") and not FH.candyESP[c] then
+                            local hl = Instance.new("Highlight")
+                            hl.Parent = c; hl.Adornee = c
+                            hl.FillColor = Color3.fromRGB(255, 50, 150); hl.OutlineColor = Color3.new(1,1,1); hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                            local bg = Instance.new("BillboardGui")
+                            bg.Parent = c; bg.Adornee = c
+                            bg.Size = UDim2.new(0, 60, 0, 20); bg.StudsOffset = Vector3.new(0, 2, 0); bg.AlwaysOnTop = true
+                            local txt = Instance.new("TextLabel", bg)
+                            txt.Size = UDim2.new(1, 0, 1, 0); txt.BackgroundTransparency = 1; txt.Text = "🍬 Candy"; txt.TextColor3 = Color3.fromRGB(255, 50, 150); txt.TextStrokeTransparency = 0; txt.Font = Enum.Font.GothamBold; txt.TextScaled = true
+                            FH.candyESP[c] = {hl = hl, bg = bg}
+                        end
+                    end
                 end
             end
             task.wait(1)
@@ -150,7 +174,7 @@ FH.startCandyESP = function(v)
     end)
 end
 
--- ===== FULLBRIGHT & NO FOG (FIX) =====
+-- ===== FULLBRIGHT =====
 local defaultFogEnd = Lighting.FogEnd
 FH.setFullbright = function(v, alt)
     if v then
