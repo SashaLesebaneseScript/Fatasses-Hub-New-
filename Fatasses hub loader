@@ -1,11 +1,11 @@
--- ============ FATASSES HUB LOADER (21 Partes) ============
+-- ============ FATASSES HUB LOADER (Partes 1 a 21) ============
 local URLS = {
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part1",
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%202",
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%203",
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%204",
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%205",
-    -- La parte 6 no existe, pasamos a la 7
+    -- La Parte 6 no existe (fue eliminada), saltamos a la 7
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%207",
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%208",
     "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/Part%209",
@@ -30,19 +30,39 @@ print("🎃 LOADER: Iniciando carga de " .. TOTAL .. " partes...")
 
 for i = 1, TOTAL do
     print("🎃 LOADER: Cargando parte " .. i .. "/" .. TOTAL .. "...")
-    local ok, code = pcall(function() return game:HttpGet(URLS[i], true) end)
-    if not ok or not code or code == "" then warn("🎃 LOADER: ERROR al descargar " .. URLS[i]); return end
+    
+    local ok, code = pcall(function() 
+        return game:HttpGet(URLS[i], true) 
+    end)
+    
+    if not ok or not code or code == "" then 
+        warn("🎃 LOADER: ERROR al descargar la URL: " .. URLS[i]) 
+        return 
+    end
     
     local fn, err = loadstring(code)
-    if not fn then warn("🎃 LOADER: ERROR de sintaxis en " .. URLS[i] .. ": " .. tostring(err)); return end
+    if not fn then 
+        warn("🎃 LOADER: ERROR de sintaxis en " .. URLS[i] .. ": " .. tostring(err)) 
+        return 
+    end
     
     local ok2, err2 = pcall(fn)
-    if not ok2 then warn("🎃 LOADER: ERROR al ejecutar " .. URLS[i] .. ": " .. tostring(err2)); return end
+    if not ok2 then 
+        warn("🎃 LOADER: ERROR al ejecutar " .. URLS[i] .. ": " .. tostring(err2)) 
+        return 
+    end
     
     print("🎃 LOADER: ✅ Parte " .. i .. "/" .. TOTAL .. " OK")
-    if i < TOTAL then task.wait(DELAY) end
+    
+    if i < TOTAL then 
+        task.wait(DELAY) 
+    end
 end
 
+-- Forzar que la GUI se actualice al terminar
 task.wait(0.5)
-if getgenv().FH and getgenv().FH.panel then pcall(getgenv().FH.panel) end
+if getgenv().FH and getgenv().FH.panel then 
+    pcall(getgenv().FH.panel) 
+end
+
 print("🎃 LOADER: ✅ TODO CARGADO. GUI lista.")
