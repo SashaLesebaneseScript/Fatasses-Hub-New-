@@ -1,236 +1,157 @@
--- ============ PARTE 5/5 - GUI & Main Logic ============
-local FH=getgenv().FH
-if not FH or not FH.p4 then warn("[FH] Ejecuta Partes 1-4 primero") return end
-if FH.p5 then warn("[FH] Parte 5 ya ejecutada") return end
-local RS,PL,WS,LP=FH.RS,FH.PL,FH.WS,FH.LP
-local C=FH.C
-local UIS = game:GetService("UserInputService")
+-- ============ PARTE 8/8 - Killer & Tasks (v32) ============
+local FH = getgenv().FH
+if not FH or not FH.p7 then warn("[FH] Ejecuta Partes 1-7 primero") return end
+if FH.p8 then warn("[FH] Parte 8 ya ejecutada") return end
+local RS,PL,WS,RST,LP = FH.RS,FH.PL,FH.WS,FH.RST,FH.LP
+local C = FH.C
 
-FH.sashaSprint = false
-FH.isSprintingManually = false
-
--- Detectar botón móvil
-task.spawn(function()
-    while true do
-        local pg = LP:FindFirstChild("PlayerGui")
-        if pg then
-            local sg = pg:FindFirstChild("SprintGui")
-            if sg then
-                local btn = sg:FindFirstChild("SprintButton", true)
-                if btn and not btn:GetAttribute("FH_HOOKED") then
-                    btn:SetAttribute("FH_HOOKED", true)
-                    btn.InputBegan:Connect(function(input)
-                        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then FH.isSprintingManually = true end
-                    end)
-                    btn.InputEnded:Connect(function(input)
-                        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then FH.isSprintingManually = false end
-                    end)
-                    UIS.InputEnded:Connect(function(input)
-                        if input.UserInputType == Enum.UserInputType.Touch then FH.isSprintingManually = false end
-                    end)
-                end
-            end
-        end
-        task.wait(1)
-    end
-end)
-
--- FORZAR VELOCIDAD (Hook)
-task.spawn(function()
-    pcall(function()
-        local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
-        if hum then
-            local mt = getrawmetatable(hum)
-            if setreadonly then setreadonly(mt, false) end
-            local oldNewIndex = mt.__newindex
-            mt.__newindex = newcclosure(function(self, key, value)
-                if key == "WalkSpeed" and self == hum and FH.sashaSprint then
-                    if UIS:IsKeyDown(Enum.KeyCode.LeftShift) or FH.isSprintingManually then
-                        return oldNewIndex(self, key, 30) -- Forzar 30
-                    end
-                end
-                return oldNewIndex(self, key, value)
-            end)
-            if setreadonly then setreadonly(mt, true) end
+-- TASKS LEGIT
+FH.autoPatientLegit = false; FH.autoTubeLegit = false; FH.autoTask3Legit = false
+if FH.TR then
+    FH.TR.OnClientEvent:Connect(function(accion, taskID, guiName)
+        if accion == "OpenGui" then
+            if FH.on.spamComplete then task.spawn(function() for i = 1, 5 do pcall(function() FH.TR:FireServer("CompleteStep", taskID) end); task.wait(0.1) end end) end
+            if guiName == "TaskGuiMap2" and FH.autoTubeLegit then task.spawn(function() task.wait(math.random(20, 65) / 10); if FH.tarea and FH.tarea.id == taskID then pcall(function() FH.TR:FireServer("CompleteStep", taskID) end) end end) end
+            if guiName == "TaskGuiMap3" and FH.autoTask3Legit then task.spawn(function() task.wait(15); if FH.tarea and FH.tarea.id == taskID then pcall(function() FH.TR:FireServer("CompleteStep", taskID) end) end end) end
         end
     end)
-end)
-
--- UI y Servidor
-RS.RenderStepped:Connect(function()
-    if not FH.sashaSprint then return end
-    local char = LP.Character
-    if char then
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        local stam = char:FindFirstChild("Stam")
-        
-        if UIS:IsKeyDown(Enum.KeyCode.LeftShift) or FH.isSprintingManually then
-            if hum then hum.WalkSpeed = 30 end
-            if stam then stam.Value = 100 end
-        end
-        
-        local pg = LP:FindFirstChild("PlayerGui")
-        if pg then
-            local sg = pg:FindFirstChild("SprintGui")
-            if sg then
-                local txt = sg:FindFirstChild("StaminaText", true)
-                local bar = sg:FindFirstChild("FillFrame", true)
-                if txt and txt:IsA("TextLabel") then txt.Text = "Sasha Wuz Here" end
-                if bar and bar:IsA("Frame") then bar.Size = UDim2.new(1, 0, 1, 0); bar.BackgroundColor3 = Color3.fromRGB(255, 105, 180) end
-            end
-        end
-    end
-end)
-
--- AUTO PATIENT
-FH.startAP = function()
-    if FH.apConn then return end
-    FH.apConn = RS.Heartbeat:Connect(function()
-        if not FH.autoPatientLegit then return end
-        local gui = LP.PlayerGui:FindFirstChild("TaskGuiMap1")
-        if not gui or not gui.Enabled then return end
-        local fm = gui:FindFirstChild("Frame"); if not fm or not fm.Visible then return end
-        local catcher = fm:FindFirstChild("Catcher"); if not catcher then return end
-        for _, h in ipairs(fm:GetChildren()) do
-            if h.Name == "Note" and h:IsA("Frame") then
-                local a = h:GetAttribute("Angle")
-                if a then local d = math.abs(a - (math.pi/2)); if d > math.pi then d = 2*math.pi - d end; if d > 0.3 then h:SetAttribute("Angle", math.pi/2) end end
-            end
-        end
-        local ac = math.pi/2 + math.pi/2
-        catcher.Position = UDim2.new(math.cos(ac)*0.42+0.5, 0, math.sin(ac)*0.42+0.5, 0)
-        catcher.Rotation = math.deg(ac)+90
-        catcher.BackgroundColor3 = Color3.fromRGB(255, 120, 20)
-    end)
-end
-FH.stopAP = function() if FH.apConn then FH.apConn:Disconnect(); FH.apConn=nil end end
-
--- CYCLE TPs
-local tpIdx = { patient = 1, tube = 1, candy = 1, task3 = 1 }
-local function getTargets(keyword)
-    local t = {}
-    for _, obj in ipairs(WS:GetDescendants()) do
-        if obj:IsA("Model") and obj.Name:lower():find(keyword) then
-            local hrp = obj:FindFirstChild("PrimaryPart") or obj:FindFirstChildWhichIsA("BasePart")
-            if hrp then table.insert(t, hrp) end
-        end
-    end
-    return t
-end
-FH.cycleTP = function(kw)
-    local t = getTargets(kw)
-    if #t == 0 then return end
-    local i = tpIdx[kw] or 1
-    if i > #t then i = 1 end
-    local mc = LP.Character; local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
-    if hrp then hrp.CFrame = t[i].CFrame * CFrame.new(0, 3, 0); tpIdx[kw] = i + 1 end
 end
 
--- GET ALL CANDYS (Vuelve al inicio)
-FH.autoCandyActive = false
-FH.candyStartPos = nil
+-- PUNCH & EXTRAS
+local PunchEvent = nil
+local function getPunchEv() if PunchEvent and PunchEvent.Parent then return PunchEvent end; PunchEvent = RST:FindFirstChild("PunchEvent"); return PunchEvent end
+FH.k8 = { autoPunch=false, antiStun=false, antiSlow=false, hitboxTp=false, worldHitbox=false, hitboxExpander=false, alwaysMaxSpeed=false, killAll=false, anchoredHitbox=false, legitInfStamina=false, range=12, hbRange=100, expanderRange=3.5, expanderWidth=2.0, tpBoxSize=8, attackId=0 }
+local K = FH.k8
+local EXTRA_MODE = false
+local SPHERE_DIRS = {}; for x=-1,1 do for y=-1,1 do for z=-1,1 do if x~=0 or y~=0 or z~=0 then table.insert(SPHERE_DIRS, Vector3.new(x,y,z).Unit) end end end end
+local function soyKiller() return FH.isKiller(LP.Character) end
+local function estoyStuneado() local mc=LP.Character; if not mc then return false end; local s=mc:FindFirstChild("Stun"); if s and s:IsA("BoolValue") then return s.Value==true end; local h=mc:FindFirstChildOfClass("Humanoid"); if h and h.PlatformStand then return true end; return false end
+
+-- ALWAYS MAX SPEED
 task.spawn(function()
     while true do
-        if FH.autoCandyActive then
-            local mc = LP.Character; local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                if not FH.candyStartPos then FH.candyStartPos = hrp.CFrame end
-                local candies = {}
-                for _, obj in ipairs(WS:GetDescendants()) do
-                    if obj:IsA("Model") and obj.Name:match("^Candy") then
-                        local primary = obj:FindFirstChild("PrimaryPart") or obj:FindFirstChildWhichIsA("BasePart")
-                        if primary then table.insert(candies, primary) end
+        if K.alwaysMaxSpeed and soyKiller() then
+            local mc = LP.Character
+            if mc then local hum = mc:FindFirstChildOfClass("Humanoid"); if hum and hum.WalkSpeed ~= 30 then hum.WalkSpeed = 30 end end
+        end
+        task.wait(0.1)
+    end
+end)
+
+-- KILL ALL (Predict + Slide + TP)
+task.spawn(function()
+    while true do
+        if K.killAll and soyKiller() then
+            local survivor = FH.nearest(1000)
+            if survivor and survivor.HRP then
+                local mc = LP.Character; local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    -- Predict
+                    local vel = survivor.HRP.AssemblyLinearVelocity
+                    local predPos = survivor.HRP.Position + (vel * 0.2)
+                    local dist = (hrp.Position - survivor.HRP.Position).Magnitude
+                    
+                    -- Slide o TP
+                    if dist > 20 then
+                        hrp.CFrame = CFrame.new(predPos) * CFrame.new(0, 0, 3)
+                    else
+                        hrp.CFrame = hrp.CFrame:Lerp(CFrame.new(hrp.Position, predPos), 0.2) + hrp.CFrame.LookVector * 1
+                    end
+                    
+                    -- Hitbox 5x5
+                    local ev = getPunchEv()
+                    if ev then
+                        K.attackId = K.attackId + 1
+                        local id = K.attackId
+                        for dx = -2.5, 2.5, 2.5 do
+                            for dy = -2.5, 2.5, 2.5 do
+                                for dz = -2.5, 2.5, 2.5 do
+                                    local offset = Vector3.new(dx, dy, dz)
+                                    pcall(function() ev:FireServer({AttackId=id, Position=predPos + offset, Velocity=Vector3.new(0,0,0), Direction=Vector3.new(0,1,0)}) end)
+                                end
+                            end
+                        end
                     end
                 end
-                if #candies > 0 then hrp.CFrame = candies[1].CFrame; task.wait(0.15)
-                else
-                    -- Vuelve al inicio y se apaga
-                    hrp.CFrame = FH.candyStartPos
-                    FH.autoCandyActive = false
-                    FH.candyStartPos = nil
+            end
+        end
+        task.wait(0.1)
+    end
+end)
+
+-- Extras On-Click
+local function triggerExtras()
+    if EXTRA_MODE or not soyKiller() or estoyStuneado() then return end
+    local ev=getPunchEv(); if not ev then return end; local mc=LP.Character; local mh=mc and mc:FindFirstChild("HumanoidRootPart"); if not mh then return end; EXTRA_MODE=true
+    
+    -- 360 HITBOX
+    if K.worldHitbox then
+        K.attackId = K.attackId + 1
+        local id = K.attackId
+        local R = K.hbRange
+        for _, rf in ipairs({0.4, 0.7, 1.0}) do
+            for _, d in ipairs(SPHERE_DIRS) do
+                local pos = mh.Position + d * (R * rf)
+                pcall(function() ev:FireServer({AttackId=id, Position=pos, Velocity=Vector3.new(0,0,0), Direction=d}) end)
+            end
+        end
+    end
+
+    -- TP HITBOX (Circulo)
+    if K.hitboxTp then 
+        local t = FH.nearest(100) 
+        if t and t.HRP then
+            local th = t.HRP
+            K.attackId = K.attackId + 1
+            local id = K.attackId
+            local center = th.Position
+            for i = 1, 20 do
+                local angle = (i / 20) * (math.pi * 2)
+                local rx = math.cos(angle) * 5
+                local rz = math.sin(angle) * 5
+                local ry = math.random(-2, 2) 
+                local pos = center + Vector3.new(rx, ry, rz)
+                local dir = (pos - mh.Position).Unit
+                pcall(function() ev:FireServer({AttackId=id, Position=pos, Velocity=Vector3.new(0,0,0), Direction=dir}) end)
+            end
+        end 
+    end
+
+    -- HITBOX EXPANDER (Cubo Gigante 10x10 en frente)
+    if K.hitboxExpander or K.anchoredHitbox then
+        K.attackId = K.attackId + 1
+        local id = K.attackId
+        local look = mh.CFrame.LookVector
+        local right = mh.CFrame.RightVector
+        local up = mh.CFrame.UpVector
+        for x = -5, 5, 2 do
+            for y = -5, 5, 2 do
+                for z = -5, 5, 2 do
+                    local offset = look * (z) + right * (x) + up * (y)
+                    local pos = mh.Position + look * 10 + offset
+                    pcall(function() ev:FireServer({AttackId = id, Position = pos, Velocity = Vector3.new(0,0,0), Direction = look}) end)
                 end
             end
-            task.wait(0.1)
-        else task.wait(1) end
+        end
     end
-end)
-
--- NOCLIP
-FH.noclipActive = false
-RS.Stepped:Connect(function()
-    if FH.noclipActive and LP.Character then
-        for _, v in pairs(LP.Character:GetDescendants()) do if v:IsA("BasePart") and v.CanCollide then v.CanCollide = false end end
-    end
-end)
-
--- UI (TABS & PANEL)
-local function getIcon(n) if n=="Esp" then return "👁" end; if n=="Scientist" then return "🧪" end; if n=="Class A" then return "💚" end; if n=="Class S" then return "🎯" end; if n=="Extra Stuff" then return "⚡" end; return "🎃" end
-local TABS={"Esp","Scientist","Class A","Class S","Extra Stuff","Experiment"}
-local tabs={};FH.tabs=tabs;FH.pestana="Esp"
-local function mkTab(n,cs)
- local t=Instance.new("TextButton",FH.sb); t.Size=UDim2.new(1,-6,0,32); t.BackgroundColor3=C.bg_card; t.BackgroundTransparency=.2; t.Text=""; t.BorderSizePixel=0; t.AutoButtonColor=false
- Instance.new("UICorner",t).CornerRadius=UDim.new(0,10)
- local ic=getIcon(n); local i=Instance.new("TextLabel",t); i.Size=UDim2.new(0,18,0,18); i.Position=UDim2.new(0,8,.5,-9); i.BackgroundTransparency=1; i.Text=ic; i.TextColor3=cs and C.text_sub or C.text; i.TextScaled=true; i.Font=Enum.Font.GothamBold
- local l=Instance.new("TextLabel",t); l.Size=UDim2.new(1,-34,1,0); l.Position=UDim2.new(0,30,0,0); l.BackgroundTransparency=1; l.Text=n; l.TextColor3=cs and C.text_sub or C.text; l.TextScaled=true; l.Font=Enum.Font.GothamBold; l.TextXAlignment=Enum.TextXAlignment.Left
- local ck=false
- local function setSt(s) if s=="sel"then t.BackgroundColor3=C.bg_card_hl;t.BackgroundTransparency=0 else t.BackgroundColor3=C.bg_card;t.BackgroundTransparency=.2 end end
- t.MouseButton1Click:Connect(function() if ck or cs or FH.pestana==n then return end; ck=true; FH.sfx("tab_switch",2,1); if tabs[FH.pestana]then tabs[FH.pestana].S("dese")end; FH.pestana=n; setSt("sel"); task.spawn(function()pcall(FH.panel)end); task.delay(.5,function()ck=false end)end)
- tabs[n]={S=setSt,CS=cs}
+    EXTRA_MODE=false
 end
-for _,n in ipairs(TABS)do mkTab(n,false)end
-if tabs["Esp"]then tabs["Esp"].S("sel")end
+task.spawn(function() local ev=getPunchEv(); local tries=0; while not ev and tries<30 do task.wait(0.5); ev=getPunchEv(); tries=tries+1 end; if not ev then return end; pcall(function() local mt=getrawmetatable(game); if setreadonly then setreadonly(mt,false) end; local oldNC=mt.__namecall; mt.__namecall=newcclosure(function(self,...) if getnamecallmethod()=="FireServer" and self==getPunchEv() then if not EXTRA_MODE then task.spawn(triggerExtras) end end; return oldNC(self,...) end); if setreadonly then setreadonly(mt,true) end end) end)
 
-local pupd=false
-FH.panel=function()
- if pupd then return end; pupd=true
- pcall(function()
-  for _,h in ipairs(FH.oc:GetChildren())do if not h:IsA("UIListLayout")then h:Destroy()end end
-  local opt=FH.crearOpcion; local btn=FH.crearBotonAccion
-  if FH.pestana=="Esp"then
-   opt("ESP Tasks 👁",function(v)FH.on.espActive=v;if v then FH.startESP(true)else FH.stopESP()end end)
-   opt("ESP Players 🎃",function(v)FH.on.espPlActive=v;if v then FH.startEP()else FH.stopEP()end end)
-   opt("ESP Candies 🍬", function(v) FH.candyESP_Active=v; if v then FH.startCandyESP(true) else FH.startCandyESP(false) end end)
-   opt("Full Bright ☀️", function(v) FH.setFullbright(v, false) end)
-   opt("Alt Full Bright 🌤️", function(v) FH.setFullbright(v, true) end)
-   opt("No Fog 🌫️", function(v) FH.setNoFog(v) end)
-  elseif FH.pestana=="Scientist"then
-   opt("Auto Patient (Legit) 🧟",function(v)FH.autoPatientLegit=v; if v then FH.startAP() else FH.stopAP() end end)
-   opt("Auto Generator (Legit) 🕸",function(v)FH.autoTubeLegit=v end)
-   opt("Auto Task 3 (Legit) 📝",function(v)FH.autoTask3Legit=v end)
-   opt("Spam Complete 🔁", function(v) FH.on.spamComplete = v; if v then FH.startSp() else FH.stopSp() end end)
-   btn("Cycle TP Patient 🧟", function() FH.cycleTP("patient") end)
-   btn("Cycle TP Generator 🕸", function() FH.cycleTP("tube") end)
-   btn("Cycle TP Candy 🍬", function() FH.cycleTP("candy") end)
-   btn("Cycle TP Task 3 📝", function() FH.cycleTP("task_3") end)
-  elseif FH.pestana=="Class A"then
-   btn("Heal Nearest 💚",FH.healN)
-   opt("Auto Heal 💚",function(v)FH.on.autoHeal=v;if v then FH.startAH()else FH.stopAH()end end)
-   btn("Heal Self 🩹",FH.healS)
-   btn("Heal All in Range ✨",FH.healAll)
-   btn("Reset Cooldown ⏱",FH.resetCd)
-   btn("Get 30 Money and 50 XP 💰",FH.boost)
-   opt("I JUST HIT THE JACKPOOOOTTTTTT 🎰",function(v)FH.on.jackpot=v;if v then FH.startJ()else FH.stopJ()end end)
-   opt("Auto heal self 🩹",function(v)FH.on.autoHealSelf=v;if v then FH.startAHS()else FH.stopAHS()end end)
-  elseif FH.pestana=="Class S"then
-   opt("Aimlock 🎯",function(v)FH.on.aimlockS=v;if v then FH.startAL()else FH.stopAL()end end)
-  elseif FH.pestana=="Experiment"then
-   opt("Auto Punch 👊",function(v)FH.k8.autoPunch=v end)
-   opt("360° Hitbox 💥",function(v)FH.k8.worldHitbox=v end)
-   opt("Hitbox Tp 👻",function(v)FH.k8.hitboxTp=v end)
-  elseif FH.pestana=="Extra Stuff"then
-   opt("Inf Stamina (Sasha) 🎃",function(v)FH.sashaSprint=v end)
-   opt("Get all Candy's 🍬", function(v) FH.autoCandyActive = v end)
-   opt("Noclip 🚪", function(v) FH.noclipActive = v end)
-  end
- end)
- pupd=false 
+-- ANTI STUN & SLOWNESS
+local stunConns={}; local function nukeStun(v) if v:GetAttribute("FH_STUN") then return end; v:SetAttribute("FH_STUN",true); pcall(function() v.Value=false end); table.insert(stunConns,v:GetPropertyChangedSignal("Value"):Connect(function() if (K.antiStun or K.antiSlow) and v.Value then pcall(function() v.Value=false end) end end)) end
+local function findStunValues() local mc=LP.Character; if not mc then return end; for _,d in ipairs(mc:GetDescendants()) do if d.Name:lower():find("stun") or d.Name:lower():find("slow") then if (d:IsA("BoolValue") or d:IsA("IntValue") or d:IsA("NumberValue")) then nukeStun(d) end end end end
+local antiStunConn=nil; local function startAntiStun() findStunValues(); if antiStunConn then return end; antiStunConn=RS.Heartbeat:Connect(function() if K.antiStun or K.antiSlow then findStunValues() end end) end; local function stopAntiStun() K.antiStun=false; K.antiSlow=false; if antiStunConn then antiStunConn:Disconnect(); antiStunConn=nil end; for _,c in ipairs(stunConns) do pcall(function() c:Disconnect() end) end; stunConns={} end
+
+local origPanel=FH.panel
+FH.panel=function() origPanel(); if FH.pestana~="Experiment" then return end; local opt=FH.crearOpcion
+    opt("Anti Stun 🛡",function(v) K.antiStun=v; if v or K.antiSlow then startAntiStun() else stopAntiStun() end end)
+    opt("Anti-Slowness 🐌",function(v) K.antiSlow=v; if v or K.antiStun then startAntiStun() else stopAntiStun() end end)
+    opt("Hitbox Expander 📏",function(v) K.hitboxExpander=v end)
+    opt("Anchored Hitbox ⚓",function(v) K.anchoredHitbox=v end)
+    opt("Always Max Speed 🏃",function(v) K.alwaysMaxSpeed=v end)
+    opt("Kill All ☠️",function(v) K.killAll=v end)
 end
-
-local th=Instance.new("Frame"); th.Size=UDim2.new(0,60,0,60); th.Position=UDim2.new(0,20,.75,0); th.BackgroundTransparency=1; th.Parent=FH.sg
-local tbtn=Instance.new("TextButton",th); tbtn.Size=UDim2.new(1,0,1,0); tbtn.BackgroundColor3=C.accent; tbtn.Text=""; tbtn.BorderSizePixel=0; tbtn.AutoButtonColor=false
-Instance.new("UICorner",tbtn).CornerRadius=UDim.new(1,0)
-local sl2=Instance.new("TextLabel",tbtn); sl2.Size=UDim2.new(1,0,1,0); sl2.BackgroundTransparency=1; sl2.Text="🎃"; sl2.TextColor3=Color3.fromRGB(255,255,255); sl2.TextScaled=true; sl2.Font=Enum.Font.GothamBlack
-tbtn.MouseButton1Click:Connect(function()FH.fr.Visible=not FH.fr.Visible end)
-FH.panel()
-FH.p5=true
-print("🎃 [5/5] GUI & Main Logic OK")
+if FH.pestana=="Experiment" then FH.panel() end
+FH.p8=true
+print("🎃 [8/8] Killer & Tasks OK (v32)")
