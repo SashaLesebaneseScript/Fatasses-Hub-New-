@@ -4,345 +4,21 @@ if not FH or not FH.p4 then warn("[FH] Ejecuta Partes 1-4 primero") return end
 if FH.p5 then warn("[FH] Parte 5 ya ejecutada") return end
 local RS,PL,WS,LP=FH.RS,FH.PL,FH.WS,FH.LP
 local C=FH.C
-local RST = FH.RST
 local UIS = FH.UI
 
--- Asegurar TaskRemote / HealingEvent disponibles
-if not FH.TR then
-    FH.TR = RST:FindFirstChild("TaskRemote")
-    if not FH.TR then local ok,tr = pcall(function() return RST:WaitForChild("TaskRemote",10) end); if ok then FH.TR=tr end end
-end
-local HealingEvent = nil
-local function getHealEv()
-    if HealingEvent and HealingEvent.Parent then return HealingEvent end
-    local ha = RST:FindFirstChild("HealingAbility")
-    if ha then HealingEvent = ha:FindFirstChild("HealingEvent") end
-    return HealingEvent
-end
-
--- ===== INFINITE STAMINA =====
-FH.sashaSprint = false
-FH.isSprintingManually = false
-
-task.spawn(function()
-    while true do
-        local pg = LP:FindFirstChild("PlayerGui")
-        if pg then
-            local sg = pg:FindFirstChild("SprintGui")
-            if sg then
-                local btn = sg:FindFirstChild("SprintButton", true)
-                if btn and not btn:GetAttribute("FH_HOOKED") then
-                    btn:SetAttribute("FH_HOOKED", true)
-                    btn.InputBegan:Connect(function(input)
-                        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then FH.isSprintingManually = true end
-                    end)
-                    btn.InputEnded:Connect(function(input)
-                        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then FH.isSprintingManually = false end
-                    end)
-                    UIS.InputEnded:Connect(function(input)
-                        if input.UserInputType == Enum.UserInputType.Touch then FH.isSprintingManually = false end
-                    end)
-                end
-            end
-        end
-        task.wait(1)
-    end
-end)
-
-RS.RenderStepped:Connect(function()
-    if not FH.sashaSprint then return end
-    local char = LP.Character
-    if char then
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        local stam = char:FindFirstChild("Stam")
-        if UIS:IsKeyDown(Enum.KeyCode.LeftShift) or FH.isSprintingManually then
-            if hum and hum.WalkSpeed ~= 30 then hum.WalkSpeed = 30 end
-            if stam then stam.Value = 100 end
-        end
-        local pg = LP:FindFirstChild("PlayerGui")
-        if pg then
-            local sg = pg:FindFirstChild("SprintGui")
-            if sg then
-                local txt = sg:FindFirstChild("StaminaText", true)
-                local bar = sg:FindFirstChild("FillFrame", true)
-                if txt and txt:IsA("TextLabel") then txt.Text = "Sasha Wuz Here" end
-                if bar and bar:IsA("Frame") then bar.Size = UDim2.new(1, 0, 1, 0); bar.BackgroundColor3 = Color3.fromRGB(255, 105, 180) end
-            end
-        end
-    end
-end)
-
--- GET ALL CANDYS
-FH.autoCandyActive = false
-task.spawn(function()
-    while true do
-        if FH.autoCandyActive then
-            local mc = LP.Character; local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                local candies = {}
-                local folders = {WS, WS:FindFirstChild("Map1"), WS:FindFirstChild("Map2"), WS:FindFirstChild("Map3")}
-                for _, folder in ipairs(folders) do
-                    if folder then
-                        for _, obj in ipairs(folder:GetChildren()) do
-                            if obj:IsA("Model") and obj.Name:match("^Candy") then
-                                local primary = obj:FindFirstChild("PrimaryPart") or obj:FindFirstChildWhichIsA("BasePart")
-                                if primary then table.insert(candies, primary) end
-                            end
-                        end
-                    end
-                end
-                if #candies > 0 then 
-                    pcall(function() hrp.CFrame = candies[1].CFrame end)
-                    task.wait(0.15)
-                else 
-                    task.wait(2) 
-                end
-            end
-            task.wait(0.1)
-        else task.wait(1) end
-    end
-end)
-
--- AUTO PATIENT (fix: catcher alineado con notas en PI/2)
-FH.startAP = function()
-    if FH.apConn then return end
-    FH.apConn = RS.Heartbeat:Connect(function()
-        if not FH.autoPatientLegit then return end
-        local gui = LP.PlayerGui:FindFirstChild("TaskGuiMap1")
-        if not gui or not gui.Enabled then return end
-        local fm = gui:FindFirstChild("Frame"); if not fm or not fm.Visible then return end
-        local catcher = fm:FindFirstChild("Catcher"); if not catcher then return end
-        -- Fijar notas al ángulo correcto (pi/2)
-        for _, h in ipairs(fm:GetChildren()) do
-            if h.Name == "Note" and h:IsA("Frame") then
-                local a = h:GetAttribute("Angle")
-                if a then 
-                    local d = math.abs(a - (math.pi/2))
-                    if d > math.pi then d = 2*math.pi - d end
-                    if d > 0.05 then h:SetAttribute("Angle", math.pi/2) end 
-                end
-            end
-        end
-        -- Catcher al mismo ángulo
-        local ac = math.pi/2
-        catcher.Position = UDim2.new(math.cos(ac)*0.42+0.5, 0, math.sin(ac)*0.42+0.5, 0)
-        catcher.Rotation = math.deg(ac)+90
-        catcher.BackgroundColor3 = Color3.fromRGB(255, 120, 20)
-    end)
-end
-FH.stopAP = function() if FH.apConn then FH.apConn:Disconnect(); FH.apConn=nil end end
-
--- ===== COMPLETE FULL =====
-FH.startSp = function()
-    if not FH.TR then return end
-    if FH.spLoop then return end
-    FH.spLoop = task.spawn(function()
-        while FH.on.spamComplete do
-            local gui1 = LP.PlayerGui:FindFirstChild("TaskGuiMap1")
-            local gui2 = LP.PlayerGui:FindFirstChild("TaskGuiMap2")
-            local gui3 = LP.PlayerGui:FindFirstChild("TaskGuiMap3")
-            for _, g in ipairs({gui1,gui2,gui3}) do
-                if g and g.Enabled and FH.tarea and FH.tarea.id then
-                    pcall(function() FH.TR:FireServer("CompleteStep", FH.tarea.id) end)
-                end
-            end
-            task.wait(0.3)
-        end
-        FH.spLoop = nil
-    end)
-end
-FH.stopSp = function() FH.on.spamComplete = false end
-
--- ===== CLASS A HEALING (basado en el script real) =====
-local function getNearestHealTarget(radio)
-    radio = radio or 22
-    local myChar = LP.Character
-    local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
-    if not myHRP then return nil end
-    local best, bd = nil, radio
-    for _, p in ipairs(PL:GetPlayers()) do
-        if p ~= LP and p.Character then
-            if not p:FindFirstChild("Experiment") then
-                local th = p.Character:FindFirstChildOfClass("Humanoid")
-                local tHRP = p.Character:FindFirstChild("HumanoidRootPart")
-                if th and tHRP and th.Health > 0 and th.Health < th.MaxHealth then
-                    local d = (myHRP.Position - tHRP.Position).Magnitude
-                    if d < bd then bd = d; best = p end
-                end
-            end
-        end
-    end
-    return best
-end
-
-local function healPlayer(target)
-    local ev = getHealEv(); if not ev or not target or not target.Character then return false end
-    local myChar = LP.Character
-    local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
-    local tHRP = target.Character:FindFirstChild("HumanoidRootPart")
-    if not (myHRP and tHRP) then return false end
-    if (myHRP.Position - tHRP.Position).Magnitude > 20 then return false end
-    pcall(function() ev:FireServer("StartVisuals", target) end)
-    for i = 1, 6 do -- 6 ticks × 5 HP = 30 → GiveSpeedBoost
-        local tc = target.Character
-        if not tc then break end
-        local th2 = tc:FindFirstChildOfClass("Humanoid")
-        if not th2 or th2.Health >= th2.MaxHealth then break end
-        local tHRP2 = tc:FindFirstChild("HumanoidRootPart")
-        if not tHRP2 or (myHRP.Position - tHRP2.Position).Magnitude > 20 then break end
-        pcall(function() ev:FireServer("HealTick", target) end)
-        task.wait(1)
-    end
-    pcall(function() ev:FireServer("GiveSpeedBoost") end) -- ← 30 data / 50XP → Speed Boost
-    pcall(function() ev:FireServer("StopVisuals") end)
-    return true
-end
-
-FH.healN = function()
-    local target = getNearestHealTarget(22)
-    if target then healPlayer(target) end
-end
-
-FH.healS = function()
-    -- No puedes curarte a ti mismo en el juego, así que buscamos al más cercano
-    FH.healN()
-end
-
-FH.healAll = function()
-    for _, p in ipairs(PL:GetPlayers()) do
-        if p ~= LP and p.Character and not p:FindFirstChild("Experiment") then
-            local th = p.Character:FindFirstChildOfClass("Humanoid")
-            local myHRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-            local tHRP = p.Character:FindFirstChild("HumanoidRootPart")
-            if th and myHRP and tHRP and th.Health > 0 and th.Health < th.MaxHealth 
-                and (myHRP.Position - tHRP.Position).Magnitude <= 20 then
-                task.spawn(function() healPlayer(p) end)
-            end
-        end
-    end
-end
-
-FH.resetCd = function()
-    local ev = getHealEv(); if ev then pcall(function() ev:FireServer("RequestCooldownCheck") end) end
-end
-
-FH.boost = function()
-    local target = getNearestHealTarget(22)
-    if target then
-        healPlayer(target) -- 6 ticks + GiveSpeedBoost interno
-    else
-        -- Sin target, dispara directo (por si el server acepta)
-        local ev = getHealEv()
-        if ev then pcall(function() ev:FireServer("GiveSpeedBoost") end) end
-    end
-end
-
--- Auto Heal (loop)
-FH.startAH = function()
-    if FH.ahConn then return end
-    FH.ahConn = task.spawn(function()
-        while FH.on.autoHeal do
-            local t = getNearestHealTarget(22)
-            if t then healPlayer(t) end
-            task.wait(0.5)
-        end
-        FH.ahConn = nil
-    end)
-end
-FH.stopAH = function() FH.on.autoHeal = false end
-
--- Jackpot (heal spam en loop)
-FH.startJ = function()
-    if FH.jConn then return end
-    FH.jConn = task.spawn(function()
-        while FH.on.jackpot do
-            local t = getNearestHealTarget(30)
-            if t then healPlayer(t) else FH.resetCd() end
-            task.wait(0.3)
-        end
-        FH.jConn = nil
-    end)
-end
-FH.stopJ = function() FH.on.jackpot = false end
-
--- Auto Heal Self (equivalente a healN en loop)
-FH.startAHS = function()
-    if FH.ahsConn then return end
-    FH.ahsConn = task.spawn(function()
-        while FH.on.autoHealSelf do
-            local t = getNearestHealTarget(22)
-            if t then healPlayer(t) end
-            task.wait(0.5)
-        end
-        FH.ahsConn = nil
-    end)
-end
-FH.stopAHS = function() FH.on.autoHealSelf = false end
-
--- Infinite Healing Charge (spam HealTick a todos los players cerca, bypass 30-limit)
-FH.infiniteHealingCharge = false
-task.spawn(function()
-    while task.wait(0.8) do
-        if not FH.infiniteHealingCharge then continue end
-        local ev = getHealEv(); if not ev then continue end
-        local myChar = LP.Character
-        local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
-        if not myHRP then continue end
-        for _, p in ipairs(PL:GetPlayers()) do
-            if p ~= LP and p.Character and not p:FindFirstChild("Experiment") then
-                local th = p.Character:FindFirstChildOfClass("Humanoid")
-                local tHRP = p.Character:FindFirstChild("HumanoidRootPart")
-                if th and tHRP and th.Health > 0 and th.Health < th.MaxHealth 
-                    and (myHRP.Position - tHRP.Position).Magnitude <= 20 then
-                    pcall(function() ev:FireServer("HealTick", p) end)
-                end
-            end
-        end
-    end
-end)
-
--- CYCLE TPs
-local tpIdx = { patient = 1, tube = 1, candy = 1, panel = 1 }
-local function getTargets(keyword, folderName)
-    local t = {}
-    local folder = WS:FindFirstChild(folderName) or WS
-    for _, obj in ipairs(folder:GetDescendants()) do
-        if obj:IsA("Model") and obj.Name:lower():find(keyword) then
-            local hrp = obj:FindFirstChild("PrimaryPart") or obj:FindFirstChildWhichIsA("BasePart")
-            if hrp then table.insert(t, hrp) end
-        end
-    end
-    return t
-end
-FH.cycleTP = function(kw, folder)
-    local t = getTargets(kw, folder)
-    if #t == 0 then return end
-    local i = tpIdx[kw] or 1
-    if i > #t then i = 1 end
-    local mc = LP.Character; local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
-    if hrp then pcall(function() hrp.CFrame = t[i].CFrame * CFrame.new(0, 3, 0) end); tpIdx[kw] = i + 1 end
-end
-
--- NOCLIP
-FH.noclipActive = false
-RS.Stepped:Connect(function()
-    if FH.noclipActive and LP.Character then
-        for _, v in pairs(LP.Character:GetDescendants()) do if v:IsA("BasePart") and v.CanCollide then v.CanCollide = false end end
-    end
-end)
-
--- Iconos (sin calabaza)
+-- UI BASE
 local function getIcon(n)
     if n=="Esp" then return "👁" end
+    if n=="Halloween" then return "🎃" end
     if n=="Scientist" then return "🧪" end
     if n=="Class A" then return "💚" end
     if n=="Class S" then return "🎯" end
+    if n=="Experiment" then return "👊" end
     if n=="Extra Stuff" then return "⚡" end
     if n=="Blatant" then return "💀" end
-    return "🔹"  -- 🎃 ELIMINADA del default
+    return "🔹"
 end
-
-local TABS={"Esp","Scientist","Class A","Class S","Extra Stuff","Blatant"}
+local TABS={"Esp","Halloween","Scientist","Class A","Class S","Experiment","Extra Stuff","Blatant"}
 local tabs={};FH.tabs=tabs;FH.pestana="Esp"
 local function mkTab(n,cs)
  local t=Instance.new("TextButton",FH.sb); t.Size=UDim2.new(1,-6,0,32); t.BackgroundColor3=C.bg_card; t.BackgroundTransparency=.2; t.Text=""; t.BorderSizePixel=0; t.AutoButtonColor=false
@@ -374,60 +50,45 @@ FH.panel=function()
   if FH.pestana=="Esp"then
    opt("ESP Tasks 👁",function(v)FH.on.espActive=v;if v then FH.startESP(true)else FH.stopESP()end end)
    opt("ESP Players 👤",function(v)FH.on.espPlActive=v;if v then FH.startEP()else FH.stopEP()end end)
-   opt("ESP Candies 🍬", function(v)FH.candyESP_Active=v; if v then FH.startCandyESP(true) else FH.startCandyESP(false) end end)
    opt("Full Bright ☀️", function(v) FH.setFullbright(v, false) end)
    opt("Alt Full Bright 🌤️", function(v) FH.setFullbright(v, true) end)
    opt("No Fog 🌫️", function(v) FH.setNoFog(v) end)
+  elseif FH.pestana=="Halloween" then
+   opt("ESP Candies 🍬", function(v)FH.candyESP_Active=v; if v then FH.startCandyESP(true) else FH.startCandyESP(false) end end)
+   opt("Get all Candy's 🍬", function(v) FH.autoCandyActive = v end, true)
   elseif FH.pestana=="Scientist"then
-   -- LEGIT: tercer argumento = false
    opt("Auto Patient (Legit) 🧟",function(v)FH.autoPatientLegit=v; if v then FH.startAP() else FH.stopAP() end end, false)
-   opt("Auto Generator (Legit) 🕸",function(v)FH.autoTubeLegit=v end, false)
-   opt("Auto Task 3 (Legit) 📝",function(v)FH.autoTask3Legit=v end, false)
+   opt("Auto Generator (Legit) 🕸",function(v)FH.autoTubeLegit=v; if v then FH.startGen() else FH.stopGen() end end, false)
+   opt("Auto Task 3 (Legit) 📝",function(v)FH.autoTask3Legit=v; if v then FH.startPanel() else FH.stopPanel() end end, false)
+   opt("Anti Broken Tube 🛡", function(v) FH.antiBrokenTube = v; if v then FH.startAB() else FH.stopAB() end end, false)
    opt("Complete Full 🔁", function(v) FH.on.spamComplete = v; if v then FH.startSp() else FH.stopSp() end end, false)
-   btn("Cycle TP Patient 🧟", function() FH.cycleTP("patient", "Map1") end, false)
-   btn("Cycle TP Generator 🕸", function() FH.cycleTP("tube", "Map2") end, false)
-   btn("Cycle TP Candy 🍬", function() FH.cycleTP("candy", "Map1") end, false)
-   btn("Cycle TP Panel 📝", function() FH.cycleTP("panel", "Map3") end, false)
-   -- BLATANT: M1 Experiment (Parte 22)
-   opt("M1 Experiment Punch 👊", function(v) FH.experimentPunch = v end, true)
   elseif FH.pestana=="Class A"then
    btn("Heal Nearest 💚",FH.healN, false)
-   opt("Auto Heal 💚",function(v)FH.on.autoHeal=v;if v then FH.startAH()else FH.stopAH()end end, false)
    btn("Heal Self 🩹",FH.healS, false)
+   opt("Auto Heal 💚",function(v)FH.on.autoHeal=v;if v then FH.startAH()else FH.stopAH()end end, false)
    btn("Heal All in Range ✨",FH.healAll, false)
    btn("Reset Cooldown ⏱",FH.resetCd, false)
    btn("Get 30 Data + 50XP (Speed Boost) 💰",FH.boost, false)
    opt("Infinite Healing Charge ♾️", function(v) FH.infiniteHealingCharge = v end, false)
    opt("I JUST HIT THE JACKPOOOOTTTTTT 🎰",function(v)FH.on.jackpot=v;if v then FH.startJ()else FH.stopJ()end end, true)
-   opt("Auto Heal Self 🩹",function(v)FH.on.autoHealSelf=v;if v then FH.startAHS()else FH.stopAHS()end end, false)
   elseif FH.pestana=="Class S"then
    opt("Aimlock 🎯",function(v)FH.on.aimlockS=v;if v then FH.startAL()else FH.stopAL()end end, true)
+   opt("Auto Shoot 🔫",function(v)FH.classSAutoShoot=v end, true) -- <-- NUEVO
+  elseif FH.pestana=="Experiment" then
+   opt("M1 Experiment Punch 👊", function(v) FH.experimentPunch = v end, true)
   elseif FH.pestana=="Extra Stuff"then
    opt("Inf Stamina ⚡",function(v)FH.sashaSprint=v end, true)
-   opt("Get all Candy's 🍬", function(v) FH.autoCandyActive = v end, true)
    opt("Noclip 🚪", function(v) FH.noclipActive = v end, true)
   elseif FH.pestana=="Blatant" then
    local warning = Instance.new("TextLabel", FH.oc)
    warning.Size = UDim2.new(1, 0, 0, 60); warning.BackgroundTransparency = 1
    warning.Text = "When you turn Blatant On all the response of ANY Bans on your account isn't my fault"
    warning.TextColor3 = C.danger; warning.Font = Enum.Font.GothamBold; warning.TextScaled = true; warning.TextWrapped = true
-   
-   opt("Blatant Mode 💀", function(v) 
-       if v then FH.blatantMode = true else FH.disableAllBlatant() end
-       FH.panel() 
-   end)
+   opt("Blatant Mode 💀", function(v) if v then FH.blatantMode = true else FH.disableAllBlatant() end; FH.panel() end)
   end
  end)
  pupd=false 
 end
-
--- Toggle Flotante (sin calabaza)
-local th=Instance.new("Frame"); th.Size=UDim2.new(0,60,0,60); th.Position=UDim2.new(0,20,.75,0); th.BackgroundTransparency=1; th.Parent=FH.sg
-local tbtn=Instance.new("TextButton",th); tbtn.Size=UDim2.new(1,0,1,0); tbtn.BackgroundColor3=C.accent; tbtn.Text=""; tbtn.BorderSizePixel=0; tbtn.AutoButtonColor=false
-Instance.new("UICorner",tbtn).CornerRadius=UDim.new(1,0)
-local sl2=Instance.new("TextLabel",tbtn); sl2.Size=UDim2.new(1,0,1,0); sl2.BackgroundTransparency=1; sl2.Text="⚡"; sl2.TextColor3=Color3.fromRGB(255,255,255); sl2.TextScaled=true; sl2.Font=Enum.Font.GothamBlack
-tbtn.MouseButton1Click:Connect(function()FH.fr.Visible=not FH.fr.Visible; FH.sfx("button",1,1.2) end)
-
 FH.panel()
 FH.p5=true
-print("[5/5] GUI OK — Class A funcional, Infinite Healing, autos legit")
+print("[5/5] GUI OK")
