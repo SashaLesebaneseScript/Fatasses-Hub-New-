@@ -1,9 +1,28 @@
--- ============ PARTE 8/8 - Killer & Tasks (v35) ============
+-- ============ PARTE 8/8 - Killer & Tasks (v36) ============
 local FH = getgenv().FH
 if not FH or not FH.p7 then warn("[FH] Ejecuta Partes 1-7 primero") return end
 if FH.p8 then warn("[FH] Parte 8 ya ejecutada") return end
 local RS,PL,WS,RST,LP = FH.RS,FH.PL,FH.WS,FH.RST,FH.LP
 local C = FH.C
+
+-- TASKS LEGIT & COMPLETE FULL
+FH.autoPatientLegit = false; FH.autoTubeLegit = false; FH.autoTask3Legit = false
+if FH.TR then
+    FH.TR.OnClientEvent:Connect(function(accion, taskID, guiName)
+        if accion == "OpenGui" then
+            if FH.on.spamComplete then 
+                task.spawn(function() 
+                    for i = 1, 5 do 
+                        pcall(function() FH.TR:FireServer("CompleteStep", taskID) end)
+                        task.wait(0.1) 
+                    end 
+                end) 
+            end
+            if guiName == "TaskGuiMap2" and FH.autoTubeLegit then task.spawn(function() task.wait(math.random(20, 65) / 10); if FH.tarea and FH.tarea.id == taskID then pcall(function() FH.TR:FireServer("CompleteStep", taskID) end) end end) end
+            if guiName == "TaskGuiMap3" and FH.autoTask3Legit then task.spawn(function() task.wait(15); if FH.tarea and FH.tarea.id == taskID then pcall(function() FH.TR:FireServer("CompleteStep", taskID) end) end end) end
+        end
+    end)
+end
 
 -- PUNCH
 local PunchEvent = nil
@@ -26,7 +45,7 @@ task.spawn(function()
     end
 end)
 
--- KILL ALL INTELIGENTE
+-- KILL ALL (Bucle más lento)
 task.spawn(function()
     while true do
         if K.killAll and soyKiller() then
@@ -47,15 +66,15 @@ task.spawn(function()
                     if ev then
                         K.attackId = K.attackId + 1
                         local id = K.attackId
-                        for i = 1, 10 do
+                        for i = 1, 5 do
                             pcall(function() ev:FireServer({AttackId=id, Position=targetPos, Velocity=Vector3.new(0,0,0), Direction=Vector3.new(0,1,0)}) end)
-                            task.wait(0.01)
+                            task.wait(0.02)
                         end
                     end
                 end
             end
         end
-        task.wait(0.2)
+        task.wait(0.3) -- Bucle más lento para evitar lag
     end
 end)
 
@@ -86,4 +105,4 @@ FH.panel=function() origPanel(); if FH.pestana~="Experiment" then return end; lo
 end
 if FH.pestana=="Experiment" then FH.panel() end
 FH.p8=true
-print("🎃 [8/8] Killer & Tasks OK (v35)")
+print("🎃 [8/8] Killer & Tasks OK (v36)")
