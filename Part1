@@ -7,13 +7,12 @@ FH.RST=game:GetService("ReplicatedStorage");FH.TW=game:GetService("TweenService"
 FH.UI=game:GetService("UserInputService");FH.SS=game:GetService("SoundService");FH.CG=game:GetService("CoreGui")
 FH.LP=FH.PL.LocalPlayer
 FH.BW,FH.BH=380,300;FH.KST=20
-FH.NOMBRE_GUI,FH.NOMBRE_GUI2="TaskGuiMap1","TaskGuiMap2"
 FH.C={bg_dark=Color3.fromRGB(8,4,12),bg_panel=Color3.fromRGB(20,10,28),bg_card=Color3.fromRGB(35,15,45),
 bg_card_hl=Color3.fromRGB(55,25,70),accent=Color3.fromRGB(255,120,20),accent2=Color3.fromRGB(180,30,60),
 accent4=Color3.fromRGB(200,80,40),text=Color3.fromRGB(255,235,220),text_sub=Color3.fromRGB(140,100,150),
 border=Color3.fromRGB(90,40,110),success=Color3.fromRGB(120,255,120),danger=Color3.fromRGB(255,50,50)}
 FH.est={};FH.on={}
-FH.blatantMode = false -- Bloqueo global
+FH.blatantMode = false
 
 pcall(function() for _,n in ipairs({"AutoPatientGui","AutoPatientGui2","InfStaminaGui","FatassesHub","FatassesTracers","AITestGui"}) do
  local v=FH.CG:FindFirstChild(n);if v then v:Destroy()end
@@ -26,6 +25,12 @@ if not parent then parent=FH.LP:WaitForChild("PlayerGui",10) end
 if not parent then error("No parent") end
 FH.parent=parent
 local C=FH.C
+
+-- SONIDOS
+FH.SND={button="rbxassetid://9119717523",tab_switch="rbxassetid://14133663945",toggle_on="rbxassetid://9119717523",toggle_off="rbxassetid://103866342467024"}
+FH.sfx=function(n,v,p) local id=FH.SND[n]; if not id then return end
+ local s=Instance.new("Sound");s.SoundId=id;s.Volume=v or 1;s.PlaybackSpeed=p or 1;s.Parent=FH.SS
+ s:Play();s.Ended:Connect(function()s:Destroy()end)end
 
 local sg=Instance.new("ScreenGui")
 sg.Name="FatassesHub";sg.ResetOnSpawn=false;sg.IgnoreGuiInset=true
@@ -92,7 +97,6 @@ oc.CanvasSize=UDim2.new(0,0,0,0);oc.AutomaticCanvasSize=Enum.AutomaticSize.Y
 FH.oc=oc
 local ol=Instance.new("UIListLayout",oc);ol.Padding=UDim.new(0,6)
 
--- Factory con Bloqueo Blatant
 FH.crearOpcion=function(nombre,cb,isBlatant)
  local o=Instance.new("Frame",oc)
  o.Size=UDim2.new(1,0,0,40);o.BackgroundColor3=C.bg_card;o.BackgroundTransparency=.2
@@ -129,7 +133,6 @@ FH.crearOpcion=function(nombre,cb,isBlatant)
  setV(es,false)
  local function tg()
   if isBlatant and not FH.blatantMode then
-      -- Redirigir a Blatant
       if FH.pestana ~= "Blatant" then
           FH.pestana = "Blatant"
           FH.panel()
@@ -137,6 +140,7 @@ FH.crearOpcion=function(nombre,cb,isBlatant)
       return
   end
   es=not es;FH.est[nombre]=es;setV(es,true)
+  FH.sfx(es and "toggle_on" or "toggle_off")
   if cb then pcall(cb,es)end
  end
  tb2.MouseButton1Click:Connect(tg)
@@ -161,6 +165,7 @@ FH.crearBotonAccion=function(nombre,onFire,isBlatant)
          end
          return
      end
+     FH.sfx("button", 2, 1.3)
      pcall(onFire)
  end)
 end
