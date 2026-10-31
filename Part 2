@@ -10,7 +10,6 @@ local evCache={}
 FH.getEv=function(n) if evCache[n] and evCache[n].Parent then return evCache[n]end; local e=RST:FindFirstChild(n); if e and e:IsA("RemoteEvent")then evCache[n]=e;return e end; for _,v in ipairs(RST:GetDescendants())do if v:IsA("RemoteEvent")and v.Name==n then evCache[n]=v;return v end end end
 FH.getHealEv=function() local hs=RST:FindFirstChild("HealingAbility"); if hs then local e=hs:FindFirstChild("HealingEvent");if e then evCache.heal=e;return e end end; if evCache.heal and evCache.heal.Parent then return evCache.heal end; return FH.getEv("HealingEvent") end
 
--- LÓGICA DEL EXPERIMENT
 FH.getExperiment = function()
     for _, p in ipairs(PL:GetPlayers()) do
         if p.Character then
@@ -77,14 +76,17 @@ FH.startSp=function()
 end
 FH.stopSp=function() FH.on.spamComplete=false; spT=nil; lastSpamId=nil end
 
--- ARREGLO DE CURACIÓN
+-- CURACIÓN ARREGLADA (30 Ticks exactos como el juego)
 FH.healT=function(t) 
     local e=FH.getHealEv(); if not e or not t then return false end
-    local targetChar = t.Character or t
-    if not targetChar then return false end
-    pcall(function() e:FireServer("StartVisuals", t) end)
+    local targetPlayer = t.Character and PL:GetPlayerFromCharacter(t.Character) or t
+    if not targetPlayer then return false end
+    pcall(function() e:FireServer("StartVisuals", targetPlayer) end)
     task.spawn(function() 
-        for i=1,6 do pcall(function() e:FireServer("HealTick", t) end); task.wait(.1) end
+        for i=1,30 do 
+            pcall(function() e:FireServer("HealTick", targetPlayer) end)
+            task.wait(0.05) 
+        end
         pcall(function() e:FireServer("GiveSpeedBoost") end)
         pcall(function() e:FireServer("StartCooldown") end)
     end)
@@ -100,7 +102,7 @@ FH.healAll=function()
             if h and h.Health>0 and h.Health<h.MaxHealth then 
                 task.spawn(function() 
                     pcall(function() e:FireServer("StartVisuals",p) end)
-                    for i=1,6 do pcall(function() e:FireServer("HealTick",p) end); task.wait(.08) end
+                    for i=1,30 do pcall(function() e:FireServer("HealTick",p) end); task.wait(0.05) end
                     pcall(function() e:FireServer("GiveSpeedBoost") end) 
                 end) 
             end 
@@ -108,10 +110,10 @@ FH.healAll=function()
     end
 end
 FH.resetCd=function() local e=FH.getHealEv(); if not e then return end; task.spawn(function() for i=1,15 do pcall(function() e:FireServer("RequestCooldownCheck") end); task.wait(.05) end end) end
-FH.boost=function() local e=FH.getHealEv(); if not e then return end; pcall(function() e:FireServer("GiveSpeedBoost") end) end -- Solo una vez para evitar spam
+FH.boost=function() local e=FH.getHealEv(); if not e then return end; pcall(function() e:FireServer("GiveSpeedBoost") end) end
 
 FH.ahT = nil
-FH.startAH=function() if FH.ahT then return end; FH.ahT=task.spawn(function() while FH.on.autoHeal do task.wait(.5); if FH.on.autoHeal then local t=FH.injPlayer(100); if t then FH.healT(t); task.wait(.5) end end end FH.ahT=nil end) end
+FH.startAH=function() if FH.ahT then return end; FH.ahT=task.spawn(function() while FH.on.autoHeal do task.wait(0.5); if FH.on.autoHeal then local t=FH.injPlayer(100); if t then FH.healT(t); task.wait(0.5) end end end FH.ahT=nil end) end
 FH.stopAH=function() FH.on.autoHeal=false; FH.ahT=nil end
 FH.ahsT = nil
 FH.startAHS=function() if FH.ahsT then return end; FH.ahsT=task.spawn(function() while FH.on.autoHealSelf do FH.healS(); task.wait(1) end FH.ahsT=nil end) end
@@ -122,4 +124,4 @@ FH.startJ=function() if FH.jT then return end; FH.jT=task.spawn(function() while
 FH.stopJ=function() FH.on.jackpot=false; FH.jT=nil end
 
 FH.p2=true
-print("🎃 [2/5] Core Fixes OK")
+print("🎃 [2/5] Core + Heal Fix OK")
