@@ -7,26 +7,6 @@ local C=FH.C
 
 -- INFINITE STAMINA (Menos estricto)
 FH.sashaSprint = false
-task.spawn(function()
-    pcall(function()
-        local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
-        if hum then
-            local mt = getrawmetatable(hum)
-            if setreadonly then setreadonly(mt, false) end
-            local oldNewIndex = mt.__newindex
-            mt.__newindex = newcclosure(function(self, key, value)
-                if key == "WalkSpeed" and self == hum and FH.sashaSprint then
-                    if self.MoveDirection.Magnitude > 0 then
-                        return oldNewIndex(self, key, 30) 
-                    end
-                end
-                return oldNewIndex(self, key, value)
-            end)
-            if setreadonly then setreadonly(mt, true) end
-        end
-    end)
-end)
-
 RS.RenderStepped:Connect(function()
     if not FH.sashaSprint then return end
     local char = LP.Character
@@ -37,7 +17,6 @@ RS.RenderStepped:Connect(function()
             hum.WalkSpeed = 30
             if stam then stam.Value = 100 end
         end
-        
         local pg = LP:FindFirstChild("PlayerGui")
         if pg then
             local sg = pg:FindFirstChild("SprintGui")
@@ -106,7 +85,7 @@ FH.stopAP = function() if FH.apConn then FH.apConn:Disconnect(); FH.apConn=nil e
 
 -- UI
 local function getIcon(n) if n=="Esp" then return "👁" end; if n=="Scientist" then return "🧪" end; if n=="Class A" then return "💚" end; if n=="Class S" then return "🎯" end; if n=="Extra Stuff" then return "⚡" end; if n=="Blatant" then return "💀" end; if n=="Auto Farm" then return "🤖" end; return "🎃" end
-local TABS={"Esp","Scientist","Class A","Class S","Extra Stuff","Blatant","Auto Farm"}
+local TABS={"Esp","Scientist","Class A","Class S","Extra Stuff","Blatant"}
 local tabs={};FH.tabs=tabs;FH.pestana="Esp"
 local function mkTab(n,cs)
  local t=Instance.new("TextButton",FH.sb); t.Size=UDim2.new(1,-6,0,32); t.BackgroundColor3=C.bg_card; t.BackgroundTransparency=.2; t.Text=""; t.BorderSizePixel=0; t.AutoButtonColor=false
@@ -131,9 +110,9 @@ FH.panel=function()
    opt("ESP Tasks 👁",function(v)FH.on.espActive=v;if v then FH.startESP(true)else FH.stopESP()end end)
    opt("ESP Players 🎃",function(v)FH.on.espPlActive=v;if v then FH.startEP()else FH.stopEP()end end)
    opt("ESP Candies 🍬", function(v)FH.candyESP_Active=v; if v then FH.startCandyESP(true) else FH.startCandyESP(false) end end)
-   opt("Full Bright ☀️", function(v) FH.setFullbright(v, false) end, false)
-   opt("Alt Full Bright 🌤️", function(v) FH.setFullbright(v, true) end, false)
-   opt("No Fog 🌫️", function(v) FH.setNoFog(v) end, false)
+   opt("Full Bright ☀️", function(v) FH.setFullbright(v, false) end)
+   opt("Alt Full Bright 🌤️", function(v) FH.setFullbright(v, true) end)
+   opt("No Fog 🌫️", function(v) FH.setNoFog(v) end)
   elseif FH.pestana=="Scientist"then
    opt("Auto Patient (Legit) 🧟",function(v)FH.autoPatientLegit=v; if v then FH.startAP() else FH.stopAP() end end, true)
    opt("Auto Generator (Legit) 🕸",function(v)FH.autoTubeLegit=v end, true)
@@ -143,6 +122,24 @@ FH.panel=function()
    btn("Cycle TP Generator 🕸", function() FH.cycleTP("tube", "Map2") end, true)
    btn("Cycle TP Candy 🍬", function() FH.cycleTP("candy", "Map1") end, true)
    btn("Cycle TP Panel 📝", function() FH.cycleTP("panel", "Map3") end, true)
+   opt("Auto Farm Scientist 🤖", function(v)
+       if FH.blatantMode then
+           task.spawn(function()
+               while v and FH.blatantMode do
+                   if not FH.isKiller(LP.Character) then
+                       local hasTask = LP.PlayerGui:FindFirstChild("TaskGuiMap1") or LP.PlayerGui:FindFirstChild("TaskGuiMap2") or LP.PlayerGui:FindFirstChild("TaskGuiMap3")
+                       if hasTask then
+                           task.wait(2)
+                           if LP.PlayerGui:FindFirstChild("TaskGuiMap1") then FH.cycleTP("patient", "Map1") elseif LP.PlayerGui:FindFirstChild("TaskGuiMap2") then FH.cycleTP("tube", "Map2") elseif LP.PlayerGui:FindFirstChild("TaskGuiMap3") then FH.cycleTP("panel", "Map3") end
+                           task.wait(0.5)
+                           keypress(Enum.KeyCode.E); task.wait(0.1); keyrelease(Enum.KeyCode.E)
+                           task.wait(3)
+                       else task.wait(1) end
+                   else task.wait(1) end
+               end
+           end)
+       end
+   end, true)
   elseif FH.pestana=="Class A"then
    btn("Heal Nearest 💚",FH.healN, true)
    opt("Auto Heal 💚",function(v)FH.on.autoHeal=v;if v then FH.startAH()else FH.stopAH()end end, true)
@@ -154,46 +151,48 @@ FH.panel=function()
    opt("Auto heal self 🩹",function(v)FH.on.autoHealSelf=v;if v then FH.startAHS()else FH.stopAHS()end end, true)
   elseif FH.pestana=="Class S"then
    opt("Aimlock 🎯",function(v)FH.on.aimlockS=v;if v then FH.startAL()else FH.stopAL()end end, true)
+   opt("Auto Farm Class S 🤖", function(v)
+       if FH.blatantMode then
+           task.spawn(function()
+               while v and FH.blatantMode do
+                   local gunGui = LP.PlayerGui:FindFirstChild("GunGui")
+                   if gunGui then
+                       local target = FH.nearest(200)
+                       if target and target.HRP then
+                           local stun = target.Char:FindFirstChild("Stun")
+                           if stun and stun.Value then
+                               local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+                               if hum then
+                                   local anim = Instance.new("Animation"); anim.AnimationId = "rbxassetid://507771019"
+                                   local track = hum:LoadAnimation(anim); track:Play(); task.wait(2); track:Stop()
+                               end
+                               local sp = WS:FindFirstChild("SpectatorSpawn") or WS:FindFirstChild("SpectatorSpawn2")
+                               if sp then LP.Character.HumanoidRootPart.CFrame = sp.CFrame end
+                           else
+                               local look = target.HRP.CFrame.LookVector
+                               local tpPos = target.HRP.Position + (look * 5)
+                               LP.Character.HumanoidRootPart.CFrame = CFrame.new(tpPos, target.HRP.Position)
+                               local ev = FH.getEv("GunEvent")
+                               if ev then pcall(function() ev:FireServer("Shoot", target.HRP.Position) end) end
+                           end
+                       end
+                   end
+                   task.wait(1)
+               end
+           end)
+       end
+   end, true)
   elseif FH.pestana=="Extra Stuff"then
    opt("Inf Stamina 🎃",function(v)FH.sashaSprint=v end, true)
    opt("Get all Candy's 🍬", function(v) FH.autoCandyActive = v end, true)
    opt("Noclip 🚪", function(v) FH.noclipActive = v end, true)
   elseif FH.pestana=="Blatant" then
    local warning = Instance.new("TextLabel", FH.oc)
-   warning.Size = UDim2.new(1, 0, 0, 60)
-   warning.BackgroundTransparency = 1
+   warning.Size = UDim2.new(1, 0, 0, 60); warning.BackgroundTransparency = 1
    warning.Text = "When you turn Blatant On all the response of ANY Bans on your account isn't my fault"
-   warning.TextColor3 = C.danger
-   warning.Font = Enum.Font.GothamBold
-   warning.TextScaled = true
-   warning.TextWrapped = true
+   warning.TextColor3 = C.danger; warning.Font = Enum.Font.GothamBold; warning.TextScaled = true; warning.TextWrapped = true
    
    opt("Blatant Mode 💀", function(v) FH.blatantMode = v; FH.panel() end)
-  elseif FH.pestana=="Auto Farm" then
-   btn("Scientist Auto Farm", function()
-       if not FH.isKiller(FH.LP.Character) and FH.blatantMode then
-           task.spawn(function()
-               while FH.blatantMode do
-                   if not FH.isKiller(FH.LP.Character) then
-                       local hasTask = FH.LP.PlayerGui:FindFirstChild("TaskGuiMap1") or FH.LP.PlayerGui:FindFirstChild("TaskGuiMap2") or FH.LP.PlayerGui:FindFirstChild("TaskGuiMap3")
-                       if hasTask then
-                           task.wait(2)
-                           -- TP to minigame
-                           if FH.LP.PlayerGui:FindFirstChild("TaskGuiMap1") then FH.cycleTP("patient", "Map1") elseif FH.LP.PlayerGui:FindFirstChild("TaskGuiMap2") then FH.cycleTP("tube", "Map2") elseif FH.LP.PlayerGui:FindFirstChild("TaskGuiMap3") then FH.cycleTP("panel", "Map3") end
-                           task.wait(0.5)
-                           -- Fire E
-                           keypress(Enum.KeyCode.E); task.wait(0.1); keyrelease(Enum.KeyCode.E)
-                           task.wait(3)
-                       else
-                           task.wait(1)
-                       end
-                   else
-                       task.wait(1)
-                   end
-               end
-           end)
-       end
-   end, false) -- No requiere Blatant, ya que tiene su propia verificación interna
   end
  end)
  pupd=false 
@@ -208,4 +207,4 @@ tbtn.MouseButton1Click:Connect(function()FH.fr.Visible=not FH.fr.Visible end)
 
 FH.panel()
 FH.p5=true
-print("🎃 [5/5] GUI + Inf Stamina Fix OK")
+print("🎃 [5/5] GUI + Auto Farm OK")
