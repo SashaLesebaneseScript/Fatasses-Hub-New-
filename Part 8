@@ -1,4 +1,4 @@
--- ============ PARTE 8/8 - Killer & Tasks (v36) ============
+-- ============ PARTE 8/8 - Killer & Tasks (v37) ============
 local FH = getgenv().FH
 if not FH or not FH.p7 then warn("[FH] Ejecuta Partes 1-7 primero") return end
 if FH.p8 then warn("[FH] Parte 8 ya ejecutada") return end
@@ -45,7 +45,7 @@ task.spawn(function()
     end
 end)
 
--- KILL ALL (Bucle más lento)
+-- KILL ALL (Bucle más lento para evitar crasheos)
 task.spawn(function()
     while true do
         if K.killAll and soyKiller() then
@@ -68,13 +68,13 @@ task.spawn(function()
                         local id = K.attackId
                         for i = 1, 5 do
                             pcall(function() ev:FireServer({AttackId=id, Position=targetPos, Velocity=Vector3.new(0,0,0), Direction=Vector3.new(0,1,0)}) end)
-                            task.wait(0.02)
+                            task.wait(0.05)
                         end
                     end
                 end
             end
         end
-        task.wait(0.3) -- Bucle más lento para evitar lag
+        task.wait(0.5) -- Aumentado a 0.5s para evitar crash
     end
 end)
 
@@ -105,4 +105,4 @@ FH.panel=function() origPanel(); if FH.pestana~="Experiment" then return end; lo
 end
 if FH.pestana=="Experiment" then FH.panel() end
 FH.p8=true
-print("🎃 [8/8] Killer & Tasks OK (v36)")
+print("🎃 [8/8] Killer & Tasks OK (v37)")
