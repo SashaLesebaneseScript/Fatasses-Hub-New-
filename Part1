@@ -8,15 +8,17 @@ FH.UI=game:GetService("UserInputService");FH.SS=game:GetService("SoundService");
 FH.LP=FH.PL.LocalPlayer
 FH.BW,FH.BH=380,300;FH.KST=20
 FH.NOMBRE_GUI,FH.NOMBRE_GUI2="TaskGuiMap1","TaskGuiMap2"
-FH.RADIO,FH.ANGULO_ABAJO=0.42,math.pi/2
 FH.C={bg_dark=Color3.fromRGB(8,4,12),bg_panel=Color3.fromRGB(20,10,28),bg_card=Color3.fromRGB(35,15,45),
 bg_card_hl=Color3.fromRGB(55,25,70),accent=Color3.fromRGB(255,120,20),accent2=Color3.fromRGB(180,30,60),
 accent4=Color3.fromRGB(200,80,40),text=Color3.fromRGB(255,235,220),text_sub=Color3.fromRGB(140,100,150),
-border=Color3.fromRGB(90,40,110)}
+border=Color3.fromRGB(90,40,110),success=Color3.fromRGB(120,255,120),danger=Color3.fromRGB(255,50,50)}
 FH.est={};FH.on={}
+FH.blatantMode = false -- Bloqueo global
+
 pcall(function() for _,n in ipairs({"AutoPatientGui","AutoPatientGui2","InfStaminaGui","FatassesHub","FatassesTracers","AITestGui"}) do
  local v=FH.CG:FindFirstChild(n);if v then v:Destroy()end
  local v2=FH.LP.PlayerGui:FindFirstChild(n);if v2 then v2:Destroy()end end end)
+
 local parent
 if type(gethui)=="function" then local ok,r=pcall(gethui);if ok and r then parent=r end end
 if not parent then parent=FH.LP:FindFirstChild("PlayerGui") end
@@ -24,6 +26,7 @@ if not parent then parent=FH.LP:WaitForChild("PlayerGui",10) end
 if not parent then error("No parent") end
 FH.parent=parent
 local C=FH.C
+
 local sg=Instance.new("ScreenGui")
 sg.Name="FatassesHub";sg.ResetOnSpawn=false;sg.IgnoreGuiInset=true
 sg.DisplayOrder=999;sg.ZIndexBehavior=Enum.ZIndexBehavior.Sibling;sg.Parent=parent
@@ -31,10 +34,7 @@ FH.sg=sg
 local us=Instance.new("UIScale");us.Name="GlobalScale";us.Parent=sg;FH.us=us
 local cam=workspace.CurrentCamera
 if cam then local vp=cam.ViewportSize;us.Scale=math.clamp(math.min(vp.X/(FH.BW+40),vp.Y/(FH.BH+40)),0.5,1.3)end
-FH.SND={hover="rbxassetid://10066931761",toggle_on="rbxassetid://9119717523",toggle_off="rbxassetid://103866342467024",tab_switch="rbxassetid://14133663945"}
-FH.sfx=function(n,v,p)local id=FH.SND[n];if not id then return end
- local s=Instance.new("Sound");s.SoundId=id;s.Volume=v or 2;s.PlaybackSpeed=p or 1;s.Parent=FH.SS
- s:Play();s.Ended:Connect(function()s:Destroy()end)end
+
 local fr=Instance.new("Frame")
 fr.Name="Main";fr.Size=UDim2.new(0,FH.BW,0,FH.BH);fr.Position=UDim2.new(.5,0,.5,0)
 fr.AnchorPoint=Vector2.new(.5,.5);fr.BackgroundColor3=C.bg_panel;fr.BackgroundTransparency=.05
@@ -45,6 +45,7 @@ gr.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,C.bg_panel),ColorSequenc
  ColorSequenceKeypoint.new(.7,Color3.fromRGB(15,5,25)),ColorSequenceKeypoint.new(1,Color3.fromRGB(30,5,15))})
 gr.Rotation=135
 local stk=Instance.new("UIStroke",fr);stk.Color=C.accent;stk.Thickness=2;stk.Transparency=.4
+
 local tb=Instance.new("Frame",fr)
 tb.Size=UDim2.new(1,0,0,42);tb.BackgroundColor3=C.bg_dark;tb.BackgroundTransparency=.3
 tb.BorderSizePixel=0;tb.Active=true;tb.ClipsDescendants=true
@@ -59,6 +60,7 @@ cb.BackgroundColor3=C.accent2;cb.Text="✕";cb.TextColor3=Color3.fromRGB(255,255
 cb.TextScaled=true;cb.Font=Enum.Font.GothamBold;cb.BorderSizePixel=0;cb.AutoButtonColor=false
 Instance.new("UICorner",cb).CornerRadius=UDim.new(1,0)
 cb.MouseButton1Click:Connect(function()fr.Visible=false end)
+
 local drag,ds,sp=false,nil,nil
 tb.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then
  drag=true;ds=i.Position;sp=fr.Position end end)
@@ -69,6 +71,7 @@ FH.UI.InputChanged:Connect(function(i)
   local d=(i.Position-ds)/s
   fr.Position=UDim2.new(sp.X.Scale,sp.X.Offset+d.X,sp.Y.Scale,sp.Y.Offset+d.Y)
  end end)
+
 local sb=Instance.new("ScrollingFrame",fr)
 sb.Size=UDim2.new(0,108,1,-54);sb.Position=UDim2.new(0,8,0,46)
 sb.BackgroundColor3=C.bg_dark;sb.BackgroundTransparency=.35;sb.BorderSizePixel=0
@@ -76,6 +79,7 @@ sb.ScrollBarThickness=2;sb.CanvasSize=UDim2.new(0,0,0,0);sb.AutomaticCanvasSize=
 Instance.new("UICorner",sb).CornerRadius=UDim.new(0,10)
 local sl=Instance.new("UIListLayout",sb);sl.Padding=UDim.new(0,5)
 FH.sb=sb
+
 local pn=Instance.new("Frame",fr)
 pn.Size=UDim2.new(1,-128,1,-54);pn.Position=UDim2.new(0,122,0,46)
 pn.BackgroundColor3=C.bg_dark;pn.BackgroundTransparency=.35;pn.BorderSizePixel=0
@@ -87,7 +91,9 @@ oc.BackgroundTransparency=1;oc.BorderSizePixel=0;oc.ScrollBarThickness=3
 oc.CanvasSize=UDim2.new(0,0,0,0);oc.AutomaticCanvasSize=Enum.AutomaticSize.Y
 FH.oc=oc
 local ol=Instance.new("UIListLayout",oc);ol.Padding=UDim.new(0,6)
-FH.crearOpcion=function(nombre,cb)
+
+-- Factory con Bloqueo Blatant
+FH.crearOpcion=function(nombre,cb,isBlatant)
  local o=Instance.new("Frame",oc)
  o.Size=UDim2.new(1,0,0,40);o.BackgroundColor3=C.bg_card;o.BackgroundTransparency=.2
  o.BorderSizePixel=0;o.ClipsDescendants=true
@@ -122,15 +128,23 @@ FH.crearOpcion=function(nombre,cb)
  end
  setV(es,false)
  local function tg()
+  if isBlatant and not FH.blatantMode then
+      -- Redirigir a Blatant
+      if FH.pestana ~= "Blatant" then
+          FH.pestana = "Blatant"
+          FH.panel()
+      end
+      return
+  end
   es=not es;FH.est[nombre]=es;setV(es,true)
-  FH.sfx(es and"toggle_on"or"toggle_off",2.5,1)
   if cb then pcall(cb,es)end
  end
  tb2.MouseButton1Click:Connect(tg)
  l.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then tg()end end)
  l.Active=true
 end
-FH.crearBotonAccion=function(nombre,onFire)
+
+FH.crearBotonAccion=function(nombre,onFire,isBlatant)
  local b=Instance.new("TextButton",oc)
  b.Size=UDim2.new(1,0,0,34);b.BackgroundColor3=C.bg_card;b.BackgroundTransparency=.2
  b.Text="";b.BorderSizePixel=0;b.AutoButtonColor=false
@@ -139,7 +153,17 @@ FH.crearBotonAccion=function(nombre,onFire)
  l.Size=UDim2.new(1,-16,1,0);l.Position=UDim2.new(0,14,0,0);l.BackgroundTransparency=1
  l.Text=nombre;l.TextColor3=C.text;l.TextScaled=true
  l.Font=Enum.Font.GothamBold;l.TextXAlignment=Enum.TextXAlignment.Left
- b.MouseButton1Click:Connect(function()FH.sfx("toggle_on",2,1.3);pcall(onFire)end)
+ b.MouseButton1Click:Connect(function()
+     if isBlatant and not FH.blatantMode then
+         if FH.pestana ~= "Blatant" then
+             FH.pestana = "Blatant"
+             FH.panel()
+         end
+         return
+     end
+     pcall(onFire)
+ end)
 end
+
 FH.p1=true
-print("🎃 [1/5] Setup + GUI OK")
+print("🎃 [1/5] Setup + GUI + Blatant Gate OK")
