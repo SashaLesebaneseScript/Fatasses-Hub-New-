@@ -209,6 +209,39 @@ local function stopAntiStun()
     stunConns={} 
 end
 
+-- ===== M1 EXPERIMENT PUNCH LOOP =====
+FH.experimentPunch = FH.experimentPunch or false
+FH.lastPunchId = FH.lastPunchId or 0
+task.spawn(function()
+    local PunchEv = RST:WaitForChild("PunchEvent", 10)
+    if not PunchEv then return end
+    while task.wait(0.1) do
+        if not FH.experimentPunch then continue end
+        local char = LP.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") then continue end
+        local stun = char:FindFirstChild("Stun")
+        if stun and stun:IsA("BoolValue") and stun.Value then continue end
+        FH.lastPunchId = FH.lastPunchId + 1
+        local id = FH.lastPunchId
+        local t0 = tick()
+        while tick() - t0 <= 0.4 do
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if not hrp then break end
+            pcall(function()
+                PunchEv:FireServer({
+                    AttackId  = id,
+                    Position  = hrp.Position,
+                    Velocity  = hrp.AssemblyLinearVelocity,
+                    Direction = hrp.CFrame.LookVector
+                })
+            end)
+            task.wait(0.02)
+        end
+        task.wait(1.6) -- cooldown real del juego (2s)
+    end
+end)
+
+-- ===== PANEL (opciones de Killer) =====
 local origPanel=FH.panel
 FH.panel=function() 
     origPanel()
@@ -224,5 +257,6 @@ FH.panel=function()
     opt("Kill All ☠️",function(v) K.killAll=v end, true)
 end
 if FH.pestana=="Experiment" or FH.pestana=="Class S" or FH.pestana=="Blatant" then FH.panel() end
+
 FH.p8=true
-print("[8/8] Killer & Tasks OK (v38 - kill all rápido, world hitbox restaurado)")
+print("[8/8] Killer & Tasks OK (v38 - kill all rápido, world hitbox restaurado, M1 punch incluido)")
