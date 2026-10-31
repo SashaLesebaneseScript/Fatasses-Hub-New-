@@ -1,23 +1,11 @@
--- ============ PARTE 8/8 - Killer & Tasks (v33) ============
+-- ============ PARTE 8/8 - Killer & Tasks (v34) ============
 local FH = getgenv().FH
 if not FH or not FH.p7 then warn("[FH] Ejecuta Partes 1-7 primero") return end
 if FH.p8 then warn("[FH] Parte 8 ya ejecutada") return end
 local RS,PL,WS,RST,LP = FH.RS,FH.PL,FH.WS,FH.RST,FH.LP
 local C = FH.C
 
--- TASKS LEGIT
-FH.autoPatientLegit = false; FH.autoTubeLegit = false; FH.autoTask3Legit = false
-if FH.TR then
-    FH.TR.OnClientEvent:Connect(function(accion, taskID, guiName)
-        if accion == "OpenGui" then
-            if FH.on.spamComplete then task.spawn(function() for i = 1, 5 do pcall(function() FH.TR:FireServer("CompleteStep", taskID) end); task.wait(0.1) end end) end
-            if guiName == "TaskGuiMap2" and FH.autoTubeLegit then task.spawn(function() task.wait(math.random(20, 65) / 10); if FH.tarea and FH.tarea.id == taskID then pcall(function() FH.TR:FireServer("CompleteStep", taskID) end) end end) end
-            if guiName == "TaskGuiMap3" and FH.autoTask3Legit then task.spawn(function() task.wait(15); if FH.tarea and FH.tarea.id == taskID then pcall(function() FH.TR:FireServer("CompleteStep", taskID) end) end end) end
-        end
-    end)
-end
-
--- PUNCH & EXTRAS
+-- PUNCH
 local PunchEvent = nil
 local function getPunchEv() if PunchEvent and PunchEvent.Parent then return PunchEvent end; PunchEvent = RST:FindFirstChild("PunchEvent"); return PunchEvent end
 FH.k8 = { autoPunch=false, antiStun=false, antiSlow=false, hitboxTp=false, worldHitbox=false, hitboxExpander=false, alwaysMaxSpeed=false, killAll=false, anchoredHitbox=false, legitInfStamina=false, range=12, hbRange=100, expanderRange=3.5, expanderWidth=2.0, tpBoxSize=8, attackId=0 }
@@ -38,7 +26,7 @@ task.spawn(function()
     end
 end)
 
--- KILL ALL (Predict + TP Rapido + Hitbox Grande)
+-- KILL ALL INTELIGENTE (Duplicacion sobre el enemigo)
 task.spawn(function()
     while true do
         if K.killAll and soyKiller() then
@@ -46,34 +34,29 @@ task.spawn(function()
             if survivor and survivor.HRP then
                 local mc = LP.Character; local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
                 if hrp then
-                    local vel = survivor.HRP.AssemblyLinearVelocity
-                    local predPos = survivor.HRP.Position + (vel * 0.2)
-                    local dist = (hrp.Position - survivor.HRP.Position).Magnitude
+                    local targetPos = survivor.HRP.Position
+                    local dist = (hrp.Position - targetPos).Magnitude
                     
                     if dist > 20 then
-                        hrp.CFrame = CFrame.new(predPos) * CFrame.new(0, 0, 3) -- TP Rápido
+                        hrp.CFrame = CFrame.new(targetPos) * CFrame.new(0, 0, 3) -- TP Rápido
                     else
-                        hrp.CFrame = hrp.CFrame:Lerp(CFrame.new(hrp.Position, predPos), 0.4) + hrp.CFrame.LookVector * 2 -- Slide Rápido
+                        hrp.CFrame = hrp.CFrame:Lerp(CFrame.new(hrp.Position, targetPos), 0.4) + hrp.CFrame.LookVector * 2 -- Slide Rápido
                     end
                     
                     local ev = getPunchEv()
                     if ev then
                         K.attackId = K.attackId + 1
                         local id = K.attackId
-                        -- Hitbox mas grande (5x5x5)
-                        for dx = -5, 5, 5 do
-                            for dy = -5, 5, 5 do
-                                for dz = -5, 5, 5 do
-                                    local offset = Vector3.new(dx, dy, dz)
-                                    pcall(function() ev:FireServer({AttackId=id, Position=predPos + offset, Velocity=Vector3.new(0,0,0), Direction=Vector3.new(0,1,0)}) end)
-                                end
-                            end
+                        -- Duplicar la hitbox 10 veces sobre el objetivo
+                        for i = 1, 10 do
+                            pcall(function() ev:FireServer({AttackId=id, Position=targetPos, Velocity=Vector3.new(0,0,0), Direction=Vector3.new(0,1,0)}) end)
+                            task.wait(0.01)
                         end
                     end
                 end
             end
         end
-        task.wait(0.1)
+        task.wait(0.2)
     end
 end)
 
@@ -81,75 +64,27 @@ end)
 local function triggerExtras()
     if EXTRA_MODE or not soyKiller() or estoyStuneado() then return end
     local ev=getPunchEv(); if not ev then return end; local mc=LP.Character; local mh=mc and mc:FindFirstChild("HumanoidRootPart"); if not mh then return end; EXTRA_MODE=true
-    
-    -- 360 HITBOX (Reducido para evitar lag, radio 50)
-    if K.worldHitbox then
-        K.attackId = K.attackId + 1
-        local id = K.attackId
-        local R = 50
-        for _, rf in ipairs({0.6, 1.0}) do
-            for _, d in ipairs(SPHERE_DIRS) do
-                local pos = mh.Position + d * (R * rf)
-                pcall(function() ev:FireServer({AttackId=id, Position=pos, Velocity=Vector3.new(0,0,0), Direction=d}) end)
-            end
-        end
-    end
-
-    -- TP HITBOX (Circulo mas grande, radio 10, altura 5)
-    if K.hitboxTp then 
-        local t = FH.nearest(100) 
-        if t and t.HRP then
-            local th = t.HRP
-            K.attackId = K.attackId + 1
-            local id = K.attackId
-            local center = th.Position
-            for i = 1, 20 do
-                local angle = (i / 20) * (math.pi * 2)
-                local rx = math.cos(angle) * 10
-                local rz = math.sin(angle) * 10
-                local ry = math.random(-2.5, 2.5) 
-                local pos = center + Vector3.new(rx, ry, rz)
-                local dir = (pos - mh.Position).Unit
-                pcall(function() ev:FireServer({AttackId=id, Position=pos, Velocity=Vector3.new(0,0,0), Direction=dir}) end)
-            end
-        end 
-    end
-
-    -- HITBOX EXPANDER
-    if K.hitboxExpander or K.anchoredHitbox then
-        K.attackId = K.attackId + 1
-        local id = K.attackId
-        local look = mh.CFrame.LookVector
-        local right = mh.CFrame.RightVector
-        local up = mh.CFrame.UpVector
-        for x = -5, 5, 2.5 do
-            for y = -5, 5, 2.5 do
-                for z = -5, 5, 2.5 do
-                    local offset = look * (z) + right * (x) + up * (y)
-                    local pos = mh.Position + look * 10 + offset
-                    pcall(function() ev:FireServer({AttackId = id, Position = pos, Velocity = Vector3.new(0,0,0), Direction = look}) end)
-                end
-            end
-        end
-    end
+    if K.worldHitbox then K.attackId = K.attackId + 1; local id = K.attackId; local R = 50; for _, rf in ipairs({0.6, 1.0}) do for _, d in ipairs(SPHERE_DIRS) do local pos = mh.Position + d * (R * rf); pcall(function() ev:FireServer({AttackId=id, Position=pos, Velocity=Vector3.new(0,0,0), Direction=d}) end) end end end
+    if K.hitboxTp then local t = FH.nearest(100); if t and t.HRP then K.attackId = K.attackId + 1; local id = K.attackId; local center = t.HRP.Position; for i = 1, 20 do local angle = (i / 20) * (math.pi * 2); local rx = math.cos(angle) * 10; local rz = math.sin(angle) * 10; local ry = math.random(-2.5, 2.5); local pos = center + Vector3.new(rx, ry, rz); local dir = (pos - mh.Position).Unit; pcall(function() ev:FireServer({AttackId=id, Position=pos, Velocity=Vector3.new(0,0,0), Direction=dir}) end) end end end
+    if K.hitboxExpander or K.anchoredHitbox then K.attackId = K.attackId + 1; local id = K.attackId; local look = mh.CFrame.LookVector; local right = mh.CFrame.RightVector; local up = mh.CFrame.UpVector; for x = -5, 5, 2.5 do for y = -5, 5, 2.5 do for z = -5, 5, 2.5 do local offset = look * (z) + right * (x) + up * (y); local pos = mh.Position + look * 10 + offset; pcall(function() ev:FireServer({AttackId = id, Position = pos, Velocity = Vector3.new(0,0,0), Direction = look}) end) end end end end
     EXTRA_MODE=false
 end
 task.spawn(function() local ev=getPunchEv(); local tries=0; while not ev and tries<30 do task.wait(0.5); ev=getPunchEv(); tries=tries+1 end; if not ev then return end; pcall(function() local mt=getrawmetatable(game); if setreadonly then setreadonly(mt,false) end; local oldNC=mt.__namecall; mt.__namecall=newcclosure(function(self,...) if getnamecallmethod()=="FireServer" and self==getPunchEv() then if not EXTRA_MODE then task.spawn(triggerExtras) end end; return oldNC(self,...) end); if setreadonly then setreadonly(mt,true) end end) end)
 
--- ANTI STUN & SLOWNESS
+-- ANTI STUN
 local stunConns={}; local function nukeStun(v) if v:GetAttribute("FH_STUN") then return end; v:SetAttribute("FH_STUN",true); pcall(function() v.Value=false end); table.insert(stunConns,v:GetPropertyChangedSignal("Value"):Connect(function() if (K.antiStun or K.antiSlow) and v.Value then pcall(function() v.Value=false end) end end)) end
 local function findStunValues() local mc=LP.Character; if not mc then return end; for _,d in ipairs(mc:GetDescendants()) do if d.Name:lower():find("stun") or d.Name:lower():find("slow") then if (d:IsA("BoolValue") or d:IsA("IntValue") or d:IsA("NumberValue")) then nukeStun(d) end end end end
 local antiStunConn=nil; local function startAntiStun() findStunValues(); if antiStunConn then return end; antiStunConn=RS.Heartbeat:Connect(function() if K.antiStun or K.antiSlow then findStunValues() end end) end; local function stopAntiStun() K.antiStun=false; K.antiSlow=false; if antiStunConn then antiStunConn:Disconnect(); antiStunConn=nil end; for _,c in ipairs(stunConns) do pcall(function() c:Disconnect() end) end; stunConns={} end
 
 local origPanel=FH.panel
 FH.panel=function() origPanel(); if FH.pestana~="Experiment" then return end; local opt=FH.crearOpcion
-    opt("Anti Stun 🛡",function(v) K.antiStun=v; if v or K.antiSlow then startAntiStun() else stopAntiStun() end end)
-    opt("Anti-Slowness 🐌",function(v) K.antiSlow=v; if v or K.antiStun then startAntiStun() else stopAntiStun() end end)
-    opt("Hitbox Expander 📏",function(v) K.hitboxExpander=v end)
-    opt("Anchored Hitbox ⚓",function(v) K.anchoredHitbox=v end)
-    opt("Always Max Speed 🏃",function(v) K.alwaysMaxSpeed=v end)
-    opt("Kill All ☠️",function(v) K.killAll=v end)
+    opt("Anti Stun 🛡",function(v) K.antiStun=v; if v or K.antiSlow then startAntiStun() else stopAntiStun() end end, true)
+    opt("Anti-Slowness 🐌",function(v) K.antiSlow=v; if v or K.antiStun then startAntiStun() else stopAntiStun() end end, true)
+    opt("Hitbox Expander 📏",function(v) K.hitboxExpander=v end, true)
+    opt("Anchored Hitbox ⚓",function(v) K.anchoredHitbox=v end, true)
+    opt("Always Max Speed 🏃",function(v) K.alwaysMaxSpeed=v end, true)
+    opt("Kill All ☠️",function(v) K.killAll=v end, true)
 end
 if FH.pestana=="Experiment" then FH.panel() end
 FH.p8=true
-print("🎃 [8/8] Killer & Tasks OK (v33)")
+print("🎃 [8/8] Killer & Tasks OK (v34)")
