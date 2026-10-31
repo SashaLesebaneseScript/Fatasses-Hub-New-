@@ -6,7 +6,7 @@ local RS,PL,WS,LP=FH.RS,FH.PL,FH.WS,FH.LP
 local C=FH.C
 local UIS = game:GetService("UserInputService")
 
--- ===== INFINITE STAMINA (Versión Segura sin Metatable) =====
+-- ===== INFINITE STAMINA (Seguro) =====
 FH.sashaSprint = false
 FH.isSprintingManually = false
 
@@ -35,7 +35,6 @@ task.spawn(function()
     end
 end)
 
--- Loop normal (No crashea)
 RS.RenderStepped:Connect(function()
     if not FH.sashaSprint then return end
     local char = LP.Character
@@ -58,81 +57,6 @@ RS.RenderStepped:Connect(function()
         end
     end
 end)
-
--- ===== AUTO FARMS (FIX Duplicacion) =====
-FH.classSFarmActive = false
-FH.classAFarmActive = false
-local farmSTask = nil
-local farmATask = nil
-
-local function getSpectatorSpawn()
-    return WS:FindFirstChild("SpectatorSpawn") or WS:FindFirstChild("SpectatorSpawn2") or WS:FindFirstChild("SpawnLocation")
-end
-
-FH.toggleFarmS = function(state)
-    FH.classSFarmActive = state
-    if state and not farmSTask then
-        farmSTask = task.spawn(function()
-            while FH.classSFarmActive and FH.blatantMode do
-                local gunGui = LP.PlayerGui:FindFirstChild("GunGui")
-                if gunGui then
-                    local target = FH.nearest(200)
-                    if target and target.HRP then
-                        local stun = target.Char:FindFirstChild("Stun")
-                        if stun and stun.Value then
-                            local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
-                            if hum then
-                                local anim = Instance.new("Animation"); anim.AnimationId = "rbxassetid://507771019"
-                                local track = hum:LoadAnimation(anim); track:Play(); task.wait(2); track:Stop()
-                            end
-                            local sp = getSpectatorSpawn()
-                            if sp and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then 
-                                pcall(function() LP.Character.HumanoidRootPart.CFrame = sp.CFrame end) 
-                            end
-                        else
-                            local look = target.HRP.CFrame.LookVector
-                            local tpPos = target.HRP.Position + (look * 5)
-                            if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
-                                pcall(function() LP.Character.HumanoidRootPart.CFrame = CFrame.new(tpPos, target.HRP.Position) end)
-                            end
-                            local ev = FH.getEv("GunEvent")
-                            if ev then pcall(function() ev:FireServer("Shoot", target.HRP.Position) end) end
-                        end
-                    end
-                end
-                task.wait(1)
-            end
-            farmSTask = nil
-        end)
-    end
-end
-
-FH.toggleFarmA = function(state)
-    FH.classAFarmActive = state
-    if state and not farmATask then
-        farmATask = task.spawn(function()
-            while FH.classAFarmActive and FH.blatantMode do
-                local healGui = LP.PlayerGui:FindFirstChild("HealingGui")
-                if healGui then
-                    local sp = getSpectatorSpawn()
-                    if sp and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
-                        pcall(function() LP.Character.HumanoidRootPart.CFrame = sp.CFrame end)
-                    end
-                    FH.hideHealMsg = true
-                    FH.muteGame = true
-                    FH.on.jackpot = true
-                    FH.on.autoHeal = true
-                    FH.on.autoHealSelf = true
-                    if not FH.ahT then FH.startAH() end
-                    if not FH.ahsT then FH.startAHS() end
-                    if not FH.jT then FH.startJ() end
-                end
-                task.wait(2)
-            end
-            farmATask = nil
-        end)
-    end
-end
 
 -- GET ALL CANDYS
 FH.autoCandyActive = false
@@ -260,26 +184,6 @@ FH.panel=function()
    btn("Cycle TP Generator 🕸", function() FH.cycleTP("tube", "Map2") end, true)
    btn("Cycle TP Candy 🍬", function() FH.cycleTP("candy", "Map1") end, true)
    btn("Cycle TP Panel 📝", function() FH.cycleTP("panel", "Map3") end, true)
-   opt("Auto Farm Scientist 🤖", function(v)
-       if FH.blatantMode then
-           task.spawn(function()
-               while v and FH.blatantMode do
-                   if not FH.isKiller(LP.Character) then
-                       local hasTask = LP.PlayerGui:FindFirstChild("TaskGuiMap1") or LP.PlayerGui:FindFirstChild("TaskGuiMap2") or LP.PlayerGui:FindFirstChild("TaskGuiMap3")
-                       if hasTask then
-                           task.wait(2)
-                           pcall(function()
-                               if LP.PlayerGui:FindFirstChild("TaskGuiMap1") then FH.cycleTP("patient", "Map1") elseif LP.PlayerGui:FindFirstChild("TaskGuiMap2") then FH.cycleTP("tube", "Map2") elseif LP.PlayerGui:FindFirstChild("TaskGuiMap3") then FH.cycleTP("panel", "Map3") end
-                           end)
-                           task.wait(0.5)
-                           pcall(function() keypress(Enum.KeyCode.E); task.wait(0.1); keyrelease(Enum.KeyCode.E) end)
-                           task.wait(3)
-                       else task.wait(1) end
-                   else task.wait(1) end
-               end
-           end)
-       end
-   end, true)
   elseif FH.pestana=="Class A"then
    btn("Heal Nearest 💚",FH.healN, true)
    opt("Auto Heal 💚",function(v)FH.on.autoHeal=v;if v then FH.startAH()else FH.stopAH()end end, true)
@@ -289,14 +193,8 @@ FH.panel=function()
    btn("Get 30 Money and 50 XP 💰",FH.boost, true)
    opt("I JUST HIT THE JACKPOOOOTTTTTT 🎰",function(v)FH.on.jackpot=v;if v then FH.startJ()else FH.stopJ()end end, true)
    opt("Auto heal self 🩹",function(v)FH.on.autoHealSelf=v;if v then FH.startAHS()else FH.stopAHS()end end, true)
-   opt("Auto Farm Class A 🤖", function(v) 
-       FH.toggleFarmA(v)
-   end, true)
   elseif FH.pestana=="Class S"then
    opt("Aimlock 🎯",function(v)FH.on.aimlockS=v;if v then FH.startAL()else FH.stopAL()end end, true)
-   opt("Auto Farm Class S 🤖", function(v) 
-       FH.toggleFarmS(v)
-   end, true)
   elseif FH.pestana=="Extra Stuff"then
    opt("Inf Stamina 🎃",function(v)FH.sashaSprint=v end, true)
    opt("Get all Candy's 🍬", function(v) FH.autoCandyActive = v end, true)
@@ -322,4 +220,4 @@ tbtn.MouseButton1Click:Connect(function()FH.fr.Visible=not FH.fr.Visible end)
 
 FH.panel()
 FH.p5=true
-print("🎃 [5/5] GUI + Auto Farm OK")
+print("🎃 [5/5] GUI sin Auto Farms OK")
