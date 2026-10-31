@@ -1,0 +1,140 @@
+-- ============================================================
+-- PARTE 22: Class A / Scientist / Minijuegos (LEGIT)
+-- ============================================================
+if not FH then return end
+
+-- 1) M1 EXPERIMENT (Punch)
+FH.experimentPunch = false
+FH.lastPunchId = 0
+local PunchEvent = game:GetService("ReplicatedStorage"):WaitForChild("PunchEvent")
+
+task.spawn(function()
+    while task.wait(0.1) do
+        if not FH.experimentPunch then continue end
+        local char = game:GetService("Players").LocalPlayer.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") then continue end
+        local stun = char:FindFirstChild("Stun")
+        if stun and stun.Value then continue end
+        FH.lastPunchId = FH.lastPunchId + 1
+        local id = FH.lastPunchId
+        local t0 = tick()
+        while tick() - t0 <= 0.4 do
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if not hrp then break end
+            pcall(function()
+                PunchEvent:FireServer({
+                    AttackId  = id,
+                    Position  = hrp.Position,
+                    Velocity  = hrp.AssemblyLinearVelocity,
+                    Direction = hrp.CFrame.LookVector
+                })
+            end)
+            task.wait(0.02)
+        end
+        task.wait(1.6) -- cooldown
+    end
+end)
+
+-- 2) CLASS A — HEALING (Infinite Healing Charge + Auto Heal)
+FH.infiniteHealingCharge = false
+FH.autoHealClassA        = false
+local HealingEvent = game:GetService("ReplicatedStorage")
+    :WaitForChild("HealingAbility"):WaitForChild("HealingEvent")
+
+local function findHealTarget()
+    local lp = game:GetService("Players").LocalPlayer
+    local char = lp.Character
+    if not char then return nil end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil end
+    local best, bestDist = nil, 22
+    for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
+        if p == lp then continue end
+        local pc = p.Character
+        if not pc then continue end
+        if p:FindFirstChild("Experiment") then continue end
+        local ph   = pc:FindFirstChild("Humanoid")
+        local phrp = pc:FindFirstChild("HumanoidRootPart")
+        if ph and phrp and ph.Health > 0 and ph.Health < ph.MaxHealth then
+            local d = (hrp.Position - phrp.Position).Magnitude
+            if d < bestDist then bestDist, best = d, p end
+        end
+    end
+    return best
+end
+
+task.spawn(function()
+    while task.wait(0.2) do
+        if not (FH.infiniteHealingCharge or FH.autoHealClassA) then continue end
+        local target = findHealTarget()
+        if not target then continue end
+        pcall(function() HealingEvent:FireServer("StartVisuals", target) end)
+        for _ = 1, 6 do -- 6 ticks × 5 = 30 data → 50XP → SpeedBoost
+            if not (FH.infiniteHealingCharge or FH.autoHealClassA) then break end
+            local tc = target.Character
+            if not tc then break end
+            local th = tc:FindFirstChild("Humanoid")
+            if not th or th.Health >= th.MaxHealth then break end
+            local lp = game:GetService("Players").LocalPlayer
+            local myHRP  = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+            local thHRP  = tc:FindFirstChild("HumanoidRootPart")
+            if not (myHRP and thHRP) then break end
+            if (myHRP.Position - thHRP.Position).Magnitude > 20 then break end
+            pcall(function() HealingEvent:FireServer("HealTick", target) end)
+            task.wait(1)
+        end
+        pcall(function() HealingEvent:FireServer("GiveSpeedBoost") end) -- ← 30 data / 50XP → boost
+        pcall(function() HealingEvent:FireServer("StopVisuals") end)
+    end
+end)
+
+-- 3) AUTO MINIJUEGOS (legit, con delay humano)
+FH.autoPatientLegit = false
+FH.autoTubeLegit    = false
+FH.autoPanelLegit   = false
+FH.pendingTasks = {}
+
+local TaskRemote = game:GetService("ReplicatedStorage"):WaitForChild("TaskRemote")
+TaskRemote.OnClientEvent:Connect(function(action, taskId, guiName)
+    if action == "OpenGui" then
+        FH.pendingTasks[guiName] = taskId
+    elseif action == "EndTask" then
+        for k, v in pairs(FH.pendingTasks) do
+            if v == taskId then FH.pendingTasks[k] = nil end
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(0.5) do
+        -- Patient (catching notes)
+        if FH.autoPatientLegit and FH.pendingTasks["TaskGuiMap1"] then
+            local tid = FH.pendingTasks["TaskGuiMap1"]
+            FH.pendingTasks["TaskGuiMap1"] = nil
+            task.spawn(function()
+                task.wait(math.random(12, 18))
+                pcall(function() TaskRemote:FireServer("CompleteStep", tid) end)
+            end)
+        end
+        -- Tube / pipes
+        if FH.autoTubeLegit and FH.pendingTasks["TaskGuiMap2"] then
+            local tid = FH.pendingTasks["TaskGuiMap2"]
+            FH.pendingTasks["TaskGuiMap2"] = nil
+            task.spawn(function()
+                task.wait(math.random(15, 25))
+                pcall(function() TaskRemote:FireServer("CompleteStep", tid) end)
+            end)
+        end
+        -- Panel / Simon says
+        if FH.autoPanelLegit and FH.pendingTasks["TaskGuiMap3"] then
+            local tid = FH.pendingTasks["TaskGuiMap3"]
+            FH.pendingTasks["TaskGuiMap3"] = nil
+            task.spawn(function()
+                task.wait(math.random(10, 15))
+                pcall(function() TaskRemote:FireServer("CompleteStep", tid) end)
+            end)
+        end
+    end
+end)
+
+print("[FH] Parte 22 cargada")
