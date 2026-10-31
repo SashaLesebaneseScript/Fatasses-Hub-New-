@@ -1,4 +1,4 @@
--- ============ PARTE 2/5 - Core Fixes ============
+- ============ PARTE 2/5 - Core Fixes ============
 local FH=getgenv().FH
 if not FH or not FH.p1 then warn("[FH] Ejecuta Parte 1 primero") return end
 if FH.p2 then warn("[FH] Parte 2 ya ejecutada") return end
@@ -21,11 +21,7 @@ FH.getExperiment = function()
     end
     return nil
 end
-
-FH.updateKiller = function()
-    local exp = FH.getExperiment()
-    return exp and exp.Character or nil
-end
+FH.updateKiller = function() local exp = FH.getExperiment(); return exp and exp.Character or nil end
 FH.isKiller = function(m) if not m then return false end return m==FH.updateKiller() end
 
 FH.nearest=function(maxD) 
@@ -76,7 +72,7 @@ FH.startSp=function()
 end
 FH.stopSp=function() FH.on.spamComplete=false; spT=nil; lastSpamId=nil end
 
--- CURACIÓN ARREGLADA (30 Ticks exactos como el juego)
+-- CURACIÓN INFINITA (Spam de HealTick)
 FH.healT=function(t) 
     local e=FH.getHealEv(); if not e or not t then return false end
     local targetPlayer = t.Character and PL:GetPlayerFromCharacter(t.Character) or t
@@ -88,7 +84,7 @@ FH.healT=function(t)
             task.wait(0.05) 
         end
         pcall(function() e:FireServer("GiveSpeedBoost") end)
-        pcall(function() e:FireServer("StartCooldown") end)
+        -- No enviamos StartCooldown para evitar el bloqueo
     end)
     return true 
 end
@@ -124,4 +120,4 @@ FH.startJ=function() if FH.jT then return end; FH.jT=task.spawn(function() while
 FH.stopJ=function() FH.on.jackpot=false; FH.jT=nil end
 
 FH.p2=true
-print("🎃 [2/5] Core + Heal Fix OK")
+print("🎃 [2/5] Core + Infinite Heal OK")
