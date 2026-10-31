@@ -6,7 +6,7 @@ local RS,PL,LP=FH.RS,FH.PL,FH.LP
 local WS = FH.WS
 local Lighting = game:GetService("Lighting")
 
--- ===== ESP PLAYERS (Colores) =====
+-- ===== ESP PLAYERS =====
 local pESP={}
 local function mkP(m,color)
     if not m then return end
@@ -28,18 +28,20 @@ local function delP(m) local d=pESP[m]; if not d then return end; d.h:Destroy();
 
 local function scanP()
     local found={}; 
+    local expPlayer = FH.getExperiment()
+    
     for _,p in ipairs(PL:GetPlayers())do 
         if p~=LP and p.Character then 
             local ch=p.Character; local hum=ch:FindFirstChildOfClass("Humanoid")
             if hum and hum.Health>0 then 
                 -- Lógica de Colores
-                local color = Color3.fromRGB(150, 150, 150) -- Gris por defecto
+                local color = Color3.fromRGB(150, 150, 150) -- Gris
                 local hasExp = ch:FindFirstChild("Experiment")
                 
-                if hasExp then 
-                    color = Color3.fromRGB(152, 255, 152) -- Verde Menta para CUALQUIERA con Experiment
-                elseif FH.isKiller(ch) then 
-                    color = Color3.fromRGB(255, 127, 80) -- Coral para el asesino
+                if FH.isKiller(ch) then 
+                    color = Color3.fromRGB(255, 127, 80) -- Coral para el Asesino
+                elseif hasExp then 
+                    color = Color3.fromRGB(152, 255, 152) -- Verde Menta para el resto con Experiment
                 end
                 
                 mkP(ch, color)
@@ -64,10 +66,7 @@ FH.startEP=function()
                 for m,d in pairs(pESP)do 
                     if m and m.Parent and d.l then 
                         local h=m:FindFirstChildOfClass("Humanoid"); 
-                        if h then 
-                            local hp=math.floor(h.Health); local mx=math.floor(h.MaxHealth); 
-                            if hp~=d.hp or mx~=d.mx then d.hp=hp; d.mx=mx; d.l.Text=hp.." / "..mx end 
-                        end 
+                        if h then local hp=math.floor(h.Health); local mx=math.floor(h.MaxHealth); if hp~=d.hp or mx~=d.mx then d.hp=hp; d.mx=mx; d.l.Text=hp.." / "..mx end end 
                     end 
                 end
             end
@@ -77,7 +76,7 @@ FH.startEP=function()
 end
 FH.stopEP=function() pT=nil; for m in pairs(pESP)do delP(m)end end
 
--- ===== ESP TASKS (Map 1, 2 y 3) =====
+-- ===== ESP TASKS (Arreglado) =====
 FH.espTasksCache = {}
 FH.startESP = function(v)
     if not v then
@@ -89,29 +88,24 @@ FH.startESP = function(v)
     end
     task.spawn(function()
         while FH.on.espActive do
-            local folders = {WS:FindFirstChild("Map1"), WS:FindFirstChild("Map2"), WS:FindFirstChild("Map3"), WS}
-            for _, folder in ipairs(folders) do
-                if folder then
-                    for _, obj in ipairs(folder:GetDescendants()) do
-                        -- Buscar cualquier modelo que sea task, console o tenga prompt
-                        if obj:IsA("Model") and (obj.Name:match("^Task_%d+$") or obj.Name == "Patient" or obj.Name == "Tube" or obj.Name:match("Console") or obj:FindFirstChild("ProximityPrompt")) then
-                            if not FH.espTasksCache[obj] then
-                                local hl = Instance.new("Highlight")
-                                hl.Parent = obj; hl.Adornee = obj
-                                hl.FillColor = Color3.fromRGB(255, 120, 20); hl.OutlineColor = Color3.fromRGB(255, 180, 80); hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                                
-                                local bg = Instance.new("BillboardGui")
-                                bg.Parent = obj; bg.Adornee = obj
-                                bg.Size = UDim2.new(0, 80, 0, 20)
-                                bg.StudsOffset = Vector3.new(0, 2, 0)
-                                bg.AlwaysOnTop = true
-                                
-                                local txt = Instance.new("TextLabel", bg)
-                                txt.Size = UDim2.new(1, 0, 1, 0); txt.BackgroundTransparency = 1; txt.Text = "📋 "..obj.Name; txt.TextColor3 = Color3.fromRGB(255, 120, 20); txt.TextStrokeTransparency = 0; txt.Font = Enum.Font.GothamBold; txt.TextScaled = true
-                                
-                                FH.espTasksCache[obj] = {hl = hl, bg = bg}
-                            end
-                        end
+            for _, obj in ipairs(WS:GetDescendants()) do
+                -- Busca CUALQUIER modelo que tenga un ProximityPrompt (Tasks) o sea un Panel
+                if obj:IsA("Model") and (obj:FindFirstChildWhichIsA("ProximityPrompt") or obj.Name:match("^Task_%d+$") or obj.Name == "Patient" or obj.Name == "Tube") then
+                    if not FH.espTasksCache[obj] then
+                        local hl = Instance.new("Highlight")
+                        hl.Parent = obj; hl.Adornee = obj
+                        hl.FillColor = Color3.fromRGB(255, 120, 20); hl.OutlineColor = Color3.fromRGB(255, 180, 80); hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                        
+                        local bg = Instance.new("BillboardGui")
+                        bg.Parent = obj; bg.Adornee = obj
+                        bg.Size = UDim2.new(0, 80, 0, 20)
+                        bg.StudsOffset = Vector3.new(0, 2, 0)
+                        bg.AlwaysOnTop = true
+                        
+                        local txt = Instance.new("TextLabel", bg)
+                        txt.Size = UDim2.new(1, 0, 1, 0); txt.BackgroundTransparency = 1; txt.Text = "📋 "..obj.Name; txt.TextColor3 = Color3.fromRGB(255, 120, 20); txt.TextStrokeTransparency = 0; txt.Font = Enum.Font.GothamBold; txt.TextScaled = true
+                        
+                        FH.espTasksCache[obj] = {hl = hl, bg = bg}
                     end
                 end
             end
