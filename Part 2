@@ -63,7 +63,7 @@ FH.nearest=function(maxD)
 end
 
 FH.injPlayer=function(maxD) 
-    maxD=maxD or 20; local mc=LP.Character; if not mc then return nil end
+    maxD=maxD or 25; local mc=LP.Character; if not mc then return nil end
     local mh=mc:FindFirstChild("HumanoidRootPart"); if not mh then return nil end
     local b,bd=nil,maxD
     for _,p in ipairs(PL:GetPlayers()) do 
@@ -78,31 +78,43 @@ FH.injPlayer=function(maxD)
     return b 
 end
 
--- SISTEMA DE CARGAS INFINITAS
+-- SISTEMA DE CURACIÓN (TP + HEAL)
 FH.healT=function(t) 
     local e=FH.getHealEv()
     if not e or not t then return false end
     local targetPlayer = t.Character and PL:GetPlayerFromCharacter(t.Character) or t
-    if not targetPlayer then return false end
+    if not targetPlayer or not targetPlayer.Character then return false end
     
-    -- Forzar UI a infinito
+    local myChar = LP.Character
+    local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    local tHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not myHRP or not tHRP then return false end
+    
+    -- TP al objetivo para evitar el error "Target is too far"
+    if (myHRP.Position - tHRP.Position).Magnitude > 15 then
+        pcall(function() myHRP.CFrame = tHRP.CFrame * CFrame.new(0, 0, 3) end)
+        task.wait(0.1)
+    end
+    
+    -- Forzar UI
     local pg = LP:FindFirstChild("PlayerGui")
     if pg then
         local hg = pg:FindFirstChild("HealingGui")
         if hg and hg:FindFirstChild("HealingButton") then
-            local btn = hg.HealingButton
-            local ct = btn:FindFirstChild("CooldownText")
+            local ct = hg.HealingButton:FindFirstChild("CooldownText")
             if ct then ct.Text = "∞" end
         end
     end
     
     pcall(function() e:FireServer("StartVisuals", targetPlayer) end)
     task.spawn(function() 
-        for i=1,30 do 
+        for i=1,6 do -- 6 ticks = 30 data = 50XP
+            if not targetPlayer.Character then break end
             pcall(function() e:FireServer("HealTick", targetPlayer) end)
-            task.wait(0.05) 
+            task.wait(1) -- 1 segundo por tick
         end
         pcall(function() e:FireServer("GiveSpeedBoost") end)
+        pcall(function() e:FireServer("StopVisuals") end)
     end)
     return true 
 end
@@ -111,4 +123,4 @@ FH.healN=function() return FH.healT(FH.injPlayer(100)) end
 FH.healS=function() return FH.healT(LP) end
 
 FH.p2=true
-print("🎃 [2/5] Core + Heal Fix OK")
+print("[2/5] Core + Heal Fix OK")
