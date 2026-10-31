@@ -9,32 +9,7 @@ local UIS = game:GetService("UserInputService")
 FH.sashaSprint = false
 FH.isSprintingManually = false
 
-task.spawn(function()
-    while true do
-        local pg = LP:FindFirstChild("PlayerGui")
-        if pg then
-            local sg = pg:FindFirstChild("SprintGui")
-            if sg then
-                local btn = sg:FindFirstChild("SprintButton", true)
-                if btn and not btn:GetAttribute("FH_HOOKED") then
-                    btn:SetAttribute("FH_HOOKED", true)
-                    btn.InputBegan:Connect(function(input)
-                        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then FH.isSprintingManually = true end
-                    end)
-                    btn.InputEnded:Connect(function(input)
-                        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then FH.isSprintingManually = false end
-                    end)
-                    UIS.InputEnded:Connect(function(input)
-                        if input.UserInputType == Enum.UserInputType.Touch then FH.isSprintingManually = false end
-                    end)
-                end
-            end
-        end
-        task.wait(1)
-    end
-end)
-
--- FORZAR VELOCIDAD (Hook)
+-- FORZAR VELOCIDAD (Menos estricto, solo con moverse)
 task.spawn(function()
     pcall(function()
         local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
@@ -44,7 +19,7 @@ task.spawn(function()
             local oldNewIndex = mt.__newindex
             mt.__newindex = newcclosure(function(self, key, value)
                 if key == "WalkSpeed" and self == hum and FH.sashaSprint then
-                    if UIS:IsKeyDown(Enum.KeyCode.LeftShift) or FH.isSprintingManually then
+                    if self.MoveDirection.Magnitude > 0 then
                         return oldNewIndex(self, key, 30) 
                     end
                 end
@@ -62,8 +37,9 @@ RS.RenderStepped:Connect(function()
         local hum = char:FindFirstChildOfClass("Humanoid")
         local stam = char:FindFirstChild("Stam")
         
-        if UIS:IsKeyDown(Enum.KeyCode.LeftShift) or FH.isSprintingManually then
-            if hum then hum.WalkSpeed = 30 end
+        -- Si te mueves, fuerzalo a 30
+        if hum and hum.MoveDirection.Magnitude > 0 then
+            hum.WalkSpeed = 30
             if stam then stam.Value = 100 end
         end
         
@@ -104,10 +80,11 @@ end
 FH.stopAP = function() if FH.apConn then FH.apConn:Disconnect(); FH.apConn=nil end end
 
 -- CYCLE TPs
-local tpIdx = { patient = 1, tube = 1, candy = 1, task3 = 1 }
-local function getTargets(keyword)
+local tpIdx = { patient = 1, tube = 1, candy = 1, panel = 1 }
+local function getTargets(keyword, folderName)
     local t = {}
-    for _, obj in ipairs(WS:GetDescendants()) do
+    local folder = WS:FindFirstChild(folderName) or WS
+    for _, obj in ipairs(folder:GetDescendants()) do
         if obj:IsA("Model") and obj.Name:lower():find(keyword) then
             local hrp = obj:FindFirstChild("PrimaryPart") or obj:FindFirstChildWhichIsA("BasePart")
             if hrp then table.insert(t, hrp) end
@@ -115,8 +92,8 @@ local function getTargets(keyword)
     end
     return t
 end
-FH.cycleTP = function(kw)
-    local t = getTargets(kw)
+FH.cycleTP = function(kw, folder)
+    local t = getTargets(kw, folder)
     if #t == 0 then return end
     local i = tpIdx[kw] or 1
     if i > #t then i = 1 end
@@ -124,7 +101,7 @@ FH.cycleTP = function(kw)
     if hrp then hrp.CFrame = t[i].CFrame * CFrame.new(0, 3, 0); tpIdx[kw] = i + 1 end
 end
 
--- GET ALL CANDYS (Vuelve al inicio)
+-- GET ALL CANDYS (Se activa solo en cada ronda)
 FH.autoCandyActive = false
 FH.candyStartPos = nil
 task.spawn(function()
@@ -140,15 +117,22 @@ task.spawn(function()
                         if primary then table.insert(candies, primary) end
                     end
                 end
+                
                 if #candies > 0 then hrp.CFrame = candies[1].CFrame; task.wait(0.15)
                 else
-                    hrp.CFrame = FH.candyStartPos
-                    FH.autoCandyActive = false
-                    FH.candyStartPos = nil
+                    -- Si no hay candies, regresa al inicio (si ya se habian recogido) y espera
+                    if FH.candyStartPos and (hrp.Position - FH.candyStartPos.Position).Magnitude < 100 then
+                        hrp.CFrame = FH.candyStartPos
+                        FH.candyStartPos = nil
+                    end
+                    task.wait(5) 
                 end
             end
             task.wait(0.1)
-        else task.wait(1) end
+        else
+            FH.candyStartPos = nil
+            task.wait(1)
+        end
     end
 end)
 
@@ -195,10 +179,10 @@ FH.panel=function()
    opt("Auto Generator (Legit) 🕸",function(v)FH.autoTubeLegit=v end)
    opt("Auto Task 3 (Legit) 📝",function(v)FH.autoTask3Legit=v end)
    opt("Spam Complete 🔁", function(v) FH.on.spamComplete = v; if v then FH.startSp() else FH.stopSp() end end)
-   btn("Cycle TP Patient 🧟", function() FH.cycleTP("patient") end)
-   btn("Cycle TP Generator 🕸", function() FH.cycleTP("tube") end)
-   btn("Cycle TP Candy 🍬", function() FH.cycleTP("candy") end)
-   btn("Cycle TP Task 3 📝", function() FH.cycleTP("task_3") end)
+   btn("Cycle TP Patient 🧟", function() FH.cycleTP("patient", "Map1") end)
+   btn("Cycle TP Generator 🕸", function() FH.cycleTP("tube", "Map2") end)
+   btn("Cycle TP Candy 🍬", function() FH.cycleTP("candy", "Map1") end)
+   btn("Cycle TP Panel 📝", function() FH.cycleTP("panel", "Map3") end)
   elseif FH.pestana=="Class A"then
    btn("Heal Nearest 💚",FH.healN)
    opt("Auto Heal 💚",function(v)FH.on.autoHeal=v;if v then FH.startAH()else FH.stopAH()end end)
