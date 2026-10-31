@@ -4,12 +4,9 @@ if not FH or not FH.p4 then warn("[FH] Ejecuta Partes 1-4 primero") return end
 if FH.p5 then warn("[FH] Parte 5 ya ejecutada") return end
 local RS,PL,WS,LP=FH.RS,FH.PL,FH.WS,FH.LP
 local C=FH.C
-local UIS = game:GetService("UserInputService")
 
+-- INFINITE STAMINA (Menos estricto)
 FH.sashaSprint = false
-FH.isSprintingManually = false
-
--- FORZAR VELOCIDAD (Menos estricto, solo con moverse)
 task.spawn(function()
     pcall(function()
         local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
@@ -36,8 +33,6 @@ RS.RenderStepped:Connect(function()
     if char then
         local hum = char:FindFirstChildOfClass("Humanoid")
         local stam = char:FindFirstChild("Stam")
-        
-        -- Si te mueves, fuerzalo a 30
         if hum and hum.MoveDirection.Magnitude > 0 then
             hum.WalkSpeed = 30
             if stam then stam.Value = 100 end
@@ -53,6 +48,36 @@ RS.RenderStepped:Connect(function()
                 if bar and bar:IsA("Frame") then bar.Size = UDim2.new(1, 0, 1, 0); bar.BackgroundColor3 = Color3.fromRGB(255, 105, 180) end
             end
         end
+    end
+end)
+
+-- CYCLE TPs
+local tpIdx = { patient = 1, tube = 1, candy = 1, panel = 1 }
+local function getTargets(keyword, folderName)
+    local t = {}
+    local folder = WS:FindFirstChild(folderName) or WS
+    for _, obj in ipairs(folder:GetDescendants()) do
+        if obj:IsA("Model") and obj.Name:lower():find(keyword) then
+            local hrp = obj:FindFirstChild("PrimaryPart") or obj:FindFirstChildWhichIsA("BasePart")
+            if hrp then table.insert(t, hrp) end
+        end
+    end
+    return t
+end
+FH.cycleTP = function(kw, folder)
+    local t = getTargets(kw, folder)
+    if #t == 0 then return end
+    local i = tpIdx[kw] or 1
+    if i > #t then i = 1 end
+    local mc = LP.Character; local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
+    if hrp then hrp.CFrame = t[i].CFrame * CFrame.new(0, 3, 0); tpIdx[kw] = i + 1 end
+end
+
+-- NOCLIP
+FH.noclipActive = false
+RS.Stepped:Connect(function()
+    if FH.noclipActive and LP.Character then
+        for _, v in pairs(LP.Character:GetDescendants()) do if v:IsA("BasePart") and v.CanCollide then v.CanCollide = false end end
     end
 end)
 
@@ -79,74 +104,9 @@ FH.startAP = function()
 end
 FH.stopAP = function() if FH.apConn then FH.apConn:Disconnect(); FH.apConn=nil end end
 
--- CYCLE TPs
-local tpIdx = { patient = 1, tube = 1, candy = 1, panel = 1 }
-local function getTargets(keyword, folderName)
-    local t = {}
-    local folder = WS:FindFirstChild(folderName) or WS
-    for _, obj in ipairs(folder:GetDescendants()) do
-        if obj:IsA("Model") and obj.Name:lower():find(keyword) then
-            local hrp = obj:FindFirstChild("PrimaryPart") or obj:FindFirstChildWhichIsA("BasePart")
-            if hrp then table.insert(t, hrp) end
-        end
-    end
-    return t
-end
-FH.cycleTP = function(kw, folder)
-    local t = getTargets(kw, folder)
-    if #t == 0 then return end
-    local i = tpIdx[kw] or 1
-    if i > #t then i = 1 end
-    local mc = LP.Character; local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
-    if hrp then hrp.CFrame = t[i].CFrame * CFrame.new(0, 3, 0); tpIdx[kw] = i + 1 end
-end
-
--- GET ALL CANDYS (Se activa solo en cada ronda)
-FH.autoCandyActive = false
-FH.candyStartPos = nil
-task.spawn(function()
-    while true do
-        if FH.autoCandyActive then
-            local mc = LP.Character; local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                if not FH.candyStartPos then FH.candyStartPos = hrp.CFrame end
-                local candies = {}
-                for _, obj in ipairs(WS:GetDescendants()) do
-                    if obj:IsA("Model") and obj.Name:match("^Candy") then
-                        local primary = obj:FindFirstChild("PrimaryPart") or obj:FindFirstChildWhichIsA("BasePart")
-                        if primary then table.insert(candies, primary) end
-                    end
-                end
-                
-                if #candies > 0 then hrp.CFrame = candies[1].CFrame; task.wait(0.15)
-                else
-                    -- Si no hay candies, regresa al inicio (si ya se habian recogido) y espera
-                    if FH.candyStartPos and (hrp.Position - FH.candyStartPos.Position).Magnitude < 100 then
-                        hrp.CFrame = FH.candyStartPos
-                        FH.candyStartPos = nil
-                    end
-                    task.wait(5) 
-                end
-            end
-            task.wait(0.1)
-        else
-            FH.candyStartPos = nil
-            task.wait(1)
-        end
-    end
-end)
-
--- NOCLIP
-FH.noclipActive = false
-RS.Stepped:Connect(function()
-    if FH.noclipActive and LP.Character then
-        for _, v in pairs(LP.Character:GetDescendants()) do if v:IsA("BasePart") and v.CanCollide then v.CanCollide = false end end
-    end
-end)
-
 -- UI
-local function getIcon(n) if n=="Esp" then return "👁" end; if n=="Scientist" then return "🧪" end; if n=="Class A" then return "💚" end; if n=="Class S" then return "🎯" end; if n=="Extra Stuff" then return "⚡" end; return "🎃" end
-local TABS={"Esp","Scientist","Class A","Class S","Extra Stuff","Experiment"}
+local function getIcon(n) if n=="Esp" then return "👁" end; if n=="Scientist" then return "🧪" end; if n=="Class A" then return "💚" end; if n=="Class S" then return "🎯" end; if n=="Extra Stuff" then return "⚡" end; if n=="Blatant" then return "💀" end; if n=="Auto Farm" then return "🤖" end; return "🎃" end
+local TABS={"Esp","Scientist","Class A","Class S","Extra Stuff","Blatant","Auto Farm"}
 local tabs={};FH.tabs=tabs;FH.pestana="Esp"
 local function mkTab(n,cs)
  local t=Instance.new("TextButton",FH.sb); t.Size=UDim2.new(1,-6,0,32); t.BackgroundColor3=C.bg_card; t.BackgroundTransparency=.2; t.Text=""; t.BorderSizePixel=0; t.AutoButtonColor=false
@@ -155,7 +115,7 @@ local function mkTab(n,cs)
  local l=Instance.new("TextLabel",t); l.Size=UDim2.new(1,-34,1,0); l.Position=UDim2.new(0,30,0,0); l.BackgroundTransparency=1; l.Text=n; l.TextColor3=cs and C.text_sub or C.text; l.TextScaled=true; l.Font=Enum.Font.GothamBold; l.TextXAlignment=Enum.TextXAlignment.Left
  local ck=false
  local function setSt(s) if s=="sel"then t.BackgroundColor3=C.bg_card_hl;t.BackgroundTransparency=0 else t.BackgroundColor3=C.bg_card;t.BackgroundTransparency=.2 end end
- t.MouseButton1Click:Connect(function() if ck or cs or FH.pestana==n then return end; ck=true; FH.sfx("tab_switch",2,1); if tabs[FH.pestana]then tabs[FH.pestana].S("dese")end; FH.pestana=n; setSt("sel"); task.spawn(function()pcall(FH.panel)end); task.delay(.5,function()ck=false end)end)
+ t.MouseButton1Click:Connect(function() if ck or cs or FH.pestana==n then return end; ck=true; if tabs[FH.pestana]then tabs[FH.pestana].S("dese")end; FH.pestana=n; setSt("sel"); task.spawn(function()pcall(FH.panel)end); task.delay(.5,function()ck=false end)end)
  tabs[n]={S=setSt,CS=cs}
 end
 for _,n in ipairs(TABS)do mkTab(n,false)end
@@ -170,48 +130,82 @@ FH.panel=function()
   if FH.pestana=="Esp"then
    opt("ESP Tasks 👁",function(v)FH.on.espActive=v;if v then FH.startESP(true)else FH.stopESP()end end)
    opt("ESP Players 🎃",function(v)FH.on.espPlActive=v;if v then FH.startEP()else FH.stopEP()end end)
-   opt("ESP Candies 🍬", function(v) FH.candyESP_Active=v; if v then FH.startCandyESP(true) else FH.startCandyESP(false) end end)
-   opt("Full Bright ☀️", function(v) FH.setFullbright(v, false) end)
-   opt("Alt Full Bright 🌤️", function(v) FH.setFullbright(v, true) end)
-   opt("No Fog 🌫️", function(v) FH.setNoFog(v) end)
+   opt("ESP Candies 🍬", function(v)FH.candyESP_Active=v; if v then FH.startCandyESP(true) else FH.startCandyESP(false) end end)
+   opt("Full Bright ☀️", function(v) FH.setFullbright(v, false) end, false)
+   opt("Alt Full Bright 🌤️", function(v) FH.setFullbright(v, true) end, false)
+   opt("No Fog 🌫️", function(v) FH.setNoFog(v) end, false)
   elseif FH.pestana=="Scientist"then
-   opt("Auto Patient (Legit) 🧟",function(v)FH.autoPatientLegit=v; if v then FH.startAP() else FH.stopAP() end end)
-   opt("Auto Generator (Legit) 🕸",function(v)FH.autoTubeLegit=v end)
-   opt("Auto Task 3 (Legit) 📝",function(v)FH.autoTask3Legit=v end)
-   opt("Spam Complete 🔁", function(v) FH.on.spamComplete = v; if v then FH.startSp() else FH.stopSp() end end)
-   btn("Cycle TP Patient 🧟", function() FH.cycleTP("patient", "Map1") end)
-   btn("Cycle TP Generator 🕸", function() FH.cycleTP("tube", "Map2") end)
-   btn("Cycle TP Candy 🍬", function() FH.cycleTP("candy", "Map1") end)
-   btn("Cycle TP Panel 📝", function() FH.cycleTP("panel", "Map3") end)
+   opt("Auto Patient (Legit) 🧟",function(v)FH.autoPatientLegit=v; if v then FH.startAP() else FH.stopAP() end end, true)
+   opt("Auto Generator (Legit) 🕸",function(v)FH.autoTubeLegit=v end, true)
+   opt("Auto Task 3 (Legit) 📝",function(v)FH.autoTask3Legit=v end, true)
+   opt("Complete Full 🔁", function(v) FH.on.spamComplete = v; if v then FH.startSp() else FH.stopSp() end end, true)
+   btn("Cycle TP Patient 🧟", function() FH.cycleTP("patient", "Map1") end, true)
+   btn("Cycle TP Generator 🕸", function() FH.cycleTP("tube", "Map2") end, true)
+   btn("Cycle TP Candy 🍬", function() FH.cycleTP("candy", "Map1") end, true)
+   btn("Cycle TP Panel 📝", function() FH.cycleTP("panel", "Map3") end, true)
   elseif FH.pestana=="Class A"then
-   btn("Heal Nearest 💚",FH.healN)
-   opt("Auto Heal 💚",function(v)FH.on.autoHeal=v;if v then FH.startAH()else FH.stopAH()end end)
-   btn("Heal Self 🩹",FH.healS)
-   btn("Heal All in Range ✨",FH.healAll)
-   btn("Reset Cooldown ⏱",FH.resetCd)
-   btn("Get 30 Money and 50 XP 💰",FH.boost)
-   opt("I JUST HIT THE JACKPOOOOTTTTTT 🎰",function(v)FH.on.jackpot=v;if v then FH.startJ()else FH.stopJ()end end)
-   opt("Auto heal self 🩹",function(v)FH.on.autoHealSelf=v;if v then FH.startAHS()else FH.stopAHS()end end)
+   btn("Heal Nearest 💚",FH.healN, true)
+   opt("Auto Heal 💚",function(v)FH.on.autoHeal=v;if v then FH.startAH()else FH.stopAH()end end, true)
+   btn("Heal Self 🩹",FH.healS, true)
+   btn("Heal All in Range ✨",FH.healAll, true)
+   btn("Reset Cooldown ⏱",FH.resetCd, true)
+   btn("Get 30 Money and 50 XP 💰",FH.boost, true)
+   opt("I JUST HIT THE JACKPOOOOTTTTTT 🎰",function(v)FH.on.jackpot=v;if v then FH.startJ()else FH.stopJ()end end, true)
+   opt("Auto heal self 🩹",function(v)FH.on.autoHealSelf=v;if v then FH.startAHS()else FH.stopAHS()end end, true)
   elseif FH.pestana=="Class S"then
-   opt("Aimlock 🎯",function(v)FH.on.aimlockS=v;if v then FH.startAL()else FH.stopAL()end end)
-  elseif FH.pestana=="Experiment"then
-   opt("Auto Punch 👊",function(v)FH.k8.autoPunch=v end)
-   opt("360° Hitbox 💥",function(v)FH.k8.worldHitbox=v end)
-   opt("Hitbox Tp 👻",function(v)FH.k8.hitboxTp=v end)
+   opt("Aimlock 🎯",function(v)FH.on.aimlockS=v;if v then FH.startAL()else FH.stopAL()end end, true)
   elseif FH.pestana=="Extra Stuff"then
-   opt("Inf Stamina (Sasha) 🎃",function(v)FH.sashaSprint=v end)
-   opt("Get all Candy's 🍬", function(v) FH.autoCandyActive = v end)
-   opt("Noclip 🚪", function(v) FH.noclipActive = v end)
+   opt("Inf Stamina 🎃",function(v)FH.sashaSprint=v end, true)
+   opt("Get all Candy's 🍬", function(v) FH.autoCandyActive = v end, true)
+   opt("Noclip 🚪", function(v) FH.noclipActive = v end, true)
+  elseif FH.pestana=="Blatant" then
+   local warning = Instance.new("TextLabel", FH.oc)
+   warning.Size = UDim2.new(1, 0, 0, 60)
+   warning.BackgroundTransparency = 1
+   warning.Text = "When you turn Blatant On all the response of ANY Bans on your account isn't my fault"
+   warning.TextColor3 = C.danger
+   warning.Font = Enum.Font.GothamBold
+   warning.TextScaled = true
+   warning.TextWrapped = true
+   
+   opt("Blatant Mode 💀", function(v) FH.blatantMode = v; FH.panel() end)
+  elseif FH.pestana=="Auto Farm" then
+   btn("Scientist Auto Farm", function()
+       if not FH.isKiller(FH.LP.Character) and FH.blatantMode then
+           task.spawn(function()
+               while FH.blatantMode do
+                   if not FH.isKiller(FH.LP.Character) then
+                       local hasTask = FH.LP.PlayerGui:FindFirstChild("TaskGuiMap1") or FH.LP.PlayerGui:FindFirstChild("TaskGuiMap2") or FH.LP.PlayerGui:FindFirstChild("TaskGuiMap3")
+                       if hasTask then
+                           task.wait(2)
+                           -- TP to minigame
+                           if FH.LP.PlayerGui:FindFirstChild("TaskGuiMap1") then FH.cycleTP("patient", "Map1") elseif FH.LP.PlayerGui:FindFirstChild("TaskGuiMap2") then FH.cycleTP("tube", "Map2") elseif FH.LP.PlayerGui:FindFirstChild("TaskGuiMap3") then FH.cycleTP("panel", "Map3") end
+                           task.wait(0.5)
+                           -- Fire E
+                           keypress(Enum.KeyCode.E); task.wait(0.1); keyrelease(Enum.KeyCode.E)
+                           task.wait(3)
+                       else
+                           task.wait(1)
+                       end
+                   else
+                       task.wait(1)
+                   end
+               end
+           end)
+       end
+   end, false) -- No requiere Blatant, ya que tiene su propia verificación interna
   end
  end)
  pupd=false 
 end
 
+-- Toggle Flotante
 local th=Instance.new("Frame"); th.Size=UDim2.new(0,60,0,60); th.Position=UDim2.new(0,20,.75,0); th.BackgroundTransparency=1; th.Parent=FH.sg
 local tbtn=Instance.new("TextButton",th); tbtn.Size=UDim2.new(1,0,1,0); tbtn.BackgroundColor3=C.accent; tbtn.Text=""; tbtn.BorderSizePixel=0; tbtn.AutoButtonColor=false
 Instance.new("UICorner",tbtn).CornerRadius=UDim.new(1,0)
 local sl2=Instance.new("TextLabel",tbtn); sl2.Size=UDim2.new(1,0,1,0); sl2.BackgroundTransparency=1; sl2.Text="🎃"; sl2.TextColor3=Color3.fromRGB(255,255,255); sl2.TextScaled=true; sl2.Font=Enum.Font.GothamBlack
 tbtn.MouseButton1Click:Connect(function()FH.fr.Visible=not FH.fr.Visible end)
+
 FH.panel()
 FH.p5=true
-print("🎃 [5/5] GUI & Main Logic OK")
+print("🎃 [5/5] GUI + Inf Stamina Fix OK")
