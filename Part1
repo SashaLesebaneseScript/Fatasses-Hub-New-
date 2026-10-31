@@ -57,11 +57,10 @@ Instance.new("UICorner",tb).CornerRadius=UDim.new(0,14)
 
 local tl=Instance.new("TextLabel",tb)
 tl.Size=UDim2.new(0, 200, 1, 0);tl.Position=UDim2.new(0,34,0,0);tl.BackgroundTransparency=1
-tl.Text="FATASSES HUB"  -- 🎃 ELIMINADA
+tl.Text="FATASSES HUB"
 tl.TextColor3=C.text;tl.TextScaled=true
 tl.Font=Enum.Font.GothamBlack;tl.TextXAlignment=Enum.TextXAlignment.Left
 
--- Beta label MOVIDA A LA DERECHA (antes x=200, ahora anclada a la derecha)
 local beta = Instance.new("TextLabel", tb)
 beta.Size = UDim2.new(0, 46, 0.6, 0); beta.Position = UDim2.new(1, -80, 0.2, 0)
 beta.BackgroundTransparency = 1; beta.Text = "Beta"; beta.TextColor3 = C.accent
@@ -105,13 +104,10 @@ oc.CanvasSize=UDim2.new(0,0,0,0);oc.AutomaticCanvasSize=Enum.AutomaticSize.Y
 FH.oc=oc
 local ol=Instance.new("UIListLayout",oc);ol.Padding=UDim.new(0,6)
 
--- === ANIMACIÓN REUTILIZABLE ===
 FH.animar = function(obj)
     local base = obj.Size
     obj.MouseEnter:Connect(function()
-        FH.TW:Create(obj, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {
-            Size = base + UDim2.new(0, 5, 0, 5)
-        }):Play()
+        FH.TW:Create(obj, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {Size = base + UDim2.new(0, 5, 0, 5)}):Play()
         pcall(function() FH.sfx("hover", 0.35, 1) end)
     end)
     obj.MouseLeave:Connect(function()
@@ -165,7 +161,6 @@ FH.crearOpcion=function(nombre,cb,isBlatant)
  tb2.MouseButton1Click:Connect(tg)
  l.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then tg()end end)
  l.Active=true
- -- Animación en el toggle
  FH.animar(tb2)
 end
 
@@ -189,31 +184,18 @@ FH.crearBotonAccion=function(nombre,onFire,isBlatant)
  FH.animar(b)
 end
 
--- === DISABLE ALL BLATANT ===
 FH.disableAllBlatant = function()
     FH.blatantMode = false
-    -- Killer / Experiment
     if FH.k8 then
-        for k in pairs(FH.k8) do
-            if type(FH.k8[k]) == "boolean" then FH.k8[k] = false end
-        end
+        for k in pairs(FH.k8) do if type(FH.k8[k]) == "boolean" then FH.k8[k] = false end end
     end
-    -- Beta (Parte 16)
     if FH.beta then
-        FH.beta.autoUse = false
-        FH.beta.noCooldown = false
-        FH.beta.bypassStun = false
-        FH.beta.bypassSecondary = false
+        FH.beta.autoUse = false; FH.beta.noCooldown = false; FH.beta.bypassStun = false; FH.beta.bypassSecondary = false
     end
-    -- Extra Stuff
-    FH.sashaSprint = false
-    FH.autoCandyActive = false
-    FH.noclipActive = false
-    -- Experiment punch (Scientist / Class S)
-    FH.experimentPunch = false
-    -- Refrescar UI
+    FH.sashaSprint = false; FH.autoCandyActive = false; FH.noclipActive = false; FH.experimentPunch = false
+    if FH.classSAutoShoot then FH.classSAutoShoot = false end
     if FH.panel then pcall(FH.panel) end
 end
 
 FH.p1=true
-print("[1/5] Setup + GUI + Animaciones + Disable-All-Blatant OK")
+print("[1/5] Setup + GUI OK")
