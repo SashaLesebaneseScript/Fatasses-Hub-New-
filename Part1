@@ -26,7 +26,6 @@ if not parent then error("No parent") end
 FH.parent=parent
 local C=FH.C
 
--- SONIDOS
 FH.SND={button="rbxassetid://9119717523",tab_switch="rbxassetid://14133663945",toggle_on="rbxassetid://9119717523",toggle_off="rbxassetid://103866342467024"}
 FH.sfx=function(n,v,p) local id=FH.SND[n]; if not id then return end
  local s=Instance.new("Sound");s.SoundId=id;s.Volume=v or 1;s.PlaybackSpeed=p or 1;s.Parent=FH.SS
@@ -55,10 +54,17 @@ local tb=Instance.new("Frame",fr)
 tb.Size=UDim2.new(1,0,0,42);tb.BackgroundColor3=C.bg_dark;tb.BackgroundTransparency=.3
 tb.BorderSizePixel=0;tb.Active=true;tb.ClipsDescendants=true
 Instance.new("UICorner",tb).CornerRadius=UDim.new(0,14)
+
 local tl=Instance.new("TextLabel",tb)
-tl.Size=UDim2.new(1,-90,1,0);tl.Position=UDim2.new(0,34,0,0);tl.BackgroundTransparency=1
-tl.Text="🎃 FATASSES HUB 🎃";tl.TextColor3=C.text;tl.TextScaled=true
+tl.Size=UDim2.new(0, 200, 1, 0);tl.Position=UDim2.new(0,34,0,0);tl.BackgroundTransparency=1
+tl.Text="FATASSES HUB 🎃";tl.TextColor3=C.text;tl.TextScaled=true
 tl.Font=Enum.Font.GothamBlack;tl.TextXAlignment=Enum.TextXAlignment.Left
+
+local beta = Instance.new("TextLabel", tb)
+beta.Size = UDim2.new(0, 40, 0.6, 0); beta.Position = UDim2.new(0, 200, 0.2, 0)
+beta.BackgroundTransparency = 1; beta.Text = "Beta"; beta.TextColor3 = C.accent
+beta.Font = Enum.Font.GothamBold; beta.TextScaled = true; beta.TextXAlignment = Enum.TextXAlignment.Left
+
 local cb=Instance.new("TextButton",tb)
 cb.Size=UDim2.new(0,26,0,26);cb.Position=UDim2.new(1,-34,.5,-13)
 cb.BackgroundColor3=C.accent2;cb.Text="✕";cb.TextColor3=Color3.fromRGB(255,255,255)
