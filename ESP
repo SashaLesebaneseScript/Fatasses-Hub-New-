@@ -1,0 +1,16 @@
+local FH = getgenv().FH
+if not FH or not FH.p1 then return end
+
+local origPanel = FH.panel
+FH.panel = function()
+    origPanel()
+    if FH.pestana == "ESP" then
+        FH.crearOpcion("ESP Tasks", function(v) FH.on.espActive = v end)
+        FH.crearOpcion("ESP Players", function(v) FH.on.espPlActive = v end)
+        FH.crearOpcion("Full Bright", function(v) game.Lighting.Brightness = v and 3 or 1 end)
+    elseif FH.pestana == "Halloween" then
+        FH.crearOpcion("ESP Candies", function(v) FH.candyESP_Active = v end)
+        FH.crearOpcion("Get all Candies", function(v) FH.autoCandyActive = v end, true)
+    end
+end
+FH.p2 = true
