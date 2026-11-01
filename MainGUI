@@ -11,26 +11,27 @@ FH.SS = game:GetService("SoundService")
 FH.CG = game:GetService("CoreGui")
 FH.LP = FH.PL.LocalPlayer
 FH.BW, FH.BH = 380, 300
+
 FH.C = {
-    bg_dark=Color3.fromRGB(40,20,35),
-    bg_panel=Color3.fromRGB(255,228,235),
-    bg_card=Color3.fromRGB(255,182,193),
-    bg_card_hl=Color3.fromRGB(255,105,180),
-    accent=Color3.fromRGB(255,105,180),
-    accent2=Color3.fromRGB(219,112,147),
-    accent4=Color3.fromRGB(255,160,180),
-    text=Color3.fromRGB(80,30,60),
-    text_sub=Color3.fromRGB(150,80,100),
-    border=Color3.fromRGB(255,192,203),
-    success=Color3.fromRGB(144,238,144),
-    danger=Color3.fromRGB(255,99,71)
+    bg_dark=Color3.fromRGB(20,10,25),
+    bg_panel=Color3.fromRGB(35,15,45),
+    bg_card=Color3.fromRGB(55,25,70),
+    bg_card_hl=Color3.fromRGB(255,50,150),
+    accent=Color3.fromRGB(255,50,150),
+    accent2=Color3.fromRGB(180,30,100),
+    accent4=Color3.fromRGB(255,100,180),
+    text=Color3.fromRGB(255,235,245),
+    text_sub=Color3.fromRGB(180,140,180),
+    border=Color3.fromRGB(255,100,180),
+    success=Color3.fromRGB(120,255,120),
+    danger=Color3.fromRGB(255,50,50)
 }
 FH.est = {}
 FH.on = {}
 FH.blatantMode = false
 
 pcall(function() 
-    for _,n in ipairs({"AutoPatientGui","AutoPatientGui2","InfStaminaGui","FatassesHub","FatassesTracers","AITestGui","SakuraHub"}) do
+    for _,n in ipairs({"FH_Loading","FatassesHub"}) do
         local v = FH.CG:FindFirstChild(n)
         if v then v:Destroy() end
         local v2 = FH.LP.PlayerGui:FindFirstChild(n)
@@ -42,14 +43,46 @@ local parent = gethui and gethui() or FH.LP:WaitForChild("PlayerGui", 10)
 if not parent then return end
 local C = FH.C
 
-FH.SND = {
-    button="rbxassetid://9119717523",
-    tab_switch="rbxassetid://14133663945",
-    toggle_on="rbxassetid://9119717523",
-    toggle_off="rbxassetid://103866342467024",
-    hover="rbxassetid://14133663945"
-}
+local ls = Instance.new("ScreenGui")
+ls.Name = "FH_Loading"
+ls.IgnoreGuiInset = true
+ls.DisplayOrder = 1000
+ls.Parent = parent
+FH.ls = ls
 
+local lsFrame = Instance.new("Frame")
+lsFrame.Size = UDim2.new(0, 300, 0, 100)
+lsFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+lsFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+lsFrame.BackgroundColor3 = C.bg_panel
+lsFrame.BorderSizePixel = 0
+lsFrame.Parent = ls
+Instance.new("UICorner", lsFrame).CornerRadius = UDim.new(0, 12)
+
+local lsStroke = Instance.new("UIStroke", lsFrame)
+lsStroke.Color = C.accent
+lsStroke.Thickness = 2
+
+local lsTitle = Instance.new("TextLabel", lsFrame)
+lsTitle.Size = UDim2.new(1, 0, 0.5, 0)
+lsTitle.Position = UDim2.new(0, 0, 0, 10)
+lsTitle.BackgroundTransparency = 1
+lsTitle.Text = "FATASSES HUB"
+lsTitle.TextColor3 = C.accent
+lsTitle.Font = Enum.Font.GothamBlack
+lsTitle.TextScaled = true
+
+local lsText = Instance.new("TextLabel", lsFrame)
+lsText.Size = UDim2.new(1, 0, 0.3, 0)
+lsText.Position = UDim2.new(0, 0, 0.6, 0)
+lsText.BackgroundTransparency = 1
+lsText.Text = "Cargando..."
+lsText.TextColor3 = C.text
+lsText.Font = Enum.Font.GothamBold
+lsText.TextScaled = true
+FH.lsText = lsText
+
+FH.SND = {button="rbxassetid://9119717523",tab_switch="rbxassetid://14133663945",toggle_on="rbxassetid://9119717523",toggle_off="rbxassetid://103866342467024",hover="rbxassetid://14133663945"}
 FH.sfx = function(n, v, p) 
     local id = FH.SND[n]
     if not id then return end
@@ -68,6 +101,7 @@ sg.ResetOnSpawn = false
 sg.IgnoreGuiInset = true
 sg.DisplayOrder = 999
 sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+sg.Enabled = false
 sg.Parent = parent
 FH.sg = sg
 
@@ -98,9 +132,9 @@ FH.fr = fr
 Instance.new("UICorner", fr).CornerRadius = UDim.new(0, 14)
 local gr = Instance.new("UIGradient", fr)
 gr.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(255,240,245)),
-    ColorSequenceKeypoint.new(.5, Color3.fromRGB(255,182,193)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(255,228,235))
+    ColorSequenceKeypoint.new(0, C.bg_panel),
+    ColorSequenceKeypoint.new(.5, C.bg_dark),
+    ColorSequenceKeypoint.new(1, C.bg_panel)
 })
 gr.Rotation = 135
 local stk = Instance.new("UIStroke", fr)
@@ -110,8 +144,8 @@ stk.Transparency = .2
 
 local tb = Instance.new("Frame", fr)
 tb.Size = UDim2.new(1, 0, 0, 42)
-tb.BackgroundColor3 = C.bg_panel
-tb.BackgroundTransparency = .3
+tb.BackgroundColor3 = C.bg_dark
+tb.BackgroundTransparency = .2
 tb.BorderSizePixel = 0
 tb.Active = true
 tb.ClipsDescendants = true
@@ -169,7 +203,7 @@ local sb = Instance.new("ScrollingFrame", fr)
 sb.Size = UDim2.new(0, 108, 1, -54)
 sb.Position = UDim2.new(0, 8, 0, 46)
 sb.BackgroundColor3 = C.bg_dark
-sb.BackgroundTransparency = .3
+sb.BackgroundTransparency = .2
 sb.BorderSizePixel = 0
 sb.ScrollBarThickness = 2
 sb.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -183,7 +217,7 @@ local pn = Instance.new("Frame", fr)
 pn.Size = UDim2.new(1, -128, 1, -54)
 pn.Position = UDim2.new(0, 122, 0, 46)
 pn.BackgroundColor3 = C.bg_dark
-pn.BackgroundTransparency = .3
+pn.BackgroundTransparency = .2
 pn.BorderSizePixel = 0
 Instance.new("UICorner", pn).CornerRadius = UDim.new(0, 10)
 FH.pn = pn
@@ -216,14 +250,14 @@ FH.crearOpcion = function(nombre, cb, isBlatant)
     local o = Instance.new("Frame", oc)
     o.Size = UDim2.new(1, 0, 0, 40)
     o.BackgroundColor3 = C.bg_card
-    o.BackgroundTransparency = .2
+    o.BackgroundTransparency = .1
     o.BorderSizePixel = 0
     o.ClipsDescendants = true
     Instance.new("UICorner", o).CornerRadius = UDim.new(0, 10)
     local s = Instance.new("UIStroke", o)
     s.Color = C.border
     s.Thickness = 1
-    s.Transparency = .5
+    s.Transparency = .3
     
     local l = Instance.new("TextLabel", o)
     l.Size = UDim2.new(1, -80, 1, 0)
@@ -239,7 +273,7 @@ FH.crearOpcion = function(nombre, cb, isBlatant)
     local tb2 = Instance.new("TextButton", o)
     tb2.Size = UDim2.new(0, 46, 0, 24)
     tb2.Position = UDim2.new(1, -58, .5, -12)
-    tb2.BackgroundColor3 = Color3.fromRGB(250, 200, 210)
+    tb2.BackgroundColor3 = C.bg_dark
     tb2.Text = ""
     tb2.BorderSizePixel = 0
     tb2.AutoButtonColor = false
@@ -248,12 +282,12 @@ FH.crearOpcion = function(nombre, cb, isBlatant)
     local ts = Instance.new("UIStroke", tb2)
     ts.Color = C.border
     ts.Thickness = 1
-    ts.Transparency = .4
+    ts.Transparency = .3
     
     local b = Instance.new("Frame", tb2)
     b.Size = UDim2.new(0, 18, 0, 18)
     b.Position = UDim2.new(0, 3, .5, -9)
-    b.BackgroundColor3 = Color3.fromRGB(200, 150, 160)
+    b.BackgroundColor3 = C.text_sub
     b.BorderSizePixel = 0
     Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
     
@@ -264,12 +298,12 @@ FH.crearOpcion = function(nombre, cb, isBlatant)
         local i = TweenInfo.new(t, an and Enum.EasingStyle.Back or Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
         if a then
             FH.TW:Create(b, i, {Position = UDim2.new(0, 24, .5, -9), BackgroundColor3 = C.accent, Size = UDim2.new(0, 20, 0, 20)}):Play()
-            FH.TW:Create(tb2, i, {BackgroundColor3 = C.accent4}):Play()
-            FH.TW:Create(ts, i, {Color = C.accent, Transparency = .1}):Play()
+            FH.TW:Create(tb2, i, {BackgroundColor3 = C.accent2}):Play()
+            FH.TW:Create(ts, i, {Color = C.accent, Transparency = 0}):Play()
         else
-            FH.TW:Create(b, i, {Position = UDim2.new(0, 3, .5, -9), BackgroundColor3 = Color3.fromRGB(200, 150, 160), Size = UDim2.new(0, 18, 0, 18)}):Play()
-            FH.TW:Create(tb2, i, {BackgroundColor3 = Color3.fromRGB(250, 200, 210)}):Play()
-            FH.TW:Create(ts, i, {Color = C.border, Transparency = .4}):Play()
+            FH.TW:Create(b, i, {Position = UDim2.new(0, 3, .5, -9), BackgroundColor3 = C.text_sub, Size = UDim2.new(0, 18, 0, 18)}):Play()
+            FH.TW:Create(tb2, i, {BackgroundColor3 = C.bg_dark}):Play()
+            FH.TW:Create(ts, i, {Color = C.border, Transparency = .3}):Play()
         end
     end
     setV(es, false)
@@ -306,7 +340,7 @@ local function mkTab(n)
     local t = Instance.new("TextButton", FH.sb)
     t.Size = UDim2.new(1, -6, 0, 32)
     t.BackgroundColor3 = C.bg_card
-    t.BackgroundTransparency = .2
+    t.BackgroundTransparency = .1
     t.Text = ""
     t.BorderSizePixel = 0
     t.AutoButtonColor = false
@@ -329,7 +363,7 @@ local function mkTab(n)
             t.BackgroundTransparency = 0 
         else 
             t.BackgroundColor3 = C.bg_card
-            t.BackgroundTransparency = .2 
+            t.BackgroundTransparency = .1 
         end 
     end
     
@@ -359,9 +393,9 @@ end
 
 local th = Instance.new("Frame")
 th.Size = UDim2.new(0, 60, 0, 60)
-th.Position = UDim2.new(0, 20, .75, 0)
+th.Position = UDim2.new(0, 20, 0, 20)
 th.BackgroundTransparency = 1
-th.Parent = FH.sg
+th.Parent = sg
 local tbtn = Instance.new("TextButton", th)
 tbtn.Size = UDim2.new(1, 0, 1, 0)
 tbtn.BackgroundColor3 = FH.C.accent
@@ -372,6 +406,9 @@ tbtn.Font = Enum.Font.GothamBlack
 tbtn.BorderSizePixel = 0
 tbtn.AutoButtonColor = false
 Instance.new("UICorner", tbtn).CornerRadius = UDim.new(1, 0)
+local stBtn = Instance.new("UIStroke", tbtn)
+stBtn.Color = FH.C.accent2
+stBtn.Thickness = 2
 
 task.spawn(function() 
     while th.Parent do 
@@ -382,30 +419,6 @@ task.spawn(function()
     end 
 end)
 
-local dragging, dragInput, dragStart, startPos
-tbtn.InputBegan:Connect(function(input) 
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
-        dragging = true
-        dragStart = input.Position
-        startPos = th.Position 
-    end 
-end)
-FH.UI.InputChanged:Connect(function(input) 
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then 
-        dragInput = input 
-    end 
-end)
-FH.UI.InputChanged:Connect(function(input) 
-    if input == dragInput and dragging then 
-        local delta = input.Position - dragStart
-        th.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) 
-    end 
-end)
-tbtn.InputEnded:Connect(function(input) 
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
-        dragging = false 
-    end 
-end)
 tbtn.MouseButton1Click:Connect(function() 
     FH.fr.Visible = not FH.fr.Visible
     FH.sfx("button", 1, 1.2) 
