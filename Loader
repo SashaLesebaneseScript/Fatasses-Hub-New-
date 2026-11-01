@@ -11,11 +11,13 @@ local files = {
     "Halloween"
 }
 
+local totalFiles = #files
 local errorOcurred = false
 
-for _, file in ipairs(files) do
+for i, file in ipairs(files) do
     if getgenv().FH and getgenv().FH.lsText then
-        getgenv().FH.lsText.Text = "Cargando " .. file .. "..."
+        getgenv().FH.lsText.Text = "Loading " .. file .. " page..."
+        getgenv().FH.lsFill.Size = UDim2.new(i / totalFiles, 0, 1, 0)
     end
     
     local url = base .. file
@@ -23,12 +25,9 @@ for _, file in ipairs(files) do
     
     if ok and code and code ~= "" and not code:find("404: Not Found") then
         local fn = loadstring(code)
-        if fn then 
-            pcall(fn) 
-        end
+        if fn then pcall(fn) end
     else
         errorOcurred = true
-        warn("ERROR al descargar: " .. file)
     end
     task.wait(0.1)
 end
@@ -36,13 +35,14 @@ end
 if getgenv().FH then
     if getgenv().FH.lsText then
         if errorOcurred then
-            getgenv().FH.lsText.Text = "Error al cargar. Revisa la consola."
+            getgenv().FH.lsText.Text = "Error loading. Check console."
             getgenv().FH.lsText.TextColor3 = Color3.fromRGB(255, 50, 50)
         else
-            getgenv().FH.lsText.Text = "Listo!"
+            getgenv().FH.lsText.Text = "Ready!"
+            getgenv().FH.lsFill.Size = UDim2.new(1, 0, 1, 0)
         end
     end
-    task.wait(1)
+    task.wait(0.8)
     if getgenv().FH.ls then getgenv().FH.ls:Destroy() end
     if getgenv().FH.sg then getgenv().FH.sg.Enabled = true end
     if getgenv().FH.panel then pcall(getgenv().FH.panel) end
