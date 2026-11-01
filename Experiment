@@ -1,0 +1,84 @@
+local FH = getgenv().FH
+if not FH or not FH.p1 then return end
+local RS, PL, LP, RST = FH.RS, FH.PL, FH.LP, FH.RST
+
+FH.isKiller = function(m) 
+    local exp = FH.getExperiment and FH.getExperiment()
+    return exp and exp.Character == m 
+end
+
+FH.nearest = function(maxD) 
+    maxD = maxD or math.huge
+    local mc = LP.Character
+    if not mc then return nil end
+    local mh = mc:FindFirstChild("HumanoidRootPart")
+    if not mh then return nil end
+    local b, bd = nil, maxD
+    for _, p in ipairs(PL:GetPlayers()) do 
+        if p ~= LP and p.Character then
+            local ch = p.Character
+            local h = ch:FindFirstChildOfClass("Humanoid")
+            local hr = ch:FindFirstChild("HumanoidRootPart")
+            if h and h.Health > 0 and hr then 
+                local d = (mh.Position - hr.Position).Magnitude
+                if d < bd then 
+                    bd = d
+                    b = {Player=p, Char=ch, HRP=hr} 
+                end 
+            end 
+        end 
+    end 
+    return b 
+end
+
+local PunchEv = RST:FindFirstChild("PunchEvent")
+local AbEv = RST:FindFirstChild("AbilityEvent")
+
+task.spawn(function()
+    while task.wait(0.01) do
+        if not FH.experimentPunch or not FH.isKiller(LP.Character) then continue end
+        FH.attackId = (FH.attackId or 0) + 1
+        local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        if hrp and PunchEv then
+            pcall(function() PunchEv:FireServer({AttackId = FH.attackId, Position = hrp.Position, Velocity = hrp.AssemblyLinearVelocity, Direction = hrp.CFrame.LookVector}) end)
+        end
+    end
+end)
+
+RS.RenderStepped:Connect(function()
+    if not FH.killAll or not FH.isKiller(LP.Character) then return end
+    local nearest = FH.nearest(2000)
+    if nearest and nearest.HRP then
+        local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.CFrame = CFrame.lookAt(nearest.HRP.Position + (nearest.HRP.CFrame.LookVector * -2) + Vector3.new(0,2,0), nearest.HRP.Position)
+            FH.attackId = (FH.attackId or 0) + 1
+            if PunchEv then 
+                pcall(function() PunchEv:FireServer({AttackId = FH.attackId, Position = nearest.HRP.Position, Velocity = Vector3.new(0,0,0), Direction = Vector3.new(0,1,0)}) end) 
+            end
+        end
+    end
+end)
+
+RS.Heartbeat:Connect(function()
+    if not FH.isKiller(LP.Character) then return end
+    local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        if FH.forceSpeed26 then hum.WalkSpeed = 26 end
+        if FH.controlRush then hum:Move(FH.UI:GetMoveVector(), false) end
+        if FH.infiniteRush and AbEv then pcall(function() AbEv:FireServer() end) end
+    end
+end)
+
+local origPanel = FH.panel
+FH.panel = function()
+    origPanel()
+    if FH.pestana ~= "Experiment" then return end
+    FH.crearOpcion("Auto Punch", function(v) FH.experimentPunch = v end, true)
+    FH.crearOpcion("Kill All (Pegado)", function(v) FH.killAll = v end, true)
+    FH.crearOpcion("Force Speed 26", function(v) FH.forceSpeed26 = v end, true)
+    FH.crearOpcion("Controllable Rush", function(v) FH.controlRush = v end, true)
+    FH.crearOpcion("Infinite Rush", function(v) FH.infiniteRush = v end, true)
+    FH.crearOpcion("Melodic Anti-Crash", function(v) FH.antiCrash = v end, true)
+end
+FH.p6 = true
