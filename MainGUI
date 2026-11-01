@@ -10,19 +10,19 @@ FH.UI = game:GetService("UserInputService")
 FH.SS = game:GetService("SoundService")
 FH.CG = game:GetService("CoreGui")
 FH.LP = FH.PL.LocalPlayer
-FH.BW, FH.BH = 380, 300
+FH.BW, FH.BH = 420, 340
 
 FH.C = {
-    bg_dark=Color3.fromRGB(20,10,25),
-    bg_panel=Color3.fromRGB(35,15,45),
-    bg_card=Color3.fromRGB(55,25,70),
-    bg_card_hl=Color3.fromRGB(255,50,150),
-    accent=Color3.fromRGB(255,50,150),
-    accent2=Color3.fromRGB(180,30,100),
-    accent4=Color3.fromRGB(255,100,180),
-    text=Color3.fromRGB(255,235,245),
-    text_sub=Color3.fromRGB(180,140,180),
-    border=Color3.fromRGB(255,100,180),
+    bg_dark=Color3.fromRGB(15, 10, 20),
+    bg_panel=Color3.fromRGB(25, 15, 35),
+    bg_card=Color3.fromRGB(40, 20, 55),
+    bg_card_hl=Color3.fromRGB(255, 105, 180),
+    accent=Color3.fromRGB(255, 105, 180),
+    accent2=Color3.fromRGB(219, 112, 147),
+    accent4=Color3.fromRGB(255, 160, 180),
+    text=Color3.fromRGB(255, 240, 245),
+    text_sub=Color3.fromRGB(180, 150, 180),
+    border=Color3.fromRGB(255, 140, 180),
     success=Color3.fromRGB(120,255,120),
     danger=Color3.fromRGB(255,50,50)
 }
@@ -51,18 +51,19 @@ ls.Parent = parent
 FH.ls = ls
 
 local lsFrame = Instance.new("Frame")
-lsFrame.Size = UDim2.new(0, 300, 0, 100)
+lsFrame.Size = UDim2.new(0, 320, 0, 120)
 lsFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 lsFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 lsFrame.BackgroundColor3 = C.bg_panel
 lsFrame.BorderSizePixel = 0
 lsFrame.Parent = ls
-Instance.new("UICorner", lsFrame).CornerRadius = UDim.new(0, 12)
+Instance.new("UICorner", lsFrame).CornerRadius = UDim.new(0, 16)
 FH.lsFrame = lsFrame
 
 local lsStroke = Instance.new("UIStroke", lsFrame)
 lsStroke.Color = C.accent
 lsStroke.Thickness = 2
+lsStroke.Transparency = 0.2
 
 local lsTitle = Instance.new("TextLabel", lsFrame)
 lsTitle.Size = UDim2.new(1, 0, 0.4, 0)
@@ -84,7 +85,7 @@ lsText.TextScaled = true
 FH.lsText = lsText
 
 local barBg = Instance.new("Frame", lsFrame)
-barBg.Size = UDim2.new(0.8, 0, 0, 10)
+barBg.Size = UDim2.new(0.8, 0, 0, 12)
 barBg.Position = UDim2.new(0.1, 0, 0.75, 0)
 barBg.BackgroundColor3 = C.bg_dark
 barBg.BorderSizePixel = 0
@@ -137,7 +138,6 @@ fr.Size = UDim2.new(0, 0, 0, 0)
 fr.Position = UDim2.new(.5, 0, .5, 0)
 fr.AnchorPoint = Vector2.new(.5, .5)
 fr.BackgroundColor3 = C.bg_panel
-fr.BackgroundTransparency = 0.05
 fr.BorderSizePixel = 0
 fr.Active = true
 fr.ClipsDescendants = true
@@ -145,31 +145,31 @@ fr.Visible = false
 fr.Parent = sg
 FH.fr = fr
 
-Instance.new("UICorner", fr).CornerRadius = UDim.new(0, 14)
+Instance.new("UICorner", fr).CornerRadius = UDim.new(0, 16)
 local gr = Instance.new("UIGradient", fr)
 gr.Color = ColorSequence.new({
     ColorSequenceKeypoint.new(0, C.bg_panel),
-    ColorSequenceKeypoint.new(.5, C.bg_dark),
-    ColorSequenceKeypoint.new(1, C.bg_panel)
+    ColorSequenceKeypoint.new(.5, Color3.fromRGB(35, 15, 45)),
+    ColorSequenceKeypoint.new(1, C.bg_dark)
 })
 gr.Rotation = 135
 local stk = Instance.new("UIStroke", fr)
 stk.Color = C.accent
 stk.Thickness = 2
-stk.Transparency = .2
+stk.Transparency = .1
 
 local tb = Instance.new("Frame", fr)
-tb.Size = UDim2.new(1, 0, 0, 42)
+tb.Size = UDim2.new(1, 0, 0, 50)
 tb.BackgroundColor3 = C.bg_dark
 tb.BackgroundTransparency = .2
 tb.BorderSizePixel = 0
 tb.Active = true
 tb.ClipsDescendants = true
-Instance.new("UICorner", tb).CornerRadius = UDim.new(0, 14)
+Instance.new("UICorner", tb).CornerRadius = UDim.new(0, 16)
 
 local tl = Instance.new("TextLabel", tb)
-tl.Size = UDim2.new(0, 200, 1, 0)
-tl.Position = UDim2.new(0, 34, 0, 0)
+tl.Size = UDim2.new(0, 250, 1, 0)
+tl.Position = UDim2.new(0, 20, 0, 0)
 tl.BackgroundTransparency = 1
 tl.Text = "FATASSES HUB"
 tl.TextColor3 = C.accent
@@ -178,13 +178,13 @@ tl.Font = Enum.Font.GothamBlack
 tl.TextXAlignment = Enum.TextXAlignment.Left
 
 local cb = Instance.new("TextButton", tb)
-cb.Size = UDim2.new(0, 26, 0, 26)
-cb.Position = UDim2.new(1, -34, .5, -13)
+cb.Size = UDim2.new(0, 30, 0, 30)
+cb.Position = UDim2.new(1, -45, .5, -15)
 cb.BackgroundColor3 = C.accent2
 cb.Text = "X"
 cb.TextColor3 = Color3.fromRGB(255, 255, 255)
 cb.TextScaled = true
-cb.Font = Enum.Font.GothamBold
+cb.Font = Enum.Font.GothamBlack
 cb.BorderSizePixel = 0
 cb.AutoButtonColor = false
 Instance.new("UICorner", cb).CornerRadius = UDim.new(1, 0)
@@ -225,31 +225,32 @@ FH.UI.InputChanged:Connect(function(i)
 end)
 
 local sb = Instance.new("ScrollingFrame", fr)
-sb.Size = UDim2.new(0, 108, 1, -54)
-sb.Position = UDim2.new(0, 8, 0, 46)
+sb.Size = UDim2.new(0, 120, 1, -65)
+sb.Position = UDim2.new(0, 10, 0, 55)
 sb.BackgroundColor3 = C.bg_dark
-sb.BackgroundTransparency = .2
+sb.BackgroundTransparency = .4
 sb.BorderSizePixel = 0
 sb.ScrollBarThickness = 2
 sb.CanvasSize = UDim2.new(0, 0, 0, 0)
 sb.AutomaticCanvasSize = Enum.AutomaticSize.Y
-Instance.new("UICorner", sb).CornerRadius = UDim.new(0, 10)
+Instance.new("UICorner", sb).CornerRadius = UDim.new(0, 12)
 local sl = Instance.new("UIListLayout", sb)
-sl.Padding = UDim.new(0, 5)
+sl.Padding = UDim.new(0, 6)
+sl.HorizontalAlignment = Enum.HorizontalAlignment.Center
 FH.sb = sb
 
 local pn = Instance.new("Frame", fr)
-pn.Size = UDim2.new(1, -128, 1, -54)
-pn.Position = UDim2.new(0, 122, 0, 46)
+pn.Size = UDim2.new(1, -145, 1, -65)
+pn.Position = UDim2.new(0, 135, 0, 55)
 pn.BackgroundColor3 = C.bg_dark
-pn.BackgroundTransparency = .2
+pn.BackgroundTransparency = .4
 pn.BorderSizePixel = 0
-Instance.new("UICorner", pn).CornerRadius = UDim.new(0, 10)
+Instance.new("UICorner", pn).CornerRadius = UDim.new(0, 12)
 FH.pn = pn
 
 local oc = Instance.new("ScrollingFrame", pn)
-oc.Size = UDim2.new(1, -12, 1, -12)
-oc.Position = UDim2.new(0, 6, 0, 6)
+oc.Size = UDim2.new(1, -10, 1, -10)
+oc.Position = UDim2.new(0, 5, 0, 5)
 oc.BackgroundTransparency = 1
 oc.BorderSizePixel = 0
 oc.ScrollBarThickness = 3
@@ -258,12 +259,12 @@ oc.AutomaticCanvasSize = Enum.AutomaticSize.Y
 FH.oc = oc
 
 local ol = Instance.new("UIListLayout", oc)
-ol.Padding = UDim.new(0, 6)
+ol.Padding = UDim.new(0, 8)
 
 FH.animar = function(obj)
     local base = obj.Size
     obj.MouseEnter:Connect(function()
-        FH.TW:Create(obj, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {Size = base + UDim2.new(0, 5, 0, 5)}):Play()
+        FH.TW:Create(obj, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {Size = base + UDim2.new(0, 6, 0, 6)}):Play()
         pcall(function() FH.sfx("hover", 0.35, 1) end)
     end)
     obj.MouseLeave:Connect(function()
@@ -273,20 +274,20 @@ end
 
 FH.crearOpcion = function(nombre, cb, isBlatant)
     local o = Instance.new("Frame", oc)
-    o.Size = UDim2.new(1, 0, 0, 40)
+    o.Size = UDim2.new(1, 0, 0, 44)
     o.BackgroundColor3 = C.bg_card
-    o.BackgroundTransparency = .1
+    o.BackgroundTransparency = .2
     o.BorderSizePixel = 0
     o.ClipsDescendants = true
     Instance.new("UICorner", o).CornerRadius = UDim.new(0, 10)
     local s = Instance.new("UIStroke", o)
     s.Color = C.border
     s.Thickness = 1
-    s.Transparency = .3
+    s.Transparency = .4
     
     local l = Instance.new("TextLabel", o)
-    l.Size = UDim2.new(1, -80, 1, 0)
-    l.Position = UDim2.new(0, 12, 0, 0)
+    l.Size = UDim2.new(1, -70, 1, 0)
+    l.Position = UDim2.new(0, 15, 0, 0)
     l.BackgroundTransparency = 1
     l.Text = nombre
     l.TextColor3 = C.text
@@ -296,8 +297,8 @@ FH.crearOpcion = function(nombre, cb, isBlatant)
     l.TextWrapped = true
     
     local tb2 = Instance.new("TextButton", o)
-    tb2.Size = UDim2.new(0, 46, 0, 24)
-    tb2.Position = UDim2.new(1, -58, .5, -12)
+    tb2.Size = UDim2.new(0, 48, 0, 26)
+    tb2.Position = UDim2.new(1, -60, .5, -13)
     tb2.BackgroundColor3 = C.bg_dark
     tb2.Text = ""
     tb2.BorderSizePixel = 0
@@ -306,12 +307,15 @@ FH.crearOpcion = function(nombre, cb, isBlatant)
     
     local ts = Instance.new("UIStroke", tb2)
     ts.Color = C.border
-    ts.Thickness = 1
-    ts.Transparency = .3
+    ts.Thickness = 1.5
+    ts.Transparency = .2
+    
+    local grad = Instance.new("UIGradient", tb2)
+    grad.Color = ColorSequence.new(Color3.fromRGB(60, 30, 70), Color3.fromRGB(40, 20, 50))
     
     local b = Instance.new("Frame", tb2)
-    b.Size = UDim2.new(0, 18, 0, 18)
-    b.Position = UDim2.new(0, 3, .5, -9)
+    b.Size = UDim2.new(0, 20, 0, 20)
+    b.Position = UDim2.new(0, 3, .5, -10)
     b.BackgroundColor3 = C.text_sub
     b.BorderSizePixel = 0
     Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
@@ -319,16 +323,18 @@ FH.crearOpcion = function(nombre, cb, isBlatant)
     local es = FH.est[nombre] or false
     
     local function setV(a, an)
-        local t = an and .4 or 0
+        local t = an and .3 or 0
         local i = TweenInfo.new(t, an and Enum.EasingStyle.Back or Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
         if a then
-            FH.TW:Create(b, i, {Position = UDim2.new(0, 24, .5, -9), BackgroundColor3 = C.accent, Size = UDim2.new(0, 20, 0, 20)}):Play()
+            FH.TW:Create(b, i, {Position = UDim2.new(0, 25, .5, -10), BackgroundColor3 = C.accent, Size = UDim2.new(0, 22, 0, 22)}):Play()
             FH.TW:Create(tb2, i, {BackgroundColor3 = C.accent2}):Play()
             FH.TW:Create(ts, i, {Color = C.accent, Transparency = 0}):Play()
+            grad.Color = ColorSequence.new(C.accent2, C.accent)
         else
-            FH.TW:Create(b, i, {Position = UDim2.new(0, 3, .5, -9), BackgroundColor3 = C.text_sub, Size = UDim2.new(0, 18, 0, 18)}):Play()
+            FH.TW:Create(b, i, {Position = UDim2.new(0, 3, .5, -10), BackgroundColor3 = C.text_sub, Size = UDim2.new(0, 20, 0, 20)}):Play()
             FH.TW:Create(tb2, i, {BackgroundColor3 = C.bg_dark}):Play()
-            FH.TW:Create(ts, i, {Color = C.border, Transparency = .3}):Play()
+            FH.TW:Create(ts, i, {Color = C.border, Transparency = .2}):Play()
+            grad.Color = ColorSequence.new(Color3.fromRGB(60, 30, 70), Color3.fromRGB(40, 20, 50))
         end
     end
     setV(es, false)
@@ -363,32 +369,34 @@ FH.pestana = "ESP"
 
 local function mkTab(n)
     local t = Instance.new("TextButton", FH.sb)
-    t.Size = UDim2.new(1, -6, 0, 32)
+    t.Size = UDim2.new(1, -10, 0, 36)
     t.BackgroundColor3 = C.bg_card
-    t.BackgroundTransparency = .1
+    t.BackgroundTransparency = .2
     t.Text = ""
     t.BorderSizePixel = 0
     t.AutoButtonColor = false
     Instance.new("UICorner", t).CornerRadius = UDim.new(0, 10)
     
     local l = Instance.new("TextLabel", t)
-    l.Size = UDim2.new(1, -34, 1, 0)
-    l.Position = UDim2.new(0, 30, 0, 0)
+    l.Size = UDim2.new(1, 0, 1, 0)
     l.BackgroundTransparency = 1
     l.Text = n
     l.TextColor3 = C.text
     l.TextScaled = true
     l.Font = Enum.Font.GothamBold
-    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.TextXAlignment = Enum.TextXAlignment.Center
+    l.TextYAlignment = Enum.TextYAlignment.Center
     
     local ck = false
     local function setSt(s) 
         if s == "sel" then 
-            t.BackgroundColor3 = C.bg_card_hl
+            t.BackgroundColor3 = C.accent
             t.BackgroundTransparency = 0 
+            l.TextColor3 = Color3.fromRGB(255, 255, 255)
         else 
             t.BackgroundColor3 = C.bg_card
-            t.BackgroundTransparency = .1 
+            t.BackgroundTransparency = .2 
+            l.TextColor3 = C.text
         end 
     end
     
@@ -400,7 +408,7 @@ local function mkTab(n)
         FH.pestana = n
         setSt("sel")
         task.spawn(function() pcall(FH.panel) end)
-        task.delay(.5, function() ck = false end)
+        task.delay(.3, function() ck = false end)
     end)
     
     FH.animar(t)
