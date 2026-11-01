@@ -64,7 +64,7 @@ lsStroke.Color = C.accent
 lsStroke.Thickness = 2
 
 local lsTitle = Instance.new("TextLabel", lsFrame)
-lsTitle.Size = UDim2.new(1, 0, 0.5, 0)
+lsTitle.Size = UDim2.new(1, 0, 0.4, 0)
 lsTitle.Position = UDim2.new(0, 0, 0, 10)
 lsTitle.BackgroundTransparency = 1
 lsTitle.Text = "FATASSES HUB"
@@ -73,14 +73,28 @@ lsTitle.Font = Enum.Font.GothamBlack
 lsTitle.TextScaled = true
 
 local lsText = Instance.new("TextLabel", lsFrame)
-lsText.Size = UDim2.new(1, 0, 0.3, 0)
-lsText.Position = UDim2.new(0, 0, 0.6, 0)
+lsText.Size = UDim2.new(1, 0, 0.2, 0)
+lsText.Position = UDim2.new(0, 0, 0.4, 0)
 lsText.BackgroundTransparency = 1
-lsText.Text = "Cargando..."
+lsText.Text = "Loading..."
 lsText.TextColor3 = C.text
 lsText.Font = Enum.Font.GothamBold
 lsText.TextScaled = true
 FH.lsText = lsText
+
+local barBg = Instance.new("Frame", lsFrame)
+barBg.Size = UDim2.new(0.8, 0, 0, 10)
+barBg.Position = UDim2.new(0.1, 0, 0.75, 0)
+barBg.BackgroundColor3 = C.bg_dark
+barBg.BorderSizePixel = 0
+Instance.new("UICorner", barBg).CornerRadius = UDim.new(1, 0)
+
+local barFill = Instance.new("Frame", barBg)
+barFill.Size = UDim2.new(0, 0, 1, 0)
+barFill.BackgroundColor3 = C.accent
+barFill.BorderSizePixel = 0
+Instance.new("UICorner", barFill).CornerRadius = UDim.new(1, 0)
+FH.lsFill = barFill
 
 FH.SND = {button="rbxassetid://9119717523",tab_switch="rbxassetid://14133663945",toggle_on="rbxassetid://9119717523",toggle_off="rbxassetid://103866342467024",hover="rbxassetid://14133663945"}
 FH.sfx = function(n, v, p) 
@@ -174,6 +188,8 @@ cb.AutoButtonColor = false
 Instance.new("UICorner", cb).CornerRadius = UDim.new(1, 0)
 cb.MouseButton1Click:Connect(function()
     FH.sfx("button", 1, 1.2)
+    FH.TW:Create(fr, TweenInfo.new(0.3, Enum.EasingStyle.Back), {Size = UDim2.new(0,0,0,0)}):Play()
+    task.wait(0.3)
     fr.Visible = false 
 end)
 
@@ -195,7 +211,14 @@ FH.UI.InputChanged:Connect(function(i)
         local s = us.Scale
         if s <= 0 then s = 1 end
         local d = (i.Position - ds) / s
-        fr.Position = UDim2.new(sp.X.Scale, sp.X.Offset + d.X, sp.Y.Scale, sp.Y.Offset + d.Y)
+        local newX = sp.X.Offset + d.X
+        local newY = sp.Y.Offset + d.Y
+        
+        local vp = workspace.CurrentCamera.ViewportSize
+        newX = math.clamp(newX, -FH.BW/2, vp.X - FH.BW/2)
+        newY = math.clamp(newY, -FH.BH/2, vp.Y - FH.BH/2)
+        
+        fr.Position = UDim2.new(sp.X.Scale, newX, sp.Y.Scale, newY)
     end 
 end)
 
@@ -419,9 +442,27 @@ task.spawn(function()
     end 
 end)
 
+local isOpen = false
+local isAnimating = false
+
 tbtn.MouseButton1Click:Connect(function() 
-    FH.fr.Visible = not FH.fr.Visible
+    if isAnimating then return end
+    isAnimating = true
     FH.sfx("button", 1, 1.2) 
+    
+    if isOpen then
+        FH.TW:Create(fr, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0,0,0,0)}):Play()
+        task.wait(0.3)
+        fr.Visible = false
+        isOpen = false
+    else
+        fr.Visible = true
+        fr.Size = UDim2.new(0,0,0,0)
+        FH.TW:Create(fr, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, FH.BW, 0, FH.BH)}):Play()
+        isOpen = true
+    end
+    task.wait(0.4)
+    isAnimating = false
 end)
 
 FH.panel()
