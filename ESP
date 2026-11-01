@@ -23,14 +23,16 @@ FH.startESP = function(v)
                 
                 if obj:IsA("Model") and isTask then
                     if isMap2 and isPatient then
+                        -- Skip
                     else
                         local progress = "0/4"
                         local isComplete = false
-                        local billboard = obj:FindFirstChildWhichIsA("BillboardGui", true)
-                        if billboard then
-                            for _, txt in ipairs(billboard:GetDescendants()) do
-                                if txt:IsA("TextLabel") and txt.Text:match("%d+/%d+") then
-                                    progress = txt.Text
+                        
+                        for _, desc in ipairs(obj:GetDescendants()) do
+                            if desc:IsA("TextLabel") then
+                                local match = string.match(desc.Text, "(%d+/%d+)")
+                                if match then
+                                    progress = match
                                     if progress == "4/4" then isComplete = true end
                                     break
                                 end
@@ -54,6 +56,16 @@ FH.startESP = function(v)
                             bg.StudsOffset = Vector3.new(0, 2, 0)
                             bg.AlwaysOnTop = true
                             
+                            local progTxt = Instance.new("TextLabel", bg)
+                            progTxt.Size = UDim2.new(1, 0, 0.5, 0)
+                            progTxt.Position = UDim2.new(0, 0, 0, 0)
+                            progTxt.BackgroundTransparency = 1
+                            progTxt.Text = progress
+                            progTxt.TextColor3 = color
+                            progTxt.TextStrokeTransparency = 0
+                            progTxt.Font = Enum.Font.GothamBold
+                            progTxt.TextScaled = true
+                            
                             local txt = Instance.new("TextLabel", bg)
                             txt.Size = UDim2.new(1, 0, 0.5, 0)
                             txt.Position = UDim2.new(0, 0, 0.5, 0)
@@ -64,22 +76,12 @@ FH.startESP = function(v)
                             txt.Font = Enum.Font.GothamBold
                             txt.TextScaled = true
                             
-                            local progTxt = Instance.new("TextLabel", bg)
-                            progTxt.Size = UDim2.new(1, 0, 0.5, 0)
-                            progTxt.Position = UDim2.new(0, 0, 0, 0)
-                            progTxt.BackgroundTransparency = 1
-                            progTxt.Text = "[" .. progress .. "]"
-                            progTxt.TextColor3 = color
-                            progTxt.TextStrokeTransparency = 0
-                            progTxt.Font = Enum.Font.GothamBold
-                            progTxt.TextScaled = true
-                            
                             FH.espTasksCache[obj] = {hl = hl, bg = bg, txt = txt, progTxt = progTxt}
                         else
                             local data = FH.espTasksCache[obj]
                             data.hl.FillColor = color
                             data.txt.TextColor3 = color
-                            data.progTxt.Text = "[" .. progress .. "]"
+                            data.progTxt.Text = progress
                             data.progTxt.TextColor3 = color
                         end
                     end
