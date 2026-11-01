@@ -12,15 +12,25 @@ local files = {
 }
 
 for _, file in ipairs(files) do
+    if getgenv().FH and getgenv().FH.lsText then
+        getgenv().FH.lsText.Text = "Cargando " .. file .. "..."
+    end
+    
     local url = base .. file
     local ok, code = pcall(function() return game:HttpGet(url, true) end)
     if ok and code and code ~= "" then
         local fn = loadstring(code)
         if fn then pcall(fn) end
     end
-    task.wait(0.2)
+    task.wait(0.1)
 end
 
-if getgenv().FH and getgenv().FH.panel then 
-    pcall(getgenv().FH.panel) 
+if getgenv().FH then
+    if getgenv().FH.lsText then
+        getgenv().FH.lsText.Text = "Listo!"
+    end
+    task.wait(0.5)
+    if getgenv().FH.ls then getgenv().FH.ls:Destroy() end
+    if getgenv().FH.sg then getgenv().FH.sg.Enabled = true end
+    if getgenv().FH.panel then pcall(getgenv().FH.panel) end
 end
