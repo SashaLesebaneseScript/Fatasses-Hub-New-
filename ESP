@@ -19,7 +19,7 @@ FH.startESP = function(v)
             local isMap2 = WS:FindFirstChild("Map2") or WS:FindFirstChild("Map 2")
             for _, obj in ipairs(WS:GetDescendants()) do
                 local isPatient = obj.Name:lower():find("patient")
-                local isTask = obj:FindFirstChildWhichIsA("ProximityPrompt") or obj.Name:match("^Task_")
+                local isTask = obj:FindFirstChildWhichIsA("ProximityPrompt") or obj.Name:match("^Task_") or obj.Name:match("Patient") or obj.Name:match("Tube") or obj.Name:match("Panel")
                 
                 if obj:IsA("Model") and isTask then
                     if isMap2 and isPatient then
@@ -77,34 +77,59 @@ FH.startEP = function(v)
     end
     task.spawn(function()
         while FH.on.espPlActive do
+            local expPlayer = FH.getExperiment and FH.getExperiment() or nil
+            local myChar = LP.Character
+            local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+            
             for _, p in ipairs(PL:GetPlayers()) do
                 if p ~= LP and p.Character then
                     local char = p.Character
-                    if not FH.espPlayersCache[char] then
-                        local hl = Instance.new("Highlight")
-                        hl.Parent = char
-                        hl.Adornee = char
-                        hl.FillColor = Color3.fromRGB(255, 50, 150)
-                        hl.OutlineColor = Color3.new(1,1,1)
-                        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                    local hum = char:FindFirstChildOfClass("Humanoid")
+                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                    
+                    if hum and hum.Health > 0 and hrp then
+                        local dist = myHRP and (myHRP.Position - hrp.Position).Magnitude or 0
+                        local color = Color3.fromRGB(150, 150, 150)
                         
-                        local bg = Instance.new("BillboardGui")
-                        bg.Parent = char
-                        bg.Adornee = char
-                        bg.Size = UDim2.new(0, 100, 0, 40)
-                        bg.StudsOffset = Vector3.new(0, 3, 0)
-                        bg.AlwaysOnTop = true
+                        if expPlayer then
+                            if p == expPlayer then
+                                color = Color3.fromRGB(220, 20, 60)
+                            elseif dist < 600 then
+                                color = Color3.fromRGB(152, 255, 152)
+                            end
+                        end
                         
-                        local txt = Instance.new("TextLabel", bg)
-                        txt.Size = UDim2.new(1, 0, 1, 0)
-                        txt.BackgroundTransparency = 1
-                        txt.Text = p.Name
-                        txt.TextColor3 = FH.C.accent
-                        txt.TextStrokeTransparency = 0
-                        txt.Font = Enum.Font.GothamBold
-                        txt.TextScaled = true
-                        
-                        FH.espPlayersCache[char] = {hl = hl, bg = bg}
+                        if not FH.espPlayersCache[char] then
+                            local hl = Instance.new("Highlight")
+                            hl.Parent = char
+                            hl.Adornee = char
+                            hl.FillColor = color
+                            hl.OutlineColor = color
+                            hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                            
+                            local bg = Instance.new("BillboardGui")
+                            bg.Parent = char
+                            bg.Adornee = char
+                            bg.Size = UDim2.new(0, 100, 0, 40)
+                            bg.StudsOffset = Vector3.new(0, 3, 0)
+                            bg.AlwaysOnTop = true
+                            
+                            local txt = Instance.new("TextLabel", bg)
+                            txt.Size = UDim2.new(1, 0, 1, 0)
+                            txt.BackgroundTransparency = 1
+                            txt.Text = p.Name
+                            txt.TextColor3 = color
+                            txt.TextStrokeTransparency = 0
+                            txt.Font = Enum.Font.GothamBold
+                            txt.TextScaled = true
+                            
+                            FH.espPlayersCache[char] = {hl = hl, bg = bg, txt = txt}
+                        else
+                            local data = FH.espPlayersCache[char]
+                            data.hl.FillColor = color
+                            data.hl.OutlineColor = color
+                            data.txt.TextColor3 = color
+                        end
                     end
                 end
             end
@@ -115,7 +140,7 @@ FH.startEP = function(v)
                     FH.espPlayersCache[char] = nil
                 end
             end
-            task.wait(1)
+            task.wait(0.5)
         end
     end)
 end
