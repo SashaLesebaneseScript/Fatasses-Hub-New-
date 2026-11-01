@@ -1,13 +1,141 @@
 local FH = getgenv().FH
 if not FH or not FH.p1 then return end
+local WS, PL, LP = FH.WS, FH.PL, FH.LP
+
+FH.espTasksCache = {}
+FH.espPlayersCache = {}
+
+FH.startESP = function(v)
+    if not v then
+        for _, data in pairs(FH.espTasksCache) do 
+            if data.hl then data.hl:Destroy() end
+            if data.bg then data.bg:Destroy() end 
+        end
+        FH.espTasksCache = {}
+        return
+    end
+    task.spawn(function()
+        while FH.on.espActive do
+            local isMap2 = WS:FindFirstChild("Map2") or WS:FindFirstChild("Map 2")
+            for _, obj in ipairs(WS:GetDescendants()) do
+                local isPatient = obj.Name:lower():find("patient")
+                local isTask = obj:FindFirstChildWhichIsA("ProximityPrompt") or obj.Name:match("^Task_")
+                
+                if obj:IsA("Model") and isTask then
+                    if isMap2 and isPatient then
+                    else
+                        if not FH.espTasksCache[obj] then
+                            local hl = Instance.new("Highlight")
+                            hl.Parent = obj
+                            hl.Adornee = obj
+                            hl.FillColor = FH.C.accent
+                            hl.OutlineColor = Color3.new(1,1,1)
+                            hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                            
+                            local bg = Instance.new("BillboardGui")
+                            bg.Parent = obj
+                            bg.Adornee = obj
+                            bg.Size = UDim2.new(0, 80, 0, 20)
+                            bg.StudsOffset = Vector3.new(0, 2, 0)
+                            bg.AlwaysOnTop = true
+                            
+                            local txt = Instance.new("TextLabel", bg)
+                            txt.Size = UDim2.new(1, 0, 1, 0)
+                            txt.BackgroundTransparency = 1
+                            txt.Text = obj.Name
+                            txt.TextColor3 = FH.C.accent
+                            txt.TextStrokeTransparency = 0
+                            txt.Font = Enum.Font.GothamBold
+                            txt.TextScaled = true
+                            
+                            FH.espTasksCache[obj] = {hl = hl, bg = bg}
+                        end
+                    end
+                end
+            end
+            
+            for obj, data in pairs(FH.espTasksCache) do
+                if not obj.Parent then
+                    if data.hl then data.hl:Destroy() end
+                    if data.bg then data.bg:Destroy() end
+                    FH.espTasksCache[obj] = nil
+                end
+            end
+            task.wait(1)
+        end
+    end)
+end
+
+FH.startEP = function(v)
+    if not v then
+        for _, data in pairs(FH.espPlayersCache) do 
+            if data.hl then data.hl:Destroy() end
+            if data.bg then data.bg:Destroy() end 
+        end
+        FH.espPlayersCache = {}
+        return
+    end
+    task.spawn(function()
+        while FH.on.espPlActive do
+            for _, p in ipairs(PL:GetPlayers()) do
+                if p ~= LP and p.Character then
+                    local char = p.Character
+                    if not FH.espPlayersCache[char] then
+                        local hl = Instance.new("Highlight")
+                        hl.Parent = char
+                        hl.Adornee = char
+                        hl.FillColor = Color3.fromRGB(255, 50, 150)
+                        hl.OutlineColor = Color3.new(1,1,1)
+                        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                        
+                        local bg = Instance.new("BillboardGui")
+                        bg.Parent = char
+                        bg.Adornee = char
+                        bg.Size = UDim2.new(0, 100, 0, 40)
+                        bg.StudsOffset = Vector3.new(0, 3, 0)
+                        bg.AlwaysOnTop = true
+                        
+                        local txt = Instance.new("TextLabel", bg)
+                        txt.Size = UDim2.new(1, 0, 1, 0)
+                        txt.BackgroundTransparency = 1
+                        txt.Text = p.Name
+                        txt.TextColor3 = FH.C.accent
+                        txt.TextStrokeTransparency = 0
+                        txt.Font = Enum.Font.GothamBold
+                        txt.TextScaled = true
+                        
+                        FH.espPlayersCache[char] = {hl = hl, bg = bg}
+                    end
+                end
+            end
+            for char, data in pairs(FH.espPlayersCache) do
+                if not char.Parent then
+                    if data.hl then data.hl:Destroy() end
+                    if data.bg then data.bg:Destroy() end
+                    FH.espPlayersCache[char] = nil
+                end
+            end
+            task.wait(1)
+        end
+    end)
+end
 
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
     if FH.pestana == "ESP" then
-        FH.crearOpcion("ESP Tasks", function(v) FH.on.espActive = v end)
-        FH.crearOpcion("ESP Players", function(v) FH.on.espPlActive = v end)
-        FH.crearOpcion("Full Bright", function(v) game.Lighting.Brightness = v and 3 or 1 end)
+        FH.crearOpcion("ESP Tasks", function(v) FH.on.espActive = v; FH.startESP(v) end, false)
+        FH.crearOpcion("ESP Players", function(v) FH.on.espPlActive = v; FH.startEP(v) end, false)
+        FH.crearOpcion("Full Bright", function(v) 
+            local L = game.Lighting
+            if v then 
+                L.Brightness = 3; L.ClockTime = 12; L.FogEnd = 100000
+                L.Ambient = Color3.fromRGB(255,255,255); L.OutdoorAmbient = Color3.fromRGB(255,255,255)
+            else 
+                L.Brightness = 1; L.ClockTime = 14; L.FogEnd = 1000
+                L.Ambient = Color3.fromRGB(70,70,70); L.OutdoorAmbient = Color3.fromRGB(128,128,128)
+            end
+        end, false)
     end
 end
 FH.p2 = true
