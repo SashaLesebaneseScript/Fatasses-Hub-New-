@@ -1,0 +1,66 @@
+local FH = getgenv().FH
+if not FH or not FH.p1 then return end
+local RS, PL, LP, RST = FH.RS, FH.PL, FH.LP, FH.RST
+
+FH.injPlayer = function(maxD) 
+    maxD = maxD or 9999
+    local mc = LP.Character
+    if not mc then return nil end
+    local mh = mc:FindFirstChild("HumanoidRootPart")
+    if not mh then return nil end
+    local b, bd = nil, maxD
+    for _, p in ipairs(PL:GetPlayers()) do 
+        if p ~= LP and p.Character then
+            local ch = p.Character
+            local h = ch:FindFirstChildOfClass("Humanoid")
+            local hr = ch:FindFirstChild("HumanoidRootPart")
+            if h and hr and h.Health > 0 and h.Health < h.MaxHealth then 
+                local ex = p:FindFirstChild("Experiment")
+                if not (ex and ex.Value == true) then 
+                    local d = (mh.Position - hr.Position).Magnitude
+                    if d < bd then 
+                        bd = d
+                        b = p 
+                    end 
+                end 
+            end 
+        end 
+    end 
+    return b 
+end
+
+local HealEv = RST:FindFirstChild("HealingAbility") and RST.HealingAbility:FindFirstChild("HealingEvent")
+task.spawn(function()
+    while task.wait(0.05) do
+        if not (FH.on.autoHeal or FH.on.jackpot or FH.infiniteRange or FH.dontStopHeal) then continue end
+        local target = FH.injPlayer(9999)
+        if target and HealEv then
+            pcall(function() HealEv:FireServer("StartVisuals", target) end)
+            for i = 1, 20 do pcall(function() HealEv:FireServer("HealTick", target) end) end
+            pcall(function() HealEv:FireServer("GiveSpeedBoost") end)
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(0.1) do
+        if not FH.fakeUI then continue end
+        local hg = LP.PlayerGui:FindFirstChild("HealingGui")
+        if hg and hg:FindFirstChild("HealingButton") then
+            local ct = hg.HealingButton:FindFirstChild("CooldownText")
+            if ct then ct.Text = "9999/30" end
+        end
+    end
+end)
+
+local origPanel = FH.panel
+FH.panel = function()
+    origPanel()
+    if FH.pestana ~= "Class A" then return end
+    FH.crearOpcion("Infinite Healing Range", function(v) FH.infiniteRange = v end, false)
+    FH.crearOpcion("Don't Stop Even If Hit", function(v) FH.dontStopHeal = v end, false)
+    FH.crearOpcion("Show 9999/30 UI", function(v) FH.fakeUI = v end, false)
+    FH.crearOpcion("Auto Heal", function(v) FH.on.autoHeal = v end, false)
+    FH.crearOpcion("JACKPOOOOTTTTTT", function(v) FH.on.jackpot = v end, true)
+end
+FH.p4 = true
