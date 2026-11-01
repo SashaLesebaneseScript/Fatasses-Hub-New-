@@ -1,0 +1,70 @@
+local FH = getgenv().FH
+if not FH or not FH.p1 then return end
+local RS, PL, LP = FH.RS, FH.PL, FH.LP
+
+FH.sashaSprint = false
+FH.isSprintingManually = false
+FH.noclipActive = false
+
+RS.RenderStepped:Connect(function()
+    if FH.sashaSprint then
+        local char = LP.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            local stam = char:FindFirstChild("Stam")
+            if FH.UI:IsKeyDown(Enum.KeyCode.LeftShift) or FH.isSprintingManually then
+                if hum and hum.WalkSpeed ~= 30 then hum.WalkSpeed = 30 end
+                if stam then stam.Value = 100 end
+            end
+            local pg = LP:FindFirstChild("PlayerGui")
+            if pg then
+                local sg = pg:FindFirstChild("SprintGui")
+                if sg then
+                    local txt = sg:FindFirstChild("StaminaText", true)
+                    local bar = sg:FindFirstChild("FillFrame", true)
+                    if txt and txt:IsA("TextLabel") then txt.Text = "Sasha Wuz Here" end
+                    if bar and bar:IsA("Frame") then 
+                        bar.Size = UDim2.new(1, 0, 1, 0)
+                        bar.BackgroundColor3 = FH.C.accent 
+                    end
+                end
+            end
+        end
+    end
+    if FH.noclipActive and LP.Character then
+        for _, v in pairs(LP.Character:GetDescendants()) do 
+            if v:IsA("BasePart") and v.CanCollide then v.CanCollide = false end 
+        end
+    end
+end)
+
+task.spawn(function()
+    while true do
+        local pg = LP:FindFirstChild("PlayerGui")
+        if pg then
+            local sg = pg:FindFirstChild("SprintGui")
+            if sg then
+                local btn = sg:FindFirstChild("SprintButton", true)
+                if btn and not btn:GetAttribute("FH_HOOKED") then
+                    btn:SetAttribute("FH_HOOKED", true)
+                    btn.InputBegan:Connect(function(input) 
+                        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then FH.isSprintingManually = true end 
+                    end)
+                    btn.InputEnded:Connect(function(input) 
+                        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then FH.isSprintingManually = false end 
+                    end)
+                end
+            end
+        end
+        task.wait(1)
+    end
+end)
+
+local origPanel = FH.panel
+FH.panel = function()
+    origPanel()
+    if FH.pestana ~= "Extra Stuff" then return end
+    FH.crearOpcion("Inf Stamina", function(v) FH.sashaSprint = v end, true)
+    FH.crearOpcion("Noclip", function(v) FH.noclipActive = v end, true)
+end
+FH.p7 = true
