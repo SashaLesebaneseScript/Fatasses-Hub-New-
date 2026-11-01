@@ -58,6 +58,7 @@ lsFrame.BackgroundColor3 = C.bg_panel
 lsFrame.BorderSizePixel = 0
 lsFrame.Parent = ls
 Instance.new("UICorner", lsFrame).CornerRadius = UDim.new(0, 12)
+FH.lsFrame = lsFrame
 
 local lsStroke = Instance.new("UIStroke", lsFrame)
 lsStroke.Color = C.accent
@@ -132,7 +133,7 @@ end
 
 local fr = Instance.new("Frame")
 fr.Name = "Main"
-fr.Size = UDim2.new(0, FH.BW, 0, FH.BH)
+fr.Size = UDim2.new(0, 0, 0, 0)
 fr.Position = UDim2.new(.5, 0, .5, 0)
 fr.AnchorPoint = Vector2.new(.5, .5)
 fr.BackgroundColor3 = C.bg_panel
@@ -140,6 +141,7 @@ fr.BackgroundTransparency = 0.05
 fr.BorderSizePixel = 0
 fr.Active = true
 fr.ClipsDescendants = true
+fr.Visible = false
 fr.Parent = sg
 FH.fr = fr
 
