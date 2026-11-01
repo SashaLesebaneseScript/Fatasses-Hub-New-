@@ -30,14 +30,31 @@ FH.injPlayer = function(maxD)
 end
 
 local HealEv = RST:FindFirstChild("HealingAbility") and RST.HealingAbility:FindFirstChild("HealingEvent")
+
 task.spawn(function()
-    while task.wait(0.05) do
-        if not (FH.on.autoHeal or FH.on.autoHealSelf or FH.on.jackpot or FH.infiniteRange or FH.dontStopHeal) then continue end
-        local target = FH.on.autoHealSelf and LP or FH.injPlayer(9999)
-        if target and target.Character and HealEv then
-            pcall(function() HealEv:FireServer("StartVisuals", target) end)
-            for i = 1, 20 do pcall(function() HealEv:FireServer("HealTick", target) end) end
-            pcall(function() HealEv:FireServer("GiveSpeedBoost") end)
+    while task.wait(0.5) do 
+        if FH.on.autoHeal or FH.on.autoHealSelf then
+            local target = FH.on.autoHealSelf and LP or FH.injPlayer(9999)
+            if target and target.Character and HealEv then
+                pcall(function() HealEv:FireServer("StartVisuals", target) end)
+                for i = 1, 6 do pcall(function() HealEv:FireServer("HealTick", target) end) end
+                pcall(function() HealEv:FireServer("GiveSpeedBoost") end)
+            end
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(0.8) do
+        if FH.on.jackpot then
+            local target = FH.injPlayer(9999)
+            if target and target.Character and HealEv then
+                pcall(function() HealEv:FireServer("StartVisuals", target) end)
+                pcall(function() HealEv:FireServer("HealTick", target) end)
+                pcall(function() HealEv:FireServer("GiveSpeedBoost") end)
+            else
+                pcall(function() HealEv:FireServer("RequestCooldownCheck") end)
+            end
         end
     end
 end)
@@ -58,7 +75,6 @@ FH.panel = function()
     origPanel()
     if FH.pestana ~= "Class A" then return end
     FH.crearOpcion("Infinite Healing Range", function(v) FH.infiniteRange = v end, false)
-    FH.crearOpcion("Don't Stop Even If Hit", function(v) FH.dontStopHeal = v end, false)
     FH.crearOpcion("Show 9999/30 UI", function(v) FH.fakeUI = v end, false)
     FH.crearOpcion("Auto Heal", function(v) FH.on.autoHeal = v end, false)
     FH.crearOpcion("Auto Heal Self", function(v) FH.on.autoHealSelf = v end, false)
