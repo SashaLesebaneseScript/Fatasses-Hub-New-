@@ -310,7 +310,7 @@ FH.panel = function()
     FH.crearOpcion("Auto Patient", function(v) FH.autoPatientLegit = v; if v then FH.startAP() end end, false)
     FH.crearOpcion("Auto Generator", function(v) FH.autoTubeLegit = v; if v then FH.startGen() end end, false)
     FH.crearOpcion("Auto Panel", function(v) FH.autoTask3Legit = v; if v then FH.startPanel() end end, false)
-    FH.crearOpcion("Complete Full", function(v) FH.on.spamComplete = v; FH.startSp(v) end, false)
+    FH.crearOpcion("Spam Complete", function(v) FH.on.spamComplete = v; FH.startSp(v) end, false)
     FH.crearOpcion("Anti Broken Tube", function(v) FH.antiBrokenTube = v; if v then FH.startAB() end end, false)
 end
 FH.p3 = true
