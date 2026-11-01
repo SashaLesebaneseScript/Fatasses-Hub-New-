@@ -14,6 +14,25 @@ end
 
 local GunEvent = RST:FindFirstChild("GunEvent")
 
+local mt = getrawmetatable(game)
+local oldNC = mt.__namecall
+setreadonly(mt, false)
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    if method == "FireServer" and self.Name == "GunEvent" and (...) == "Shoot" then
+        if FH.silentAimActive then
+            local exp = FH.getExperiment()
+            if exp and exp.Character and exp.Character:FindFirstChild("Head") then
+                local args = {...}
+                args[2] = exp.Character.Head.Position
+                return oldNC(self, table.unpack(args))
+            end
+        end
+    end
+    return oldNC(self, ...)
+end)
+setreadonly(mt, true)
+
 RS.RenderStepped:Connect(function()
     if not FH.on.aimlockS then return end
     if FH.UI:IsKeyDown(Enum.KeyCode.F) or FH.UI:IsKeyDown(Enum.KeyCode.ButtonL2) then
@@ -42,7 +61,9 @@ local origPanel = FH.panel
 FH.panel = function()
     origPanel()
     if FH.pestana ~= "Class S" then return end
-    FH.crearOpcion("Aimlock (Al apuntar)", function(v) FH.on.aimlockS = v end, true)
-    FH.crearOpcion("Always Shoot / No CD", function(v) FH.classSAutoShoot = v end, true)
+    FH.crearOpcion("Aimlock", function(v) FH.on.aimlockS = v end, true)
+    FH.crearOpcion("No Cooldown", function(v) FH.classSAutoShoot = v end, true)
+    FH.crearOpcion("Auto Shoot", function(v) FH.classSAutoShoot = v end, true)
+    FH.crearOpcion("Silent Aim", function(v) FH.silentAimActive = v end, true)
 end
 FH.p5 = true
