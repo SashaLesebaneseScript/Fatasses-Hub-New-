@@ -1,25 +1,27 @@
-if getgenv().FH and getgenv().FH.p1 then warn("[FH] Parte 1 ya ejecutada") return end
+-- ============ PARTE 1/5 - GUI Base ============
+if getgenv().FH and getgenv().FH.p1 then return end
 local FH = getgenv().FH or {}
 getgenv().FH = FH
 FH.RS=game:GetService("RunService");FH.PL=game:GetService("Players");FH.WS=game:GetService("Workspace")
 FH.RST=game:GetService("ReplicatedStorage");FH.TW=game:GetService("TweenService")
 FH.UI=game:GetService("UserInputService");FH.SS=game:GetService("SoundService");FH.CG=game:GetService("CoreGui")
 FH.LP=FH.PL.LocalPlayer
-FH.BW,FH.BH=380,300
+FH.BW,FH.BH=400,320
 
+-- Colores Halloween / Kawaii
 FH.C={
-    bg_dark=Color3.fromRGB(40, 20, 35), -- Morado oscuro suave
-    bg_panel=Color3.fromRGB(255, 228, 235), -- Rosa muy pálido
-    bg_card=Color3.fromRGB(255, 182, 193), -- Rosa claro
-    bg_card_hl=Color3.fromRGB(255, 105, 180), -- Rosa fuerte
-    accent=Color3.fromRGB(255, 105, 180), -- Hot Pink
-    accent2=Color3.fromRGB(219, 112, 147), -- Pale Violet Red
-    accent4=Color3.fromRGB(255, 160, 180), -- Rosa medio
-    text=Color3.fromRGB(80, 30, 60), -- Texto oscuro para contrastar
-    text_sub=Color3.fromRGB(150, 80, 100),
-    border=Color3.fromRGB(255, 192, 203), -- Borde rosa
-    success=Color3.fromRGB(144, 238, 144),
-    danger=Color3.fromRGB(255, 99, 71)
+    bg_dark=Color3.fromRGB(25, 15, 30),
+    bg_panel=Color3.fromRGB(45, 25, 50),
+    bg_card=Color3.fromRGB(60, 30, 70),
+    bg_card_hl=Color3.fromRGB(255, 120, 20), -- Naranja calabaza
+    accent=Color3.fromRGB(255, 140, 0), -- Naranja
+    accent2=Color3.fromRGB(200, 50, 100), -- Magenta oscuro
+    accent4=Color3.fromRGB(255, 180, 100),
+    text=Color3.fromRGB(255, 240, 245),
+    text_sub=Color3.fromRGB(180, 140, 180),
+    border=Color3.fromRGB(255, 140, 0),
+    success=Color3.fromRGB(120,255,120), 
+    danger=Color3.fromRGB(255,50,50)
 }
 FH.est={};FH.on={}; FH.blatantMode = false
 
@@ -38,7 +40,7 @@ FH.sfx=function(n,v,p) local id=FH.SND[n]; if not id then return end
  s:Play();s.Ended:Connect(function()s:Destroy()end)end
 
 local sg=Instance.new("ScreenGui")
-sg.Name="SakuraHub";sg.ResetOnSpawn=false;sg.IgnoreGuiInset=true
+sg.Name="HalloweenHub";sg.ResetOnSpawn=false;sg.IgnoreGuiInset=true
 sg.DisplayOrder=999;sg.ZIndexBehavior=Enum.ZIndexBehavior.Sibling;sg.Parent=parent
 FH.sg=sg
 local us=Instance.new("UIScale");us.Name="GlobalScale";us.Parent=sg;FH.us=us
@@ -50,33 +52,33 @@ fr.Name="Main";fr.Size=UDim2.new(0,FH.BW,0,FH.BH);fr.Position=UDim2.new(.5,0,.5,
 fr.AnchorPoint=Vector2.new(.5,.5);fr.BackgroundColor3=C.bg_panel;fr.BackgroundTransparency=0.05
 fr.BorderSizePixel=0;fr.Active=true;fr.ClipsDescendants=true;fr.Parent=sg;FH.fr=fr
 Instance.new("UICorner",fr).CornerRadius=UDim.new(0,14)
-local gr=Instance.new("UIGradient",fr)
-gr.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(255, 240, 245)),ColorSequenceKeypoint.new(.5,Color3.fromRGB(255, 182, 193)),ColorSequenceKeypoint.new(1,Color3.fromRGB(255, 228, 235))})
-gr.Rotation=135
 local stk=Instance.new("UIStroke",fr);stk.Color=C.accent;stk.Thickness=2;stk.Transparency=.2
 
 local tb=Instance.new("Frame",fr)
-tb.Size=UDim2.new(1,0,0,42);tb.BackgroundColor3=C.bg_panel;tb.BackgroundTransparency=.3
+tb.Size=UDim2.new(1,0,0,42);tb.BackgroundColor3=C.bg_dark;tb.BackgroundTransparency=.2
 tb.BorderSizePixel=0;tb.Active=true;tb.ClipsDescendants=true
 Instance.new("UICorner",tb).CornerRadius=UDim.new(0,14)
 
 local tl=Instance.new("TextLabel",tb)
 tl.Size=UDim2.new(0, 200, 1, 0);tl.Position=UDim2.new(0,34,0,0);tl.BackgroundTransparency=1
-tl.Text="Fatasses Hub 🌸"
+tl.Text="HALLOWEEN HUB 🎃"
 tl.TextColor3=C.accent;tl.TextScaled=true
 tl.Font=Enum.Font.GothamBlack;tl.TextXAlignment=Enum.TextXAlignment.Left
-
-local beta = Instance.new("TextLabel", tb)
-beta.Size = UDim2.new(0, 46, 0.6, 0); beta.Position = UDim2.new(1, -80, 0.2, 0)
-beta.BackgroundTransparency = 1; beta.Text = "Beta"; beta.TextColor3 = C.accent2
-beta.Font = Enum.Font.GothamBold; beta.TextScaled = true; beta.TextXAlignment = Enum.TextXAlignment.Right
 
 local cb=Instance.new("TextButton",tb)
 cb.Size=UDim2.new(0,26,0,26);cb.Position=UDim2.new(1,-34,.5,-13)
 cb.BackgroundColor3=C.accent2;cb.Text="✕";cb.TextColor3=Color3.fromRGB(255,255,255)
 cb.TextScaled=true;cb.Font=Enum.Font.GothamBold;cb.BorderSizePixel=0;cb.AutoButtonColor=false
 Instance.new("UICorner",cb).CornerRadius=UDim.new(1,0)
-cb.MouseButton1Click:Connect(function()FH.sfx("button",1,1.2);fr.Visible=false end)
+cb.MouseButton1Click:Connect(function()
+    FH.TW:Create(fr, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {Size = UDim2.new(0,0,0,0)}):Play()
+    task.wait(0.3); fr.Visible=false; fr.Size=UDim2.new(0,FH.BW,0,FH.BH)
+    FH.sfx("button",1,1.2)
+end)
+
+-- Animación de entrada al panel
+fr.Size = UDim2.new(0,0,0,0)
+FH.TW:Create(fr, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0,FH.BW,0,FH.BH)}):Play()
 
 local drag,ds,sp=false,nil,nil
 tb.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then drag=true;ds=i.Position;sp=fr.Position end end)
@@ -131,12 +133,12 @@ FH.crearOpcion=function(nombre,cb,isBlatant)
  l.Font=Enum.Font.GothamBold;l.TextXAlignment=Enum.TextXAlignment.Left;l.TextWrapped=true
  local tb2=Instance.new("TextButton",o)
  tb2.Size=UDim2.new(0,46,0,24);tb2.Position=UDim2.new(1,-58,.5,-12)
- tb2.BackgroundColor3=Color3.fromRGB(250, 200, 210);tb2.Text="";tb2.BorderSizePixel=0;tb2.AutoButtonColor=false
+ tb2.BackgroundColor3=Color3.fromRGB(40, 20, 45);tb2.Text="";tb2.BorderSizePixel=0;tb2.AutoButtonColor=false
  Instance.new("UICorner",tb2).CornerRadius=UDim.new(1,0)
  local ts=Instance.new("UIStroke",tb2);ts.Color=C.border;ts.Thickness=1;ts.Transparency=.4
  local b=Instance.new("Frame",tb2)
  b.Size=UDim2.new(0,18,0,18);b.Position=UDim2.new(0,3,.5,-9)
- b.BackgroundColor3=Color3.fromRGB(200, 150, 160);b.BorderSizePixel=0
+ b.BackgroundColor3=Color3.fromRGB(150, 100, 150);b.BorderSizePixel=0
  Instance.new("UICorner",b).CornerRadius=UDim.new(1,0)
  local es=FH.est[nombre]or false
  local function setV(a,an)
@@ -147,8 +149,8 @@ FH.crearOpcion=function(nombre,cb,isBlatant)
    FH.TW:Create(tb2,i,{BackgroundColor3=C.accent4}):Play()
    FH.TW:Create(ts,i,{Color=C.accent,Transparency=.1}):Play()
   else
-   FH.TW:Create(b,i,{Position=UDim2.new(0,3,.5,-9),BackgroundColor3=Color3.fromRGB(200, 150, 160),Size=UDim2.new(0,18,0,18)}):Play()
-   FH.TW:Create(tb2,i,{BackgroundColor3=Color3.fromRGB(250, 200, 210)}):Play()
+   FH.TW:Create(b,i,{Position=UDim2.new(0,3,.5,-9),BackgroundColor3=Color3.fromRGB(150, 100, 150),Size=UDim2.new(0,18,0,18)}):Play()
+   FH.TW:Create(tb2,i,{BackgroundColor3=Color3.fromRGB(40, 20, 45)}):Play()
    FH.TW:Create(ts,i,{Color=C.border,Transparency=.4}):Play()
   end
  end
@@ -191,9 +193,8 @@ end
 FH.disableAllBlatant = function()
     FH.blatantMode = false
     if FH.k8 then for k in pairs(FH.k8) do if type(FH.k8[k]) == "boolean" then FH.k8[k] = false end end end
-    if FH.beta then FH.beta.autoUse = false; FH.beta.noCooldown = false; FH.beta.bypassStun = false; FH.beta.bypassSecondary = false end
     FH.sashaSprint = false; FH.autoCandyActive = false; FH.noclipActive = false; FH.experimentPunch = false
-    if FH.classSAutoShoot then FH.classSAutoShoot = false end
+    FH.classSAutoShoot = false; FH.aimlockS = false; FH.silentAimActive = false
     if FH.panel then pcall(FH.panel) end
 end
 
