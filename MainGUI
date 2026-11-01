@@ -456,6 +456,7 @@ tbtn.MouseButton1Click:Connect(function()
         fr.Visible = false
         isOpen = false
     else
+        fr.Position = UDim2.new(0.5, 0, 0.5, 0)
         fr.Visible = true
         fr.Size = UDim2.new(0,0,0,0)
         FH.TW:Create(fr, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, FH.BW, 0, FH.BH)}):Play()
