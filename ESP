@@ -24,31 +24,63 @@ FH.startESP = function(v)
                 if obj:IsA("Model") and isTask then
                     if isMap2 and isPatient then
                     else
+                        local progress = "0/4"
+                        local isComplete = false
+                        local billboard = obj:FindFirstChildWhichIsA("BillboardGui", true)
+                        if billboard then
+                            for _, txt in ipairs(billboard:GetDescendants()) do
+                                if txt:IsA("TextLabel") and txt.Text:match("%d+/%d+") then
+                                    progress = txt.Text
+                                    if progress == "4/4" then isComplete = true end
+                                    break
+                                end
+                            end
+                        end
+                        
+                        local color = isComplete and Color3.fromRGB(152, 255, 152) or FH.C.accent
+                        
                         if not FH.espTasksCache[obj] then
                             local hl = Instance.new("Highlight")
                             hl.Parent = obj
                             hl.Adornee = obj
-                            hl.FillColor = FH.C.accent
+                            hl.FillColor = color
                             hl.OutlineColor = Color3.new(1,1,1)
                             hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
                             
                             local bg = Instance.new("BillboardGui")
                             bg.Parent = obj
                             bg.Adornee = obj
-                            bg.Size = UDim2.new(0, 80, 0, 20)
+                            bg.Size = UDim2.new(0, 100, 0, 40)
                             bg.StudsOffset = Vector3.new(0, 2, 0)
                             bg.AlwaysOnTop = true
                             
                             local txt = Instance.new("TextLabel", bg)
-                            txt.Size = UDim2.new(1, 0, 1, 0)
+                            txt.Size = UDim2.new(1, 0, 0.5, 0)
+                            txt.Position = UDim2.new(0, 0, 0.5, 0)
                             txt.BackgroundTransparency = 1
                             txt.Text = obj.Name
-                            txt.TextColor3 = FH.C.accent
+                            txt.TextColor3 = color
                             txt.TextStrokeTransparency = 0
                             txt.Font = Enum.Font.GothamBold
                             txt.TextScaled = true
                             
-                            FH.espTasksCache[obj] = {hl = hl, bg = bg}
+                            local progTxt = Instance.new("TextLabel", bg)
+                            progTxt.Size = UDim2.new(1, 0, 0.5, 0)
+                            progTxt.Position = UDim2.new(0, 0, 0, 0)
+                            progTxt.BackgroundTransparency = 1
+                            progTxt.Text = "[" .. progress .. "]"
+                            progTxt.TextColor3 = color
+                            progTxt.TextStrokeTransparency = 0
+                            progTxt.Font = Enum.Font.GothamBold
+                            progTxt.TextScaled = true
+                            
+                            FH.espTasksCache[obj] = {hl = hl, bg = bg, txt = txt, progTxt = progTxt}
+                        else
+                            local data = FH.espTasksCache[obj]
+                            data.hl.FillColor = color
+                            data.txt.TextColor3 = color
+                            data.progTxt.Text = "[" .. progress .. "]"
+                            data.progTxt.TextColor3 = color
                         end
                     end
                 end
@@ -90,12 +122,14 @@ FH.startEP = function(v)
                     if hum and hum.Health > 0 and hrp then
                         local dist = myHRP and (myHRP.Position - hrp.Position).Magnitude or 0
                         local color = Color3.fromRGB(150, 150, 150)
+                        local showHealth = false
                         
                         if expPlayer then
                             if p == expPlayer then
                                 color = Color3.fromRGB(220, 20, 60)
                             elseif dist < 600 then
                                 color = Color3.fromRGB(152, 255, 152)
+                                showHealth = true
                             end
                         end
                         
@@ -110,12 +144,13 @@ FH.startEP = function(v)
                             local bg = Instance.new("BillboardGui")
                             bg.Parent = char
                             bg.Adornee = char
-                            bg.Size = UDim2.new(0, 100, 0, 40)
+                            bg.Size = UDim2.new(0, 120, 0, 40)
                             bg.StudsOffset = Vector3.new(0, 3, 0)
                             bg.AlwaysOnTop = true
                             
                             local txt = Instance.new("TextLabel", bg)
-                            txt.Size = UDim2.new(1, 0, 1, 0)
+                            txt.Size = UDim2.new(1, 0, 0.5, 0)
+                            txt.Position = UDim2.new(0, 0, 0, 0)
                             txt.BackgroundTransparency = 1
                             txt.Text = p.Name
                             txt.TextColor3 = color
@@ -123,12 +158,28 @@ FH.startEP = function(v)
                             txt.Font = Enum.Font.GothamBold
                             txt.TextScaled = true
                             
-                            FH.espPlayersCache[char] = {hl = hl, bg = bg, txt = txt}
+                            local hpTxt = Instance.new("TextLabel", bg)
+                            hpTxt.Size = UDim2.new(1, 0, 0.5, 0)
+                            hpTxt.Position = UDim2.new(0, 0, 0.5, 0)
+                            hpTxt.BackgroundTransparency = 1
+                            hpTxt.Text = ""
+                            hpTxt.TextColor3 = color
+                            hpTxt.TextStrokeTransparency = 0
+                            hpTxt.Font = Enum.Font.GothamBold
+                            hpTxt.TextScaled = true
+                            hpTxt.Visible = showHealth
+                            
+                            FH.espPlayersCache[char] = {hl = hl, bg = bg, txt = txt, hpTxt = hpTxt}
                         else
                             local data = FH.espPlayersCache[char]
                             data.hl.FillColor = color
                             data.hl.OutlineColor = color
                             data.txt.TextColor3 = color
+                            data.hpTxt.TextColor3 = color
+                            data.hpTxt.Visible = showHealth
+                            if showHealth then
+                                data.hpTxt.Text = math.floor(hum.Health) .. " / " .. math.floor(hum.MaxHealth)
+                            end
                         end
                     end
                 end
