@@ -1,3 +1,0 @@
-local FH = getgenv().FH
-if not FH then return end
-FH.p20 = true
