@@ -1,0 +1,95 @@
+local FH = getgenv().FH
+if not FH or not FH.p1 then return end
+local WS, LP = FH.WS, FH.LP
+
+FH.candyESP = {}
+FH.startCandyESP = function(v)
+    if not v then
+        for _, data in pairs(FH.candyESP) do 
+            if data.hl then data.hl:Destroy() end
+            if data.bg then data.bg:Destroy() end 
+        end
+        FH.candyESP = {}
+        return
+    end
+    task.spawn(function()
+        while FH.candyESP_Active do
+            local folders = {WS, WS:FindFirstChild("Map1"), WS:FindFirstChild("Map2"), WS:FindFirstChild("Map3")}
+            for _, folder in ipairs(folders) do
+                if folder then
+                    for _, c in ipairs(folder:GetChildren()) do
+                        if c:IsA("Model") and c.Name:match("^Candy") and not FH.candyESP[c] then
+                            local hl = Instance.new("Highlight")
+                            hl.Parent = c
+                            hl.Adornee = c
+                            hl.FillColor = Color3.fromRGB(255, 50, 150)
+                            hl.OutlineColor = Color3.new(1, 1, 1)
+                            hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                            
+                            local bg = Instance.new("BillboardGui")
+                            bg.Parent = c
+                            bg.Adornee = c
+                            bg.Size = UDim2.new(0, 60, 0, 20)
+                            bg.StudsOffset = Vector3.new(0, 2, 0)
+                            bg.AlwaysOnTop = true
+                            
+                            local txt = Instance.new("TextLabel", bg)
+                            txt.Size = UDim2.new(1, 0, 1, 0)
+                            txt.BackgroundTransparency = 1
+                            txt.Text = "Candy"
+                            txt.TextColor3 = Color3.fromRGB(255, 50, 150)
+                            txt.TextStrokeTransparency = 0
+                            txt.Font = Enum.Font.GothamBold
+                            txt.TextScaled = true
+                            
+                            FH.candyESP[c] = {hl = hl, bg = bg}
+                        end
+                    end
+                end
+            end
+            task.wait(1)
+        end
+    end)
+end
+
+FH.autoCandyActive = false
+task.spawn(function()
+    while true do
+        if FH.autoCandyActive then
+            local mc = LP.Character
+            local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local candies = {}
+                local folders = {WS, WS:FindFirstChild("Map1"), WS:FindFirstChild("Map2"), WS:FindFirstChild("Map3")}
+                for _, folder in ipairs(folders) do
+                    if folder then
+                        for _, obj in ipairs(folder:GetChildren()) do
+                            if obj:IsA("Model") and obj.Name:match("^Candy") then
+                                local primary = obj:FindFirstChild("PrimaryPart") or obj:FindFirstChildWhichIsA("BasePart")
+                                if primary then table.insert(candies, primary) end
+                            end
+                        end
+                    end
+                end
+                if #candies > 0 then 
+                    pcall(function() hrp.CFrame = candies[1].CFrame end)
+                    task.wait(0.15)
+                else 
+                    task.wait(2) 
+                end
+            end
+            task.wait(0.1)
+        else 
+            task.wait(1) 
+        end
+    end
+end)
+
+local origPanel = FH.panel
+FH.panel = function()
+    origPanel()
+    if FH.pestana ~= "Halloween" then return end
+    FH.crearOpcion("ESP Candies", function(v) FH.candyESP_Active = v; FH.startCandyESP(v) end, false)
+    FH.crearOpcion("Get all Candies", function(v) FH.autoCandyActive = v end, true)
+end
+FH.p9 = true
