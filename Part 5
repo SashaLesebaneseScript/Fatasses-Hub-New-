@@ -1,77 +1,14 @@
--- ============ PARTE 5/5 - GUI & Main Logic (FIXED) ============
 local FH=getgenv().FH
 if not FH or not FH.p4 then warn("[FH] Ejecuta Partes 1-4 primero") return end
 if FH.p5 then warn("[FH] Parte 5 ya ejecutada") return end
 local RS,PL,WS,LP=FH.RS,FH.PL,FH.WS,FH.LP
 local C=FH.C
 local UIS = FH.UI
-local RST = FH.RST
 
--- Asegurar TaskRemote
 if not FH.TR then
-    FH.TR = RST:FindFirstChild("TaskRemote") or RST:WaitForChild("TaskRemote", 5)
+    FH.TR = FH.RST:FindFirstChild("TaskRemote")
 end
 
--- ===== SISTEMA COMPLETE FULL =====
-FH.startSp = function()
-    if not FH.TR then return end
-    if FH.spLoop then return end
-    FH.spLoop = task.spawn(function()
-        while FH.on.spamComplete do
-            local guis = {LP.PlayerGui:FindFirstChild("TaskGuiMap1"), LP.PlayerGui:FindFirstChild("TaskGuiMap2"), LP.PlayerGui:FindFirstChild("TaskGuiMap3")}
-            for _, g in ipairs(guis) do
-                if g and g.Enabled and FH.tarea and FH.tarea.id then
-                    pcall(function() FH.TR:FireServer("CompleteStep", FH.tarea.id) end)
-                end
-            end
-            task.wait(0.3)
-        end
-        FH.spLoop = nil
-    end)
-end
-FH.stopSp = function() FH.on.spamComplete = false end
-
--- ===== AUTO HEAL CLASS A (LOOPS) =====
-FH.startAH = function()
-    if FH.ahConn then return end
-    FH.ahConn = task.spawn(function()
-        while FH.on.autoHeal do 
-            local t = FH.injPlayer(50)
-            if t then FH.healT(t) end
-            task.wait(0.5) 
-        end
-        FH.ahConn = nil
-    end)
-end
-FH.stopAH = function() FH.on.autoHeal = false end
-
-FH.startJ = function()
-    if FH.jConn then return end
-    FH.jConn = task.spawn(function()
-        while FH.on.jackpot do
-            local t = FH.injPlayer(50)
-            if t then FH.healT(t) else FH.resetCd() end
-            task.wait(0.3)
-        end
-        FH.jConn = nil
-    end)
-end
-FH.stopJ = function() FH.on.jackpot = false end
-
-FH.startAHS = function()
-    if FH.ahsConn then return end
-    FH.ahsConn = task.spawn(function()
-        while FH.on.autoHealSelf do 
-            local t = FH.injPlayer(50)
-            if t then FH.healT(t) end
-            task.wait(0.5) 
-        end
-        FH.ahsConn = nil
-    end)
-end
-FH.stopAHS = function() FH.on.autoHealSelf = false end
-
--- ===== INFINITE STAMINA & CANDY =====
 FH.sashaSprint = false
 FH.isSprintingManually = false
 task.spawn(function()
@@ -95,6 +32,7 @@ task.spawn(function()
         task.wait(1)
     end
 end)
+
 RS.RenderStepped:Connect(function()
     if not FH.sashaSprint then return end
     local char = LP.Character
@@ -104,6 +42,16 @@ RS.RenderStepped:Connect(function()
         if UIS:IsKeyDown(Enum.KeyCode.LeftShift) or FH.isSprintingManually then
             if hum and hum.WalkSpeed ~= 30 then hum.WalkSpeed = 30 end
             if stam then stam.Value = 100 end
+        end
+        local pg = LP:FindFirstChild("PlayerGui")
+        if pg then
+            local sg = pg:FindFirstChild("SprintGui")
+            if sg then
+                local txt = sg:FindFirstChild("StaminaText", true)
+                local bar = sg:FindFirstChild("FillFrame", true)
+                if txt and txt:IsA("TextLabel") then txt.Text = "Sasha Wuz Here" end
+                if bar and bar:IsA("Frame") then bar.Size = UDim2.new(1, 0, 1, 0); bar.BackgroundColor3 = C.accent end -- Rosa
+            end
         end
     end
 end)
@@ -133,7 +81,71 @@ task.spawn(function()
     end
 end)
 
--- ===== NOCLIP =====
+FH.startSp = function()
+    if not FH.TR then return end
+    if FH.spLoop then return end
+    FH.spLoop = task.spawn(function()
+        while FH.on.spamComplete do
+            local guis = {LP.PlayerGui:FindFirstChild("TaskGuiMap1"), LP.PlayerGui:FindFirstChild("TaskGuiMap2"), LP.PlayerGui:FindFirstChild("TaskGuiMap3")}
+            for _, g in ipairs(guis) do
+                if g and g.Enabled and FH.tarea and FH.tarea.id then
+                    pcall(function() FH.TR:FireServer("CompleteStep", FH.tarea.id) end)
+                end
+            end
+            task.wait(0.3)
+        end
+        FH.spLoop = nil
+    end)
+end
+FH.stopSp = function() FH.on.spamComplete = false end
+
+FH.startAH = function()
+    if FH.ahConn then return end
+    FH.ahConn = task.spawn(function()
+        while FH.on.autoHeal do local t = FH.injPlayer(50); if t then FH.healT(t) end; task.wait(0.5) end
+        FH.ahConn = nil
+    end)
+end
+FH.stopAH = function() FH.on.autoHeal = false end
+
+FH.startJ = function()
+    if FH.jConn then return end
+    FH.jConn = task.spawn(function()
+        while FH.on.jackpot do
+            local t = FH.injPlayer(50)
+            if t then FH.healT(t) else FH.resetCd() end
+            task.wait(0.3)
+        end
+        FH.jConn = nil
+    end)
+end
+FH.stopJ = function() FH.on.jackpot = false end
+
+FH.startAHS = function()
+    if FH.ahsConn then return end
+    FH.ahsConn = task.spawn(function()
+        while FH.on.autoHealSelf do local t = FH.injPlayer(50); if t then FH.healT(t) end; task.wait(0.5) end
+        FH.ahsConn = nil
+    end)
+end
+FH.stopAHS = function() FH.on.autoHealSelf = false end
+
+FH.infiniteHealingCharge = false
+task.spawn(function()
+    while task.wait(0.8) do
+        if not FH.infiniteHealingCharge then continue end
+        local ev = FH.getHealEv(); if not ev then continue end
+        for _, p in ipairs(PL:GetPlayers()) do
+            if p ~= LP and p.Character and not p:FindFirstChild("Experiment") then
+                local th = p.Character:FindFirstChildOfClass("Humanoid")
+                if th and th.Health > 0 and th.Health < th.MaxHealth then
+                    pcall(function() ev:FireServer("HealTick", p) end)
+                end
+            end
+        end
+    end
+end)
+
 FH.noclipActive = false
 RS.Stepped:Connect(function()
     if FH.noclipActive and LP.Character then
@@ -141,20 +153,19 @@ RS.Stepped:Connect(function()
     end
 end)
 
--- ===== CREADOR DE PESTAÑAS =====
 local function getIcon(n)
     if n=="Esp" then return "👁" end
-    if n=="Halloween" then return "🎃" end
+    if n=="Sakura" then return "🌸" end
     if n=="Scientist" then return "🧪" end
     if n=="Class A" then return "💚" end
     if n=="Class S" then return "🎯" end
     if n=="Experiment" then return "👊" end
-    if n=="Extra Stuff" then return "⚡" end
+    if n=="Extra Stuff" then return "✨" end
     if n=="Blatant" then return "💀" end
-    return "🔹"
+    return "🌸"
 end
 
-local TABS={"Esp","Halloween","Scientist","Class A","Class S","Experiment","Extra Stuff","Blatant"}
+local TABS={"Esp","Sakura","Scientist","Class A","Class S","Experiment","Extra Stuff","Blatant"}
 local tabs={};FH.tabs=tabs;FH.pestana="Esp"
 local function mkTab(n,cs)
  local t=Instance.new("TextButton",FH.sb); t.Size=UDim2.new(1,-6,0,32); t.BackgroundColor3=C.bg_card; t.BackgroundTransparency=.2; t.Text=""; t.BorderSizePixel=0; t.AutoButtonColor=false
@@ -177,7 +188,6 @@ end
 for _,n in ipairs(TABS)do mkTab(n,false)end
 if tabs["Esp"]then tabs["Esp"].S("sel")end
 
--- ===== PANEL LOGIC =====
 local pupd=false
 FH.panel=function()
  if pupd then return end; pupd=true
@@ -190,10 +200,11 @@ FH.panel=function()
    opt("Full Bright ☀️", function(v) FH.setFullbright(v, false) end)
    opt("Alt Full Bright 🌤️", function(v) FH.setFullbright(v, true) end)
    opt("No Fog 🌫️", function(v) FH.setNoFog(v) end)
-  elseif FH.pestana=="Halloween" then
+  elseif FH.pestana=="Sakura" then
    opt("ESP Candies 🍬", function(v)FH.candyESP_Active=v; if v then FH.startCandyESP(true) else FH.startCandyESP(false) end end)
    opt("Get all Candy's 🍬", function(v) FH.autoCandyActive = v end, true)
   elseif FH.pestana=="Scientist"then
+   -- Llamadas arregladas a las funciones de la Parte 3
    opt("Auto Patient (Legit) 🧟",function(v)FH.autoPatientLegit=v; if v then FH.startAP() else FH.stopAP() end end, false)
    opt("Auto Generator (Legit) 🕸",function(v)FH.autoTubeLegit=v; if v then FH.startGen() else FH.stopGen() end end, false)
    opt("Auto Task 3 (Legit) 📝",function(v)FH.autoTask3Legit=v; if v then FH.startPanel() else FH.stopPanel() end end, false)
@@ -212,6 +223,7 @@ FH.panel=function()
   elseif FH.pestana=="Class S"then
    opt("Aimlock 🎯",function(v)FH.on.aimlockS=v;if v then FH.startAL()else FH.stopAL()end end, true)
    opt("Auto Shoot 🔫",function(v)FH.classSAutoShoot = v end, true)
+   opt("Silent Aim 🤫", function(v) FH.silentAimActive = v end, true)
   elseif FH.pestana=="Experiment" then
    opt("M1 Experiment Punch 👊", function(v) FH.experimentPunch = v end, true)
   elseif FH.pestana=="Extra Stuff"then
@@ -228,7 +240,6 @@ FH.panel=function()
  pupd=false 
 end
 
--- ===== BOTÓN FLOTANTE ROSADO CON "S" (ARRASTRABLE) =====
 local th=Instance.new("Frame")
 th.Size=UDim2.new(0,60,0,60)
 th.Position=UDim2.new(0,20,.75,0)
@@ -238,7 +249,7 @@ th.ZIndex = 999
 
 local tbtn=Instance.new("TextButton",th)
 tbtn.Size=UDim2.new(1,0,1,0)
-tbtn.BackgroundColor3=Color3.fromRGB(255, 105, 180) -- Rosado
+tbtn.BackgroundColor3=C.accent
 tbtn.Text="S"
 tbtn.TextColor3=Color3.fromRGB(255,255,255)
 tbtn.TextScaled=true
@@ -252,22 +263,15 @@ uiStrokeBtn.Color = Color3.fromRGB(255, 255, 255)
 uiStrokeBtn.Thickness = 2
 uiStrokeBtn.Transparency = 0.5
 
--- Lógica de arrastre
 local dragging, dragInput, dragStart, startPos
 tbtn.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = th.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
-        end)
+        dragging = true; dragStart = input.Position; startPos = th.Position
+        input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
     end
 end)
 tbtn.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
 end)
 FH.UI.InputChanged:Connect(function(input)
     if input == dragInput and dragging then
@@ -275,11 +279,8 @@ FH.UI.InputChanged:Connect(function(input)
         th.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
-
--- Abrir/Cerrar menú al hacer clic
 tbtn.MouseButton1Click:Connect(function()
-    FH.fr.Visible = not FH.fr.Visible
-    FH.sfx("button", 1, 1.2)
+    FH.fr.Visible = not FH.fr.Visible; FH.sfx("button", 1, 1.2)
 end)
 
 FH.panel()
