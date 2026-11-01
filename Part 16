@@ -1,4 +1,0 @@
--- ============ PARTE 16/16 - ELIMINADA ============
-local FH = getgenv().FH
-if not FH then return end
-FH.p16 = true
