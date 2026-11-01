@@ -1,22 +1,35 @@
 local FH = getgenv().FH
 if not FH or not FH.p1 then return end
 local RS, PL, LP = FH.RS, FH.PL, FH.LP
+local C = FH.C
 
 FH.sashaSprint = false
-FH.isSprintingManually = false
 FH.noclipActive = false
 
-local music = Instance.new("Sound")
-music.Volume = 0.5
-music.Looped = true
-music.Parent = FH.SS
-
-local songs = {
-    {"Song 1", "rbxassetid://1837879082"},
-    {"Song 2", "rbxassetid://9046908953"},
-    {"Song 3", "rbxassetid://1836170104"}
+FH.MUSIC_LIST = {
+    {name="Mesmerizer",       id="rbxassetid://71934965392436"},
+    {name="F-L-Y",            id="rbxassetid://76819270320985"},
+    {name="Birdbrain",        id="rbxassetid://139924511923380"},
+    {name="Spoken For",       id="rbxassetid://91472362989961"},
+    {name="Execution Clap",   id="rbxassetid://72478420140778"},
+    {name="Looping The Rooms",id="rbxassetid://116273924154778"},
 }
-local currentSong = 1
+local music = nil
+local musicVol = 0.15
+
+local function playMusic(id)
+    if music then music:Destroy() end
+    music = Instance.new("Sound")
+    music.SoundId = id
+    music.Volume = musicVol
+    music.Looped = true
+    music.Parent = FH.SS
+    music:Play()
+end
+
+local function stopMusic()
+    if music then music:Destroy(); music = nil end
+end
 
 RS.RenderStepped:Connect(function()
     if FH.sashaSprint then
@@ -37,7 +50,7 @@ RS.RenderStepped:Connect(function()
                     if txt and txt:IsA("TextLabel") then txt.Text = "Sasha Wuz Here" end
                     if bar and bar:IsA("Frame") then 
                         bar.Size = UDim2.new(1, 0, 1, 0)
-                        bar.BackgroundColor3 = FH.C.accent 
+                        bar.BackgroundColor3 = C.accent 
                     end
                 end
             end
@@ -76,16 +89,24 @@ local origPanel = FH.panel
 FH.panel = function()
     origPanel()
     if FH.pestana ~= "Extra Stuff" then return end
-    FH.crearOpcion("Inf Stamina", function(v) FH.sashaSprint = v end, true)
-    FH.crearOpcion("Noclip", function(v) FH.noclipActive = v end, true)
-    FH.crearOpcion("Music", function(v) 
-        if v then music:Play() else music:Stop() end
+    local opt = FH.crearOpcion
+    local btn = FH.crearBotonAccion
+    
+    opt("Inf Stamina", function(v) FH.sashaSprint = v end, true)
+    opt("Noclip", function(v) FH.noclipActive = v end, true)
+    
+    opt("Music ON/OFF", function(v) 
+        if v then 
+            playMusic(FH.MUSIC_LIST[1].id) 
+        else 
+            stopMusic() 
+        end
     end, true)
-    FH.crearOpcion("Next Song", function() 
-        currentSong = currentSong + 1
-        if currentSong > #songs then currentSong = 1 end
-        music.SoundId = songs[currentSong][2]
-        if music.IsPlaying then music:Play() end
-    end, true)
+    
+    for i, song in ipairs(FH.MUSIC_LIST) do
+        btn("Play: " .. song.name, function()
+            playMusic(song.id)
+        end, true)
+    end
 end
 FH.p7 = true
