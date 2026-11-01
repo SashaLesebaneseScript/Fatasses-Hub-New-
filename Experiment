@@ -1,6 +1,13 @@
 local FH = getgenv().FH
 if not FH or not FH.p1 then return end
-local RS, PL, LP, RST = FH.RS, FH.PL, FH.LP, FH.RST
+local RS, PL, WS, RST, LP = FH.RS, FH.PL, FH.WS, FH.RST, FH.LP
+
+local PunchEvent = nil
+local function getPunchEv()
+    if PunchEvent and PunchEvent.Parent then return PunchEvent end
+    PunchEvent = RST:FindFirstChild("PunchEvent")
+    return PunchEvent
+end
 
 FH.isKiller = function(m) 
     local exp = FH.getExperiment and FH.getExperiment()
@@ -31,107 +38,139 @@ FH.nearest = function(maxD)
     return b 
 end
 
-local PunchEv = RST:FindFirstChild("PunchEvent")
-local AbEv = RST:FindFirstChild("AbilityEvent")
+FH.k8 = FH.k8 or {
+    autoPunch=false, antiStun=false, hitboxTp=false, hitbox360=false, hitboxExpander=false,
+    alwaysMaxSpeed=false, killAll=false, anchoredHitbox=false, range=12, hbRange=100,
+    expanderRange=3.5, expanderWidth=2.0, tpBoxSize=8, attackId=0
+}
+local K = FH.k8
+
+local SPHERE_DIRS = {}
+for x=-1,1 do for y=-1,1 do for z=-1,1 do if x~=0 or y~=0 or z~=0 then table.insert(SPHERE_DIRS, Vector3.new(x,y,z).Unit) end end end end
+
+local function soyKiller() return FH.isKiller(LP.Character) end
+local function estoyStuneado()
+    local mc = LP.Character; if not mc then return false end
+    local s = mc:FindFirstChild("Stun"); if s and s:IsA("BoolValue") then return s.Value == true end
+    local hum = mc:FindFirstChildOfClass("Humanoid"); if hum and hum.PlatformStand then return true end
+    return false
+end
 
 task.spawn(function()
-    while task.wait(0.05) do
-        if not FH.experimentPunch or not FH.isKiller(LP.Character) then continue end
-        local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-        if hrp and PunchEv then
-            pcall(function() PunchEv:FireServer({AttackId = math.random(1,100000), Position = hrp.Position, Velocity = hrp.AssemblyLinearVelocity, Direction = hrp.CFrame.LookVector}) end)
+    while true do
+        if K.autoPunch and soyKiller() and not estoyStuneado() then
+            local ev = getPunchEv()
+            local mh = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+            if ev and mh then
+                K.attackId = K.attackId + 1
+                pcall(function() ev:FireServer({AttackId=K.attackId, Position=mh.Position, Velocity=mh.AssemblyLinearVelocity, Direction=mh.CFrame.LookVector}) end)
+            end
+            task.wait(0.3)
+        else
+            task.wait(0.5)
         end
     end
 end)
 
--- 360 Hitbox (Duplica el golpe alrededor sin borrar el original)
-local mt = getrawmetatable(game)
-local oldNC = mt.__namecall
-setreadonly(mt, false)
-mt.__namecall = newcclosure(function(self, ...)
-    local method = getnamecallmethod()
-    if method == "FireServer" and self.Name == "PunchEvent" then
-        if FH.hitbox360 and FH.isKiller(LP.Character) then
-            local args = {...}
-            task.spawn(function()
-                local myChar = LP.Character
-                local mh = myChar and myChar:FindFirstChild("HumanoidRootPart")
-                if mh then
-                    local id = args[1] and args[1].AttackId or math.random(1,100000)
-                    for i = 1, 12 do
-                        local angle = (i / 12) * (math.pi * 2)
-                        local pos = mh.Position + Vector3.new(math.cos(angle) * 12, 0, math.sin(angle) * 12)
-                        local dir = (pos - mh.Position).Unit
-                        pcall(function() oldNC(self, {AttackId=id, Position=pos, Velocity=Vector3.new(0,0,0), Direction=dir}) end)
+local EXTRA_MODE = false
+task.spawn(function()
+    local ev = getPunchEv(); local tries = 0
+    while not ev and tries < 30 do task.wait(0.5); ev = getPunchEv(); tries = tries + 1 end
+    if not ev then return end
+    pcall(function()
+        local mt = getrawmetatable(game); setreadonly(mt, false)
+        local oldNC = mt.__namecall
+        mt.__namecall = newcclosure(function(self, ...)
+            if getnamecallmethod() == "FireServer" and self == getPunchEv() and not EXTRA_MODE then
+                task.spawn(function()
+                    if not soyKiller() or estoyStuneado() then return end
+                    EXTRA_MODE = true
+                    if K.hitbox360 then
+                        K.attackId = K.attackId + 1
+                        local id = K.attackId
+                        local R = K.hbRange
+                        local mc = LP.Character
+                        local mh = mc and mc:FindFirstChild("HumanoidRootPart")
+                        if mh then
+                            for i = 1, 36 do
+                                local angle = (i / 36) * (math.pi * 2)
+                                local dir = Vector3.new(math.cos(angle), 0, math.sin(angle)).Unit
+                                local pos = mh.Position + dir * R
+                                pcall(function() oldNC(self, {AttackId=id, Position=pos, Velocity=Vector3.new(0,0,0), Direction=dir}) end)
+                            end
+                        end
                     end
-                end
-            end)
-        end
-    end
-    return oldNC(self, ...)
-end)
-setreadonly(mt, true)
-
-local lastAbilityTime = 0
-local lastPunchTime = 0
-
-RS.Heartbeat:Connect(function()
-    if not FH.killAll or not FH.isKiller(LP.Character) then return end
-    local nearest = FH.nearest(2000)
-    if nearest and nearest.HRP then
-        local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            -- Movimiento suave para evadir el anti-cheat
-            hrp.CFrame = hrp.CFrame:Lerp(nearest.HRP.CFrame * CFrame.new(0, 0, 3), 0.2)
-            
-            if tick() - lastPunchTime >= 0.2 then
-                lastPunchTime = tick()
-                if PunchEv then 
-                    pcall(function() PunchEv:FireServer({AttackId = math.random(1,100000), Position = nearest.HRP.Position, Velocity = Vector3.new(0,0,0), Direction = Vector3.new(0,1,0)}) end) 
-                end
+                    EXTRA_MODE = false
+                end)
             end
-            
-            if tick() - lastAbilityTime >= 10 then
-                lastAbilityTime = tick()
-                if AbEv then pcall(function() AbEv:FireServer() end) end
-            end
-        end
-    end
+            return oldNC(self, ...)
+        end)
+        setreadonly(mt, true)
+    end)
 end)
 
-RS.Heartbeat:Connect(function()
-    if not FH.isKiller(LP.Character) then return end
-    local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
-    if hum then
-        if FH.forceSpeed26 then hum.WalkSpeed = 26 end
-        if FH.controlRush then 
-            local move = FH.UI:GetMoveVector()
-            hum:Move(move, false)
-            if AbEv then pcall(function() AbEv:FireServer() end) end
+local amsConn = nil
+local function startAMS()
+    if amsConn then return end
+    amsConn = RS.Heartbeat:Connect(function()
+        if not K.alwaysMaxSpeed or not soyKiller() or estoyStuneado() then return end
+        local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+        if hum and hum.WalkSpeed ~= 27 then pcall(function() hum.WalkSpeed = 27 end) end
+    end)
+end
+local function stopAMS()
+    K.alwaysMaxSpeed = false
+    if amsConn then amsConn:Disconnect(); amsConn = nil end
+end
+
+local killAllConn = nil
+local function updateKillAll()
+    if not K.killAll or not soyKiller() or estoyStuneado() then return end
+    local survivor = FH.nearest(2000)
+    if survivor and survivor.HRP then
+        local myhrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        if myhrp then
+            local targetPos = survivor.HRP.Position + Vector3.new(0, 0, 3)
+            myhrp.CFrame = myhrp.CFrame:Lerp(CFrame.new(targetPos, survivor.HRP.Position), 0.2)
+            K.attackId = K.attackId + 1
+            local ev = getPunchEv()
+            if ev then pcall(function() ev:FireServer({AttackId=K.attackId, Position=survivor.HRP.Position, Velocity=Vector3.new(0,0,0), Direction=Vector3.new(0,1,0)}) end) end
         end
-        if FH.infiniteRush then 
-            if AbEv then pcall(function() AbEv:FireServer() end) end
-            local hrp = LP.Character:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                local bv = hrp:FindFirstChild("FH_Rush") or Instance.new("BodyVelocity", hrp)
-                bv.Name = "FH_Rush"
-                bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-                bv.Velocity = hum.MoveDirection * 50
+    end
+end
+local function startKillAll()
+    if killAllConn then return end
+    killAllConn = RS.RenderStepped:Connect(function() pcall(updateKillAll) end)
+end
+local function stopKillAll()
+    K.killAll = false
+    if killAllConn then killAllConn:Disconnect(); killAllConn = nil end
+end
+
+local stunConns = {}
+local function startAntiStun()
+    local mc = LP.Character; if not mc then return end
+    for _, d in ipairs(mc:GetDescendants()) do
+        if d.Name:lower():find("stun") and (d:IsA("BoolValue") or d:IsA("IntValue") or d:IsA("NumberValue")) then
+            if not d:GetAttribute("FH_STUN") then
+                d:SetAttribute("FH_STUN", true)
+                table.insert(stunConns, d:GetPropertyChangedSignal("Value"):Connect(function()
+                    if K.antiStun and d.Value then pcall(function() d.Value = false end) end
+                end))
             end
         end
     end
-end)
+end
 
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
     if FH.pestana ~= "Experiment" then return end
-    FH.crearOpcion("Auto Punch", function(v) FH.experimentPunch = v end, true)
-    FH.crearOpcion("Kill All", function(v) FH.killAll = v end, true)
-    FH.crearOpcion("Force Speed 26", function(v) FH.forceSpeed26 = v end, true)
-    FH.crearOpcion("360 Hitbox (Punch)", function(v) FH.hitbox360 = v end, true)
-    FH.crearOpcion("Controllable Rush", function(v) FH.controlRush = v end, true)
-    FH.crearOpcion("Infinite Rush", function(v) FH.infiniteRush = v end, true)
-    FH.crearOpcion("Melodic Anti-Crash", function(v) FH.antiCrash = v end, true)
+    local opt = FH.crearOpcion
+    opt("Auto Punch", function(v) K.autoPunch = v end, true)
+    opt("Kill All", function(v) K.killAll = v; if v then startKillAll() else stopKillAll() end end, true)
+    opt("360 Hitbox", function(v) K.hitbox360 = v end, true)
+    opt("Always Max Speed", function(v) K.alwaysMaxSpeed = v; if v then startAMS() else stopAMS() end end, true)
+    opt("Anti Stun", function(v) K.antiStun = v; if v then startAntiStun() end end, true)
 end
 FH.p6 = true
