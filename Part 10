@@ -1,6 +1,0 @@
--- ============ PARTE 10/10 - (Auto Farms Class S/A ELIMINADAS) ============
-local FH = getgenv().FH
-if not FH or not FH.p8 then warn("[FH] Ejecuta Partes 1-8 primero") return end
-if FH.p10 then warn("[FH] Parte 10 ya ejecutada") return end
-FH.p10 = true
-print("[10/10] OK — Auto Farms Class S/A removidas (no existen)")
