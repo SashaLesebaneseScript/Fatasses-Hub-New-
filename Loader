@@ -33,7 +33,7 @@ end
 
 if getgenv().FH and getgenv().FH.lsFrame then
     getgenv().FH.lsFrame.Size = UDim2.new(0, 0, 0, 0)
-    TweenService:Create(getgenv().FH.lsFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 300, 0, 100)}):Play()
+    TweenService:Create(getgenv().FH.lsFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 320, 0, 120)}):Play()
     task.wait(0.4)
 end
 
@@ -41,7 +41,6 @@ for i, file in ipairs(files) do
     if getgenv().FH and getgenv().FH.lsText then
         getgenv().FH.lsText.Text = "Loading " .. file .. " page..."
         if getgenv().FH.lsFill then
-            -- Animación suave de la barra
             TweenService:Create(getgenv().FH.lsFill, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(i / totalFiles, 0, 1, 0)}):Play()
         end
     end
@@ -52,15 +51,13 @@ for i, file in ipairs(files) do
         if fn then 
             local success, err = pcall(fn) 
             if not success then
-                warn("Error loading " .. file .. ": " .. tostring(err))
                 errorOcurred = true
             end
         end
     else
         errorOcurred = true
-        warn("HTTP 404: Failed to download " .. file)
     end
-    task.wait(0.35) -- Espera para que la animación de la barra se vea fluida
+    task.wait(0.35)
 end
 
 if getgenv().FH then
