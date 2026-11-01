@@ -5,13 +5,18 @@ local RS, PL, LP = FH.RS, FH.PL, FH.LP
 FH.sashaSprint = false
 FH.isSprintingManually = false
 FH.noclipActive = false
-FH.musicPlaying = false
 
 local music = Instance.new("Sound")
-music.SoundId = "rbxassetid://1837879082"
 music.Volume = 0.5
 music.Looped = true
 music.Parent = FH.SS
+
+local songs = {
+    {"Song 1", "rbxassetid://1837879082"},
+    {"Song 2", "rbxassetid://9046908953"},
+    {"Song 3", "rbxassetid://1836170104"}
+}
+local currentSong = 1
 
 RS.RenderStepped:Connect(function()
     if FH.sashaSprint then
@@ -74,8 +79,13 @@ FH.panel = function()
     FH.crearOpcion("Inf Stamina", function(v) FH.sashaSprint = v end, true)
     FH.crearOpcion("Noclip", function(v) FH.noclipActive = v end, true)
     FH.crearOpcion("Music", function(v) 
-        FH.musicPlaying = v
         if v then music:Play() else music:Stop() end
+    end, true)
+    FH.crearOpcion("Next Song", function() 
+        currentSong = currentSong + 1
+        if currentSong > #songs then currentSong = 1 end
+        music.SoundId = songs[currentSong][2]
+        if music.IsPlaying then music:Play() end
     end, true)
 end
 FH.p7 = true
