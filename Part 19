@@ -1,6 +1,0 @@
--- ============ PARTE 19/19 - Vacía ============
-local FH = getgenv().FH
-if not FH or not FH.p18 then warn("[FH] Ejecuta Partes 1-18 primero") return end
-if FH.p19 then return end
-FH.p19 = true
-print("🎃 [19/19] Part 19 skip")
