@@ -32,9 +32,9 @@ end
 local HealEv = RST:FindFirstChild("HealingAbility") and RST.HealingAbility:FindFirstChild("HealingEvent")
 task.spawn(function()
     while task.wait(0.05) do
-        if not (FH.on.autoHeal or FH.on.jackpot or FH.infiniteRange or FH.dontStopHeal) then continue end
-        local target = FH.injPlayer(9999)
-        if target and HealEv then
+        if not (FH.on.autoHeal or FH.on.autoHealSelf or FH.on.jackpot or FH.infiniteRange or FH.dontStopHeal) then continue end
+        local target = FH.on.autoHealSelf and LP or FH.injPlayer(9999)
+        if target and target.Character and HealEv then
             pcall(function() HealEv:FireServer("StartVisuals", target) end)
             for i = 1, 20 do pcall(function() HealEv:FireServer("HealTick", target) end) end
             pcall(function() HealEv:FireServer("GiveSpeedBoost") end)
@@ -61,6 +61,7 @@ FH.panel = function()
     FH.crearOpcion("Don't Stop Even If Hit", function(v) FH.dontStopHeal = v end, false)
     FH.crearOpcion("Show 9999/30 UI", function(v) FH.fakeUI = v end, false)
     FH.crearOpcion("Auto Heal", function(v) FH.on.autoHeal = v end, false)
-    FH.crearOpcion("JACKPOOOOTTTTTT", function(v) FH.on.jackpot = v end, true)
+    FH.crearOpcion("Auto Heal Self", function(v) FH.on.autoHealSelf = v end, false)
+    FH.crearOpcion("I JUST HIT THE JACKPOOOOTTTTTT", function(v) FH.on.jackpot = v end, true)
 end
 FH.p4 = true
