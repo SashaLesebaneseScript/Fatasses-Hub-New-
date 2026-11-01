@@ -45,6 +45,8 @@ task.spawn(function()
     end
 end)
 
+local lastAbilityTime = 0
+
 RS.RenderStepped:Connect(function()
     if not FH.killAll or not FH.isKiller(LP.Character) then return end
     local nearest = FH.nearest(2000)
@@ -52,9 +54,16 @@ RS.RenderStepped:Connect(function()
         local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
         if hrp then
             hrp.CFrame = CFrame.lookAt(nearest.HRP.Position + (nearest.HRP.CFrame.LookVector * -2) + Vector3.new(0,2,0), nearest.HRP.Position)
+            
             FH.attackId = (FH.attackId or 0) + 1
             if PunchEv then 
                 pcall(function() PunchEv:FireServer({AttackId = FH.attackId, Position = nearest.HRP.Position, Velocity = Vector3.new(0,0,0), Direction = Vector3.new(0,1,0)}) end) 
+            end
+            
+            if tick() - lastAbilityTime >= 10 then
+                lastAbilityTime = tick()
+                if AbEv then pcall(function() AbEv:FireServer() end) end
+                if PunchEv then pcall(function() PunchEv:FireServer({AttackId = FH.attackId, Position = nearest.HRP.Position, Velocity = Vector3.new(0,0,0), Direction = Vector3.new(0,1,0)}) end) end
             end
         end
     end
@@ -75,7 +84,7 @@ FH.panel = function()
     origPanel()
     if FH.pestana ~= "Experiment" then return end
     FH.crearOpcion("Auto Punch", function(v) FH.experimentPunch = v end, true)
-    FH.crearOpcion("Kill All (Pegado)", function(v) FH.killAll = v end, true)
+    FH.crearOpcion("Kill All", function(v) FH.killAll = v end, true)
     FH.crearOpcion("Force Speed 26", function(v) FH.forceSpeed26 = v end, true)
     FH.crearOpcion("Controllable Rush", function(v) FH.controlRush = v end, true)
     FH.crearOpcion("Infinite Rush", function(v) FH.infiniteRush = v end, true)
