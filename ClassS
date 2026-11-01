@@ -44,6 +44,5 @@ FH.panel = function()
     if FH.pestana ~= "Class S" then return end
     FH.crearOpcion("Aimlock (Al apuntar)", function(v) FH.on.aimlockS = v end, true)
     FH.crearOpcion("Always Shoot / No CD", function(v) FH.classSAutoShoot = v end, true)
-    FH.crearOpcion("Silent Aim", function(v) FH.silentAimActive = v end, true)
 end
 FH.p5 = true
