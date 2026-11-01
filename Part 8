@@ -1,190 +1,120 @@
+-- ============ PARTE 8/8 - Core Class A / Experiment / Class S ============
 local FH = getgenv().FH
-if not FH or not FH.p7 then warn("[FH] Ejecuta Partes 1-7 primero") return end
-if FH.p8 then warn("[FH] Parte 8 ya ejecutada") return end
+if not FH or not FH.p7 then return end
+if FH.p8 then return end
 local RS,PL,WS,RST,LP = FH.RS,FH.PL,FH.WS,FH.RST,FH.LP
+FH.k8 = FH.k8 or {killAll=false, attackId=0}
 
-FH.on = FH.on or {}
-FH.classSAutoShoot = false
-FH.silentAimActive = false
-FH.experimentPunch = false
-FH.k8 = FH.k8 or { worldHitbox=false, hitboxExpander=false, anchoredHitbox=false, alwaysMaxSpeed=false, killAll=false, attackId=0 }
-
-FH.startAL = function() end -- Dummy
-FH.stopAL = function() end
-FH.startAL = function()
-    if FH.aimlockConn then return end
-    FH.aimlockConn = RS.RenderStepped:Connect(function()
-        if not FH.on.aimlockS then return end
-        local target = FH.nearest(1000)
-        if target and target.Char and target.Char:FindFirstChild("Head") then
-            workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, target.Char.Head.Position)
-        end
-    end)
-end
-FH.stopAL = function() if FH.aimlockConn then FH.aimlockConn:Disconnect(); FH.aimlockConn = nil end end
-
+-- ===== CLASS A (INFINITE HEALING & 9999) =====
+local HealEv = RST:FindFirstChild("HealingAbility") and RST.HealingAbility:FindFirstChild("HealingEvent")
 task.spawn(function()
-    local GunEvent = RST:FindFirstChild("GunEvent")
     while task.wait(0.1) do
-        if not FH.classSAutoShoot or not GunEvent then continue end
-        if not FH.isKiller(LP.Character) then continue end
-        
-        local target = FH.nearest(500)
-        if target and target.Char and target.Char:FindFirstChild("Head") then
+        if not (FH.infiniteRange or FH.dontStopHeal or FH.fakeUI or FH.on.jackpot) then continue end
+        local target = FH.injPlayer(9999) or FH.getExperiment() -- Rango infinito
+        if target and target.Character then
+            -- El truco para que sea "real" es spamear el HealTick al servidor
+            if HealEv then
+                pcall(function() HealEv:FireServer("StartVisuals", target) end)
+                for i=1,6 do pcall(function() HealEv:FireServer("HealTick", target) end) end
+                pcall(function() HealEv:FireServer("GiveSpeedBoost") end)
+            end
+        end
+        -- Forzar la UI 9999/30
+        if FH.fakeUI then
+            local hg = LP.PlayerGui:FindFirstChild("HealingGui")
+            if hg and hg:FindFirstChild("HealingButton") then
+                local ct = hg.HealingButton:FindFirstChild("CooldownText")
+                if ct then ct.Text = "9999/30" end
+            end
+        end
+    end
+end)
+
+-- ===== EXPERIMENT (Punch, Kill All Pegado, Speed, Rush) =====
+local PunchEv = RST:FindFirstChild("PunchEvent")
+-- Auto Punch (Sin Cooldown, spam rápido)
+task.spawn(function()
+    while task.wait(0.1) do
+        if not FH.experimentPunch or not FH.isKiller(LP.Character) then continue end
+        FH.k8.attackId = FH.k8.attackId + 1
+        local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        if hrp and PunchEv then
+            pcall(function() PunchEv:FireServer({AttackId=FH.k8.attackId, Position=hrp.Position, Velocity=hrp.AssemblyLinearVelocity, Direction=hrp.CFrame.LookVector}) end)
+        end
+    end
+end)
+
+-- Kill All (Pegado)
+RS.RenderStepped:Connect(function()
+    if FH.k8.killAll and FH.isKiller(LP.Character) then
+        local target = FH.nearest(2000)
+        if target and target.HRP then
+            local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                -- Pegarse al objetivo (LookAt)
+                hrp.CFrame = CFrame.lookAt(target.HRP.Position + (target.HRP.CFrame.LookVector * -3) + Vector3.new(0,3,0), target.HRP.Position)
+                FH.k8.attackId = FH.k8.attackId + 1
+                if PunchEv then pcall(function() PunchEv:FireServer({AttackId=FH.k8.attackId, Position=target.HRP.Position, Velocity=Vector3.new(0,0,0), Direction=Vector3.new(0,1,0)}) end) end
+            end
+        end
+    end
+end)
+
+-- Force Max Speed (26)
+RS.Heartbeat:Connect(function()
+    if FH.forceSpeed26 and FH.isKiller(LP.Character) then
+        local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+        if hum then hum.WalkSpeed = 26 end
+    end
+end)
+
+-- Controllable & Infinite Melodic Rush
+RS.RenderStepped:Connect(function()
+    if (FH.controlRush or FH.infiniteRush) and FH.isKiller(LP.Character) then
+        local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            if FH.controlRush then
+                local move = FH.UI:GetMoveVector()
+                hum:Move(move, false) -- Control manual con joystick
+            end
+            -- Para infinite rush, usualmente se spamea el AbilityEvent
+            if FH.infiniteRush then
+                local abEv = RST:FindFirstChild("AbilityEvent")
+                if abEv then pcall(function() abEv:FireServer() end) end
+            end
+        end
+    end
+end)
+
+-- ===== CLASS S (Aimlock al experimento, AutoShoot) =====
+FH.aimlockConn = RS.RenderStepped:Connect(function()
+    if not FH.on.aimlockS then return end
+    if FH.UI:IsKeyDown(Enum.KeyCode.F) or FH.UI:IsKeyDown(Enum.KeyCode.ButtonL2) then
+        local exp = FH.getExperiment()
+        if exp and exp.Character and exp.Character:FindFirstChild("Head") then
+            workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, exp.Character.Head.Position)
+        end
+    end
+end)
+
+-- Auto Shoot (Always shooting)
+local GunEvent = RST:FindFirstChild("GunEvent")
+task.spawn(function()
+    while task.wait(0.55) do -- Cooldown interno del arma
+        if not FH.classSAutoShoot then continue end
+        local exp = FH.getExperiment()
+        if exp and exp.Character and exp.Character:FindFirstChild("Head") then
             local myChar = LP.Character
-            local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
-            if myHRP then
-                -- Rotar al enemigo
-                myHRP.CFrame = CFrame.lookAt(myHRP.Position, target.Char.Head.Position)
-                
-                -- Simular carga de arma (0.5s)
-                local tool = myChar:FindFirstChildWhichIsA("Tool")
-                if tool then tool:SetAttribute("IsAiming", true) end
-                task.wait(0.55)
-                
-                -- Disparar (con o sin silent aim)
-                local firePos = target.Char.Head.Position
-                if FH.silentAimActive then
-                    -- Raycast hacia la cabeza
-                    local ray = Ray.new(myHRP.Position, (firePos - myHRP.Position).Unit * 500)
-                    local hit, pos = workspace:FindPartOnRay(ray, myChar)
-                    if hit then firePos = pos end
-                end
-                
-                pcall(function() GunEvent:FireServer("Shoot", firePos) end)
-                task.wait(0.6) -- Cooldown
-            end
-        end
-    end
-end)
-
--- Hook Silent Aim para interceptar el disparo si es manual
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-    local method = getnamecallmethod()
-    if not checkcaller() and method == "FireServer" and self.Name == "GunEvent" and (...) == "Shoot" then
-        if FH.silentAimActive then
-            local target = FH.nearest(1000)
-            if target and target.Char and target.Char:FindFirstChild("Head") then
-                local args = {...}
-                args[2] = target.Char.Head.Position
-                return oldNamecall(self, table.unpack(args))
-            end
-        end
-    end
-    return oldNamecall(self, ...)
-end)
-
-local killAllConn = nil
-FH.updateKillAll = function()
-    if FH.k8.killAll and not killAllConn then
-        killAllConn = RS.Heartbeat:Connect(function()
-            if not FH.k8.killAll or not FH.isKiller(LP.Character) then return end
-            local survivor = FH.nearest(2000)
-            if survivor and survivor.HRP then
-                local mc = LP.Character; local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    local targetPos = survivor.HRP.Position
-                    pcall(function() hrp.CFrame = CFrame.new(targetPos + Vector3.new(0,0,3)) end)
-                    local ev = RST:FindFirstChild("PunchEvent")
-                    if ev then
-                        FH.k8.attackId = FH.k8.attackId + 1
-                        for i = 1, 5 do
-                            pcall(function() ev:FireServer({AttackId=FH.k8.attackId, Position=targetPos, Velocity=Vector3.new(0,0,0), Direction=Vector3.new(0,1,0)}) end)
-                        end
-                    end
+            if myChar then
+                -- Forzar apuntado
+                local aimAttr = myChar:GetAttribute("IsAiming")
+                pcall(function() myChar:SetAttribute("IsAiming", true) end)
+                if GunEvent then
+                    pcall(function() GunEvent:FireServer("Shoot", exp.Character.Head.Position) end)
                 end
             end
-        end)
-    elseif not FH.k8.killAll and killAllConn then
-        killAllConn:Disconnect(); killAllConn = nil
-    end
-end
-
-FH.lastPunchId = FH.lastPunchId or 0
-task.spawn(function()
-    local PunchEv = RST:WaitForChild("PunchEvent", 10)
-    if not PunchEv then return end
-    while task.wait(0.1) do
-        if not FH.experimentPunch then continue end
-        local char = LP.Character
-        if not char or not char:FindFirstChild("HumanoidRootPart") then continue end
-        local stun = char:FindFirstChild("Stun")
-        if stun and stun:IsA("BoolValue") and stun.Value then continue end
-        FH.lastPunchId = FH.lastPunchId + 1
-        local id = FH.lastPunchId
-        local t0 = tick()
-        while tick() - t0 <= 0.4 do
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            if not hrp then break end
-            pcall(function() PunchEv:FireServer({AttackId=id, Position=hrp.Position, Velocity=hrp.AssemblyLinearVelocity, Direction=hrp.CFrame.LookVector}) end)
-            task.wait(0.02)
         end
-        task.wait(1.6)
     end
 end)
-
-local EXTRA_MODE = false
-local SPHERE_DIRS = {}; for x=-1,1 do for y=-1,1 do for z=-1,1 do if x~=0 or y~=0 or z~=0 then table.insert(SPHERE_DIRS, Vector3.new(x,y,z).Unit) end end end end
-local function triggerExtras()
-    if EXTRA_MODE or not FH.isKiller(LP.Character) then return end
-    local ev=RST:FindFirstChild("PunchEvent"); if not ev then return end
-    local mc=LP.Character; local mh=mc and mc:FindFirstChild("HumanoidRootPart"); if not mh then return end
-    EXTRA_MODE=true
-
-    if FH.k8.worldHitbox then 
-        FH.k8.attackId = FH.k8.attackId + 1
-        for _, rf in ipairs({0.4, 0.8, 1.2}) do 
-            for _, d in ipairs(SPHERE_DIRS) do 
-                local pos = mh.Position + d * (80 * rf)
-                pcall(function() ev:FireServer({AttackId=FH.k8.attackId, Position=pos, Velocity=Vector3.new(0,0,0), Direction=d}) end)
-            end 
-        end 
-    end
-    if FH.k8.hitboxExpander or FH.k8.anchoredHitbox then 
-        FH.k8.attackId = FH.k8.attackId + 1
-        local look = mh.CFrame.LookVector; local right = mh.CFrame.RightVector; local up = mh.CFrame.UpVector
-        for x = -15, 15, 5 do 
-            for y = -15, 15, 5 do 
-                for z = -15, 15, 5 do 
-                    local offset = look * (z) + right * (x) + up * (y)
-                    local pos = mh.Position + look * 10 + offset
-                    pcall(function() ev:FireServer({AttackId = FH.k8.attackId, Position = pos, Velocity = Vector3.new(0,0,0), Direction = look}) end)
-                end 
-            end 
-        end 
-    end
-    EXTRA_MODE=false
-end
-task.spawn(function() 
-    local ev=RST:WaitForChild("PunchEvent",10); if not ev then return end
-    pcall(function() 
-        local mt=getrawmetatable(game); setreadonly(mt,false)
-        local oldNC=mt.__namecall
-        mt.__namecall=newcclosure(function(self,...) 
-            if getnamecallmethod()=="FireServer" and self==ev and not EXTRA_MODE then task.spawn(triggerExtras) end
-            return oldNC(self,...) 
-        end)
-        setreadonly(mt,true) 
-    end) 
-end)
-
-local origPanel=FH.panel
-FH.panel=function() 
-    origPanel()
-    if FH.pestana ~= "Experiment" then return end
-    local opt=FH.crearOpcion
-    opt("World Hitbox (360°) 🌐",function(v) FH.k8.worldHitbox=v end, true)
-    opt("Hitbox Expander 📏",function(v) FH.k8.hitboxExpander=v end, true)
-    opt("Anchored Hitbox ⚓",function(v) FH.k8.anchoredHitbox=v end, true)
-    opt("Always Max Speed 🏃",function(v) 
-        FH.k8.alwaysMaxSpeed=v 
-        if v then
-            task.spawn(function() while FH.k8.alwaysMaxSpeed do local h=LP.Character and LP.Character:FindFirstChildOfClass("Humanoid"); if h then h.WalkSpeed=30 end; task.wait(0.1) end end)
-        end
-    end, true)
-    opt("Kill All ☠️",function(v) FH.k8.killAll=v; FH.updateKillAll() end, true)
-end
-if FH.pestana=="Experiment" then FH.panel() end
 
 FH.p8=true
