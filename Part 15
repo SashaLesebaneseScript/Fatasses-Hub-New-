@@ -1,6 +1,0 @@
--- ============ PARTE 15/15 - Vacía ============
-local FH = getgenv().FH
-if not FH or not FH.p14 then warn("[FH] Ejecuta Partes 1-14 primero") return end
-if FH.p15 then warn("[FH] Parte 15 ya ejecutada") return end
-FH.p15 = true
-print("🎃 [15/15] Part 15 skip (sin canciones nuevas)")
