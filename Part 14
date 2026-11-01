@@ -1,6 +1,0 @@
--- ============ PARTE 14/14 - Vacía ============
-local FH = getgenv().FH
-if not FH or not FH.p13 then warn("[FH] Ejecuta Partes 1-13 primero") return end
-if FH.p14 then warn("[FH] Parte 14 ya ejecutada") return end
-FH.p14 = true
-print("🎃 [14/14] Part 14 skip")
