@@ -8,7 +8,6 @@ FH.UI=game:GetService("UserInputService");FH.SS=game:GetService("SoundService");
 FH.LP=FH.PL.LocalPlayer
 FH.BW,FH.BH=380,300
 
--- Colores Sakura Originales
 FH.C={
     bg_dark=Color3.fromRGB(40, 20, 35),
     bg_panel=Color3.fromRGB(255, 228, 235),
@@ -62,14 +61,12 @@ tb.Size=UDim2.new(1,0,0,42);tb.BackgroundColor3=C.bg_panel;tb.BackgroundTranspar
 tb.BorderSizePixel=0;tb.Active=true;tb.ClipsDescendants=true
 Instance.new("UICorner",tb).CornerRadius=UDim.new(0,14)
 
--- NOMBRE CORREGIDO SIN CALABAZA
+-- SIN CALABAZA, SIN BETA
 local tl=Instance.new("TextLabel",tb)
 tl.Size=UDim2.new(0, 200, 1, 0);tl.Position=UDim2.new(0,34,0,0);tl.BackgroundTransparency=1
 tl.Text="FATASSES HUB"
 tl.TextColor3=C.accent;tl.TextScaled=true
 tl.Font=Enum.Font.GothamBlack;tl.TextXAlignment=Enum.TextXAlignment.Left
-
--- TEXTO BETA ELIMINADO
 
 local cb=Instance.new("TextButton",tb)
 cb.Size=UDim2.new(0,26,0,26);cb.Position=UDim2.new(1,-34,.5,-13)
@@ -172,7 +169,7 @@ FH.disableAllBlatant = function()
     FH.blatantMode = false
     if FH.k8 then for k in pairs(FH.k8) do if type(FH.k8[k]) == "boolean" then FH.k8[k] = false end end end
     FH.sashaSprint = false; FH.autoCandyActive = false; FH.noclipActive = false; FH.experimentPunch = false
-    FH.classSAutoShoot = false; FH.aimlockS = false; FH.silentAimActive = false
+    FH.classSAutoShoot = false; FH.on.aimlockS = false; FH.silentAimActive = false
     if FH.panel then pcall(FH.panel) end
 end
 
