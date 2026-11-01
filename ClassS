@@ -1,0 +1,49 @@
+local FH = getgenv().FH
+if not FH or not FH.p1 then return end
+local RS, PL, LP, RST = FH.RS, FH.PL, FH.LP, FH.RST
+
+FH.getExperiment = function() 
+    for _, p in ipairs(PL:GetPlayers()) do 
+        if p.Character then 
+            local exp = p.Character:FindFirstChild("Experiment")
+            if exp and exp.Value == true then return p end 
+        end 
+    end
+    return nil 
+end
+
+local GunEvent = RST:FindFirstChild("GunEvent")
+
+RS.RenderStepped:Connect(function()
+    if not FH.on.aimlockS then return end
+    if FH.UI:IsKeyDown(Enum.KeyCode.F) or FH.UI:IsKeyDown(Enum.KeyCode.ButtonL2) then
+        local exp = FH.getExperiment()
+        if exp and exp.Character and exp.Character:FindFirstChild("Head") then
+            workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, exp.Character.Head.Position)
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(0.5) do
+        if not FH.classSAutoShoot then continue end
+        local exp = FH.getExperiment()
+        if exp and exp.Character and exp.Character:FindFirstChild("Head") then
+            local myChar = LP.Character
+            if myChar then
+                pcall(function() myChar:SetAttribute("IsAiming", true) end)
+                if GunEvent then pcall(function() GunEvent:FireServer("Shoot", exp.Character.Head.Position) end) end
+            end
+        end
+    end
+end)
+
+local origPanel = FH.panel
+FH.panel = function()
+    origPanel()
+    if FH.pestana ~= "Class S" then return end
+    FH.crearOpcion("Aimlock (Al apuntar)", function(v) FH.on.aimlockS = v end, true)
+    FH.crearOpcion("Always Shoot / No CD", function(v) FH.classSAutoShoot = v end, true)
+    FH.crearOpcion("Silent Aim", function(v) FH.silentAimActive = v end, true)
+end
+FH.p5 = true
