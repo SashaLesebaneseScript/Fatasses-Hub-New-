@@ -1,40 +1,86 @@
--- ============ PARTE 8/8 - Killer & Tasks ============
 local FH = getgenv().FH
 if not FH or not FH.p7 then warn("[FH] Ejecuta Partes 1-7 primero") return end
 if FH.p8 then warn("[FH] Parte 8 ya ejecutada") return end
 local RS,PL,WS,RST,LP = FH.RS,FH.PL,FH.WS,FH.RST,FH.LP
-local C = FH.C
 
 FH.on = FH.on or {}
 FH.classSAutoShoot = false
+FH.silentAimActive = false
 FH.experimentPunch = false
+FH.k8 = FH.k8 or { worldHitbox=false, hitboxExpander=false, anchoredHitbox=false, alwaysMaxSpeed=false, killAll=false, attackId=0 }
 
--- 1. AUTO SHOOT (CLASS S)
+FH.startAL = function() end -- Dummy
+FH.stopAL = function() end
+FH.startAL = function()
+    if FH.aimlockConn then return end
+    FH.aimlockConn = RS.RenderStepped:Connect(function()
+        if not FH.on.aimlockS then return end
+        local target = FH.nearest(1000)
+        if target and target.Char and target.Char:FindFirstChild("Head") then
+            workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, target.Char.Head.Position)
+        end
+    end)
+end
+FH.stopAL = function() if FH.aimlockConn then FH.aimlockConn:Disconnect(); FH.aimlockConn = nil end end
+
 task.spawn(function()
     local GunEvent = RST:FindFirstChild("GunEvent")
     while task.wait(0.1) do
         if not FH.classSAutoShoot or not GunEvent then continue end
-        local target = FH.nearest and FH.nearest(500) or nil
+        if not FH.isKiller(LP.Character) then continue end
+        
+        local target = FH.nearest(500)
         if target and target.Char and target.Char:FindFirstChild("Head") then
             local myChar = LP.Character
             local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
             if myHRP then
-                -- Rotar al enemigo y disparar
-                local lookAt = CFrame.lookAt(myHRP.Position, target.Char.Head.Position)
-                myHRP.CFrame = lookAt
-                pcall(function() GunEvent:FireServer("Shoot", target.Char.Head.Position) end)
+                -- Rotar al enemigo
+                myHRP.CFrame = CFrame.lookAt(myHRP.Position, target.Char.Head.Position)
+                
+                -- Simular carga de arma (0.5s)
+                local tool = myChar:FindFirstChildWhichIsA("Tool")
+                if tool then tool:SetAttribute("IsAiming", true) end
+                task.wait(0.55)
+                
+                -- Disparar (con o sin silent aim)
+                local firePos = target.Char.Head.Position
+                if FH.silentAimActive then
+                    -- Raycast hacia la cabeza
+                    local ray = Ray.new(myHRP.Position, (firePos - myHRP.Position).Unit * 500)
+                    local hit, pos = workspace:FindPartOnRay(ray, myChar)
+                    if hit then firePos = pos end
+                end
+                
+                pcall(function() GunEvent:FireServer("Shoot", firePos) end)
+                task.wait(0.6) -- Cooldown
             end
         end
     end
 end)
 
--- 2. KILL ALL (Heartbeat: Rápido)
+-- Hook Silent Aim para interceptar el disparo si es manual
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    if not checkcaller() and method == "FireServer" and self.Name == "GunEvent" and (...) == "Shoot" then
+        if FH.silentAimActive then
+            local target = FH.nearest(1000)
+            if target and target.Char and target.Char:FindFirstChild("Head") then
+                local args = {...}
+                args[2] = target.Char.Head.Position
+                return oldNamecall(self, table.unpack(args))
+            end
+        end
+    end
+    return oldNamecall(self, ...)
+end)
+
 local killAllConn = nil
 FH.updateKillAll = function()
     if FH.k8.killAll and not killAllConn then
         killAllConn = RS.Heartbeat:Connect(function()
             if not FH.k8.killAll or not FH.isKiller(LP.Character) then return end
-            local survivor = FH.nearest and FH.nearest(2000) or nil
+            local survivor = FH.nearest(2000)
             if survivor and survivor.HRP then
                 local mc = LP.Character; local hrp = mc and mc:FindFirstChild("HumanoidRootPart")
                 if hrp then
@@ -55,7 +101,6 @@ FH.updateKillAll = function()
     end
 end
 
--- 3. M1 EXPERIMENT
 FH.lastPunchId = FH.lastPunchId or 0
 task.spawn(function()
     local PunchEv = RST:WaitForChild("PunchEvent", 10)
@@ -79,7 +124,6 @@ task.spawn(function()
     end
 end)
 
--- 4. HITBOXES ENORMES
 local EXTRA_MODE = false
 local SPHERE_DIRS = {}; for x=-1,1 do for y=-1,1 do for z=-1,1 do if x~=0 or y~=0 or z~=0 then table.insert(SPHERE_DIRS, Vector3.new(x,y,z).Unit) end end end end
 local function triggerExtras()
@@ -125,7 +169,6 @@ task.spawn(function()
     end) 
 end)
 
--- 5. PANEL INYECCIÓN (SOLO EN EXPERIMENT)
 local origPanel=FH.panel
 FH.panel=function() 
     origPanel()
@@ -145,4 +188,3 @@ end
 if FH.pestana=="Experiment" then FH.panel() end
 
 FH.p8=true
-print("[8/8] Killer & Tasks OK")
