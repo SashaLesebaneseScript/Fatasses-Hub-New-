@@ -1,0 +1,26 @@
+local base = "https://raw.githubusercontent.com/SashaLesebaneseScript/Fatasses-Hub-New-/refs/heads/main/"
+local files = {
+    "MainGUI",
+    "ESP",
+    "Scientist",
+    "ClassA",
+    "ClassS",
+    "Experiment",
+    "ExtraStuff",
+    "Blatant",
+    "Halloween"
+}
+
+for _, file in ipairs(files) do
+    local url = base .. file
+    local ok, code = pcall(function() return game:HttpGet(url, true) end)
+    if ok and code and code ~= "" then
+        local fn = loadstring(code)
+        if fn then pcall(fn) end
+    end
+    task.wait(0.2)
+end
+
+if getgenv().FH and getgenv().FH.panel then 
+    pcall(getgenv().FH.panel) 
+end
