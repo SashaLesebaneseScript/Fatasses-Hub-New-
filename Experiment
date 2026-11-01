@@ -34,40 +34,38 @@ end
 local PunchEv = RST:FindFirstChild("PunchEvent")
 local AbEv = RST:FindFirstChild("AbilityEvent")
 
-local EXTRA_MODE = false
-local SPHERE_DIRS = {}; for x=-1,1 do for y=-1,1 do for z=-1,1 do if x~=0 or y~=0 or z~=0 then table.insert(SPHERE_DIRS, Vector3.new(x,y,z).Unit) end end end end
-
 task.spawn(function()
-    while task.wait(0.01) do
+    while task.wait(0.05) do
         if not FH.experimentPunch or not FH.isKiller(LP.Character) then continue end
-        FH.attackId = (FH.attackId or 0) + 1
         local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
         if hrp and PunchEv then
-            pcall(function() PunchEv:FireServer({AttackId = FH.attackId, Position = hrp.Position, Velocity = hrp.AssemblyLinearVelocity, Direction = hrp.CFrame.LookVector}) end)
+            pcall(function() PunchEv:FireServer({AttackId = math.random(1,100000), Position = hrp.Position, Velocity = hrp.AssemblyLinearVelocity, Direction = hrp.CFrame.LookVector}) end)
         end
     end
 end)
 
+-- 360 Hitbox (Duplica el golpe alrededor sin borrar el original)
 local mt = getrawmetatable(game)
 local oldNC = mt.__namecall
 setreadonly(mt, false)
 mt.__namecall = newcclosure(function(self, ...)
     local method = getnamecallmethod()
     if method == "FireServer" and self.Name == "PunchEvent" then
-        if FH.hitbox360 and not EXTRA_MODE and FH.isKiller(LP.Character) then
-            EXTRA_MODE = true
+        if FH.hitbox360 and FH.isKiller(LP.Character) then
             local args = {...}
-            local myChar = LP.Character
-            local mh = myChar and myChar:FindFirstChild("HumanoidRootPart")
-            if mh then
-                FH.attackId = (FH.attackId or 0) + 1
-                local id = FH.attackId
-                for _, d in ipairs(SPHERE_DIRS) do
-                    local pos = mh.Position + d * 15
-                    pcall(function() oldNC(self, {AttackId=id, Position=pos, Velocity=Vector3.new(0,0,0), Direction=d}) end)
+            task.spawn(function()
+                local myChar = LP.Character
+                local mh = myChar and myChar:FindFirstChild("HumanoidRootPart")
+                if mh then
+                    local id = args[1] and args[1].AttackId or math.random(1,100000)
+                    for i = 1, 12 do
+                        local angle = (i / 12) * (math.pi * 2)
+                        local pos = mh.Position + Vector3.new(math.cos(angle) * 12, 0, math.sin(angle) * 12)
+                        local dir = (pos - mh.Position).Unit
+                        pcall(function() oldNC(self, {AttackId=id, Position=pos, Velocity=Vector3.new(0,0,0), Direction=dir}) end)
+                    end
                 end
-            end
-            EXTRA_MODE = false
+            end)
         end
     end
     return oldNC(self, ...)
@@ -75,18 +73,22 @@ end)
 setreadonly(mt, true)
 
 local lastAbilityTime = 0
+local lastPunchTime = 0
 
-RS.RenderStepped:Connect(function()
+RS.Heartbeat:Connect(function()
     if not FH.killAll or not FH.isKiller(LP.Character) then return end
     local nearest = FH.nearest(2000)
     if nearest and nearest.HRP then
         local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
         if hrp then
-            hrp.CFrame = CFrame.lookAt(nearest.HRP.Position + (nearest.HRP.CFrame.LookVector * -2) + Vector3.new(0,2,0), nearest.HRP.Position)
+            -- Movimiento suave para evadir el anti-cheat
+            hrp.CFrame = hrp.CFrame:Lerp(nearest.HRP.CFrame * CFrame.new(0, 0, 3), 0.2)
             
-            FH.attackId = (FH.attackId or 0) + 1
-            if PunchEv then 
-                pcall(function() PunchEv:FireServer({AttackId = FH.attackId, Position = nearest.HRP.Position, Velocity = Vector3.new(0,0,0), Direction = Vector3.new(0,1,0)}) end) 
+            if tick() - lastPunchTime >= 0.2 then
+                lastPunchTime = tick()
+                if PunchEv then 
+                    pcall(function() PunchEv:FireServer({AttackId = math.random(1,100000), Position = nearest.HRP.Position, Velocity = Vector3.new(0,0,0), Direction = Vector3.new(0,1,0)}) end) 
+                end
             end
             
             if tick() - lastAbilityTime >= 10 then
