@@ -1,25 +1,27 @@
--- ============ PARTE 8/8 - Core Class A / Experiment / Class S ============
+-- ============ PARTE 8/8 - Lógica ============
 local FH = getgenv().FH
 if not FH or not FH.p7 then return end
 if FH.p8 then return end
 local RS,PL,WS,RST,LP = FH.RS,FH.PL,FH.WS,FH.RST,FH.LP
 FH.k8 = FH.k8 or {killAll=false, attackId=0}
 
--- ===== CLASS A (INFINITE HEALING & 9999) =====
+-- ===== CLASS A (Real 9999 y Bypass) =====
 local HealEv = RST:FindFirstChild("HealingAbility") and RST.HealingAbility:FindFirstChild("HealingEvent")
 task.spawn(function()
-    while task.wait(0.1) do
-        if not (FH.infiniteRange or FH.dontStopHeal or FH.fakeUI or FH.on.jackpot) then continue end
-        local target = FH.injPlayer(9999) or FH.getExperiment() -- Rango infinito
-        if target and target.Character then
-            -- El truco para que sea "real" es spamear el HealTick al servidor
-            if HealEv then
-                pcall(function() HealEv:FireServer("StartVisuals", target) end)
-                for i=1,6 do pcall(function() HealEv:FireServer("HealTick", target) end) end
-                pcall(function() HealEv:FireServer("GiveSpeedBoost") end)
+    while task.wait(0.05) do
+        if FH.on.autoHeal or FH.on.jackpot or FH.infiniteRange or FH.dontStopHeal then
+            local target = FH.injPlayer(9999) or LP
+            if target and target.Character then
+                if HealEv then
+                    pcall(function() HealEv:FireServer("StartVisuals", target) end)
+                    -- Forzar 9999 de forma real spameando el tick sin parar
+                    for i=1,20 do 
+                        pcall(function() HealEv:FireServer("HealTick", target) end) 
+                    end
+                    pcall(function() HealEv:FireServer("GiveSpeedBoost") end)
+                end
             end
         end
-        -- Forzar la UI 9999/30
         if FH.fakeUI then
             local hg = LP.PlayerGui:FindFirstChild("HealingGui")
             if hg and hg:FindFirstChild("HealingButton") then
@@ -30,11 +32,11 @@ task.spawn(function()
     end
 end)
 
--- ===== EXPERIMENT (Punch, Kill All Pegado, Speed, Rush) =====
+-- ===== EXPERIMENT =====
 local PunchEv = RST:FindFirstChild("PunchEvent")
--- Auto Punch (Sin Cooldown, spam rápido)
+-- Auto Punch sin cooldown
 task.spawn(function()
-    while task.wait(0.1) do
+    while task.wait(0.01) do
         if not FH.experimentPunch or not FH.isKiller(LP.Character) then continue end
         FH.k8.attackId = FH.k8.attackId + 1
         local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
@@ -44,15 +46,15 @@ task.spawn(function()
     end
 end)
 
--- Kill All (Pegado)
+-- Kill All pegado (Guardian)
 RS.RenderStepped:Connect(function()
     if FH.k8.killAll and FH.isKiller(LP.Character) then
         local target = FH.nearest(2000)
         if target and target.HRP then
             local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
             if hrp then
-                -- Pegarse al objetivo (LookAt)
-                hrp.CFrame = CFrame.lookAt(target.HRP.Position + (target.HRP.CFrame.LookVector * -3) + Vector3.new(0,3,0), target.HRP.Position)
+                -- Pegarse al objetivo de forma exacta y mirarlo
+                hrp.CFrame = CFrame.lookAt(target.HRP.Position + (target.HRP.CFrame.LookVector * -2) + Vector3.new(0,2,0), target.HRP.Position)
                 FH.k8.attackId = FH.k8.attackId + 1
                 if PunchEv then pcall(function() PunchEv:FireServer({AttackId=FH.k8.attackId, Position=target.HRP.Position, Velocity=Vector3.new(0,0,0), Direction=Vector3.new(0,1,0)}) end) end
             end
@@ -60,33 +62,27 @@ RS.RenderStepped:Connect(function()
     end
 end)
 
--- Force Max Speed (26)
+-- Force Speed 26 y Melodic Rush
 RS.Heartbeat:Connect(function()
-    if FH.forceSpeed26 and FH.isKiller(LP.Character) then
-        local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum.WalkSpeed = 26 end
-    end
-end)
-
--- Controllable & Infinite Melodic Rush
-RS.RenderStepped:Connect(function()
-    if (FH.controlRush or FH.infiniteRush) and FH.isKiller(LP.Character) then
+    if FH.isKiller(LP.Character) then
         local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
         if hum then
-            if FH.controlRush then
-                local move = FH.UI:GetMoveVector()
-                hum:Move(move, false) -- Control manual con joystick
-            end
-            -- Para infinite rush, usualmente se spamea el AbilityEvent
-            if FH.infiniteRush then
-                local abEv = RST:FindFirstChild("AbilityEvent")
-                if abEv then pcall(function() abEv:FireServer() end) end
+            if FH.forceSpeed26 then hum.WalkSpeed = 26 end
+            if FH.controlRush or FH.infiniteRush then
+                if FH.controlRush then
+                    local move = FH.UI:GetMoveVector()
+                    hum:Move(move, false)
+                end
+                if FH.infiniteRush then
+                    local abEv = RST:FindFirstChild("AbilityEvent")
+                    if abEv then pcall(function() abEv:FireServer() end) end
+                end
             end
         end
     end
 end)
 
--- ===== CLASS S (Aimlock al experimento, AutoShoot) =====
+-- ===== CLASS S =====
 FH.aimlockConn = RS.RenderStepped:Connect(function()
     if not FH.on.aimlockS then return end
     if FH.UI:IsKeyDown(Enum.KeyCode.F) or FH.UI:IsKeyDown(Enum.KeyCode.ButtonL2) then
@@ -97,21 +93,16 @@ FH.aimlockConn = RS.RenderStepped:Connect(function()
     end
 end)
 
--- Auto Shoot (Always shooting)
 local GunEvent = RST:FindFirstChild("GunEvent")
 task.spawn(function()
-    while task.wait(0.55) do -- Cooldown interno del arma
+    while task.wait(0.5) do
         if not FH.classSAutoShoot then continue end
         local exp = FH.getExperiment()
         if exp and exp.Character and exp.Character:FindFirstChild("Head") then
             local myChar = LP.Character
             if myChar then
-                -- Forzar apuntado
-                local aimAttr = myChar:GetAttribute("IsAiming")
                 pcall(function() myChar:SetAttribute("IsAiming", true) end)
-                if GunEvent then
-                    pcall(function() GunEvent:FireServer("Shoot", exp.Character.Head.Position) end)
-                end
+                if GunEvent then pcall(function() GunEvent:FireServer("Shoot", exp.Character.Head.Position) end) end
             end
         end
     end
