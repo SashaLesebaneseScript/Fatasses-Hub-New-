@@ -26,13 +26,18 @@ FH.startESP = function(v)
                     else
                         local progress = "0/4"
                         local isComplete = false
-                        local billboard = obj:FindFirstChildWhichIsA("BillboardGui", true)
-                        if billboard then
-                            for _, txt in ipairs(billboard:GetDescendants()) do
-                                if txt:IsA("TextLabel") and txt.Text:match("%d+/%d+") then
-                                    progress = txt.Text
-                                    if progress == "4/4" then isComplete = true end
-                                    break
+                        
+                        for _, desc in ipairs(obj:GetDescendants()) do
+                            if desc:IsA("TextLabel") then
+                                local match = string.match(desc.Text, "(%d+/%d+)")
+                                if match then
+                                    if match == "4/4" then
+                                        progress = match
+                                        isComplete = true
+                                        break
+                                    elseif progress == "0/4" then
+                                        progress = match
+                                    end
                                 end
                             end
                         end
