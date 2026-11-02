@@ -41,7 +41,7 @@ end
 FH.k8 = FH.k8 or {
     autoPunch=false, antiStun=false, hitboxTp=false, hitbox360=false, hitboxExpander=false,
     alwaysMaxSpeed=false, killAll=false, anchoredHitbox=false, range=12, hbRange=100,
-    expanderRange=3.5, expanderWidth=2.0, tpBoxSize=8, attackId=0
+    expanderRange=3.5, expanderWidth=2.0, tpBoxSize=8, attackId=0, stunSpam=false
 }
 local K = FH.k8
 
@@ -68,6 +68,23 @@ task.spawn(function()
             task.wait(0.3)
         else
             task.wait(0.5)
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(0.1) do
+        if K.stunSpam then
+            local RE = RST:FindFirstChild("RewardEvent")
+            local RE2 = RST:FindFirstChild("RewardEvent2")
+            if RE then 
+                pcall(function() RE:FireServer("Successfully stunned the Experiment", 30) end)
+                pcall(function() RE:FireServer("Killed a Scientist", 15) end)
+            end
+            if RE2 then 
+                pcall(function() RE2:FireServer("Successfully stunned the Experiment", 40, "Scientist2") end)
+                pcall(function() RE2:FireServer("Killed a Scientist", 35, "Experiment") end)
+            end
         end
     end
 end)
@@ -171,5 +188,6 @@ FH.panel = function()
     opt("360 Hitbox", function(v) K.hitbox360 = v end, true)
     opt("Always Max Speed", function(v) K.alwaysMaxSpeed = v; if v then startAMS() else stopAMS() end end, true)
     opt("Anti Stun", function(v) K.antiStun = v; if v then startAntiStun() end end, true)
+    opt("Spam XP/Money (Rewards)", function(v) K.stunSpam = v end, true)
 end
 FH.p6 = true
