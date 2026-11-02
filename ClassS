@@ -33,25 +33,53 @@ mt.__namecall = newcclosure(function(self, ...)
 end)
 setreadonly(mt, true)
 
+local function getPing()
+    local ok, ping = pcall(function() return game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue() end)
+    return ok and ping or 50
+end
+
+local function isAiming()
+    local mc = LP.Character
+    if not mc then return false end
+    local gunGui = LP.PlayerGui:FindFirstChild("GunGui")
+    if not gunGui then return false end
+    local aimBtn = gunGui:FindFirstChild("AimButton")
+    if not aimBtn then return false end
+    if aimBtn.Text == "Stop" then return true end
+    if aimBtn.BackgroundColor3 == Color3.fromRGB(200, 50, 50) then return true end
+    return false
+end
+
 RS.RenderStepped:Connect(function()
     if not FH.on.aimlockS then return end
-    if FH.UI:IsKeyDown(Enum.KeyCode.F) or FH.UI:IsKeyDown(Enum.KeyCode.ButtonL2) then
-        local exp = FH.getExperiment()
-        if exp and exp.Character and exp.Character:FindFirstChild("Head") then
-            workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, exp.Character.Head.Position)
+    if not isAiming() then return end
+    local exp = FH.getExperiment()
+    if exp and exp.Character then
+        local head = exp.Character:FindFirstChild("Head")
+        local hrp = exp.Character:FindFirstChild("HumanoidRootPart")
+        if head and hrp then
+            local ping = getPing()
+            local offset = 0
+            if ping > 150 then offset = 5 elseif ping > 100 then offset = 3 else offset = 1 end
+            local targetPos = head.Position + (hrp.Velocity * (offset / 10))
+            workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, targetPos)
         end
     end
 end)
 
 task.spawn(function()
-    while task.wait(0.5) do
+    while task.wait(0.1) do
         if not FH.classSAutoShoot then continue end
+        if not isAiming() then continue end
         local exp = FH.getExperiment()
-        if exp and exp.Character and exp.Character:FindFirstChild("Head") then
-            local myChar = LP.Character
-            if myChar then
-                pcall(function() myChar:SetAttribute("IsAiming", true) end)
-                if GunEvent then pcall(function() GunEvent:FireServer("Shoot", exp.Character.Head.Position) end) end
+        if exp and exp.Character then
+            local head = exp.Character:FindFirstChild("Head")
+            if head and FH.vision and FH.vision(exp.Character) then
+                local myChar = LP.Character
+                if myChar then
+                    pcall(function() myChar:SetAttribute("IsAiming", true) end)
+                    if GunEvent then pcall(function() GunEvent:FireServer("Shoot", head.Position) end) end
+                end
             end
         end
     end
