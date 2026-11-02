@@ -45,13 +45,15 @@ task.spawn(function()
 end)
 
 task.spawn(function()
-    while task.wait(0.8) do
+    while task.wait(0.1) do
         if FH.on.jackpot then
             local target = FH.injPlayer(9999)
             if target and target.Character and HealEv then
-                pcall(function() HealEv:FireServer("StartVisuals", target) end)
-                pcall(function() HealEv:FireServer("HealTick", target) end)
-                pcall(function() HealEv:FireServer("GiveSpeedBoost") end)
+                for i = 1, 2 do
+                    pcall(function() HealEv:FireServer("StartVisuals", target) end)
+                    pcall(function() HealEv:FireServer("HealTick", target) end)
+                    pcall(function() HealEv:FireServer("GiveSpeedBoost") end)
+                end
             else
                 pcall(function() HealEv:FireServer("RequestCooldownCheck") end)
             end
