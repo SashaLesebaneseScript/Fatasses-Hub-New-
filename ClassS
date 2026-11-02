@@ -85,6 +85,21 @@ task.spawn(function()
     end
 end)
 
+task.spawn(function()
+    while task.wait(0.1) do
+        if FH.stunXpSpam then
+            local RE = RST:FindFirstChild("RewardEvent")
+            local RE2 = RST:FindFirstChild("RewardEvent2")
+            if RE then 
+                pcall(function() RE:FireServer("Successfully stunned the Experiment", 30) end)
+            end
+            if RE2 then 
+                pcall(function() RE2:FireServer("Successfully stunned the Experiment", 40, "Scientist2") end)
+            end
+        end
+    end
+end)
+
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
@@ -93,5 +108,6 @@ FH.panel = function()
     FH.crearOpcion("No Cooldown", function(v) FH.classSAutoShoot = v end, true)
     FH.crearOpcion("Auto Shoot", function(v) FH.classSAutoShoot = v end, true)
     FH.crearOpcion("Silent Aim", function(v) FH.silentAimActive = v end, true)
+    FH.crearOpcion("Get Data & XP (Stun)", function(v) FH.stunXpSpam = v end, true)
 end
 FH.p5 = true
