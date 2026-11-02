@@ -23,16 +23,14 @@ FH.startESP = function(v)
                 
                 if obj:IsA("Model") and isTask then
                     if isMap2 and isPatient then
-                        -- Skip
                     else
                         local progress = "0/4"
                         local isComplete = false
-                        
-                        for _, desc in ipairs(obj:GetDescendants()) do
-                            if desc:IsA("TextLabel") then
-                                local match = string.match(desc.Text, "(%d+/%d+)")
-                                if match then
-                                    progress = match
+                        local billboard = obj:FindFirstChildWhichIsA("BillboardGui", true)
+                        if billboard then
+                            for _, txt in ipairs(billboard:GetDescendants()) do
+                                if txt:IsA("TextLabel") and txt.Text:match("%d+/%d+") then
+                                    progress = txt.Text
                                     if progress == "4/4" then isComplete = true end
                                     break
                                 end
@@ -112,8 +110,7 @@ FH.startEP = function(v)
     task.spawn(function()
         while FH.on.espPlActive do
             local expPlayer = FH.getExperiment and FH.getExperiment() or nil
-            local myChar = LP.Character
-            local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+            local expHRP = expPlayer and expPlayer.Character and expPlayer.Character:FindFirstChild("HumanoidRootPart")
             
             for _, p in ipairs(PL:GetPlayers()) do
                 if p ~= LP and p.Character then
@@ -122,14 +119,14 @@ FH.startEP = function(v)
                     local hrp = char:FindFirstChild("HumanoidRootPart")
                     
                     if hum and hum.Health > 0 and hrp then
-                        local dist = myHRP and (myHRP.Position - hrp.Position).Magnitude or 0
+                        local distToExp = expHRP and (expHRP.Position - hrp.Position).Magnitude or 9999
                         local color = Color3.fromRGB(150, 150, 150)
                         local showHealth = false
                         
                         if expPlayer then
                             if p == expPlayer then
                                 color = Color3.fromRGB(220, 20, 60)
-                            elseif dist < 600 then
+                            elseif distToExp < 600 then
                                 color = Color3.fromRGB(152, 255, 152)
                                 showHealth = true
                             end
