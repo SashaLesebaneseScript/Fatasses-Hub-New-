@@ -88,14 +88,13 @@ task.spawn(function()
                     if K.hitbox360 then
                         K.attackId = K.attackId + 1
                         local id = K.attackId
-                        local R = K.hbRange
                         local mc = LP.Character
                         local mh = mc and mc:FindFirstChild("HumanoidRootPart")
                         if mh then
                             for i = 1, 36 do
                                 local angle = (i / 36) * (math.pi * 2)
                                 local dir = Vector3.new(math.cos(angle), 0, math.sin(angle)).Unit
-                                local pos = mh.Position + dir * R
+                                local pos = mh.Position + dir * 12
                                 pcall(function() oldNC(self, {AttackId=id, Position=pos, Velocity=Vector3.new(0,0,0), Direction=dir}) end)
                             end
                         end
