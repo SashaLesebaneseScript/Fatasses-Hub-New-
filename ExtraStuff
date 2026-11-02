@@ -5,6 +5,7 @@ local C = FH.C
 
 FH.sashaSprint = false
 FH.noclipActive = false
+FH.bloodSpam = false
 
 FH.MUSIC_LIST = {
     {name="Mesmerizer",       id="rbxassetid://71934965392436"},
@@ -85,39 +86,19 @@ task.spawn(function()
     end
 end)
 
-local guardianConn = nil
-local function startGuardian()
-    if guardianConn then return end
-    guardianConn = RS.RenderStepped:Connect(function()
-        if not FH.guardianActive then return end
-        local exp = FH.getExperiment and FH.getExperiment()
-        if not exp or not exp.Character then return end
-        local expHRP = exp.Character:FindFirstChild("HumanoidRootPart")
-        if not expHRP then return end
-        local best, bd = nil, 100
-        for _, p in ipairs(PL:GetPlayers()) do
-            if p ~= LP and p ~= exp and p.Character then
-                local h = p.Character:FindFirstChildOfClass("Humanoid")
-                local hrp = p.Character:FindFirstChild("HumanoidRootPart")
-                if h and h.Health > 0 and hrp then
-                    local d = (expHRP.Position - hrp.Position).Magnitude
-                    if d < bd then bd = d; best = hrp end
-                end
+task.spawn(function()
+    while task.wait(0.05) do
+        if FH.bloodSpam then
+            local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+            local bloodEv = FH.RST:FindFirstChild("ToggleBloodEvent")
+            if hrp and bloodEv then
+                pcall(function()
+                    bloodEv:FireServer("CreateSplat", hrp.Position, Vector3.new(0,1,0), 2.1, 0.22)
+                end)
             end
         end
-        if best then
-            local myChar = LP.Character
-            local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
-            if myHRP then
-                myHRP.CFrame = myHRP.CFrame:Lerp(best.CFrame * CFrame.new(2, 0, 2), 0.2)
-            end
-        end
-    end)
-end
-local function stopGuardian()
-    FH.guardianActive = false
-    if guardianConn then guardianConn:Disconnect(); guardianConn = nil end
-end
+    end
+end)
 
 local origPanel = FH.panel
 FH.panel = function()
@@ -128,7 +109,7 @@ FH.panel = function()
     
     opt("Inf Stamina", function(v) FH.sashaSprint = v end, true)
     opt("Noclip", function(v) FH.noclipActive = v end, true)
-    opt("Guardian", function(v) FH.guardianActive = v; if v then startGuardian() else stopGuardian() end end, true)
+    opt("Make a lot of blood", function(v) FH.bloodSpam = v end, true)
     
     opt("Music ON/OFF", function(v) 
         if v then 
@@ -161,21 +142,5 @@ FH.panel = function()
             playMusic(song.id)
         end)
     end
-    
-    local volHolder = Instance.new("Frame", FH.oc)
-    volHolder.Size = UDim2.new(1, 0, 0, 34)
-    volHolder.BackgroundColor3 = C.bg_card
-    volHolder.BackgroundTransparency = .2
-    volHolder.BorderSizePixel = 0
-    Instance.new("UICorner", volHolder).CornerRadius = UDim.new(0, 10)
-    local volLbl = Instance.new("TextLabel", volHolder)
-    volLbl.Size = UDim2.new(1, -20, 1, 0)
-    volLbl.Position = UDim2.new(0, 10, 0, 0)
-    volLbl.BackgroundTransparency = 1
-    volLbl.Text = "Volume (Slider below)"
-    volLbl.TextColor3 = C.text
-    volLbl.Font = Enum.Font.GothamBold
-    volLbl.TextScaled = true
-    volLbl.TextXAlignment = Enum.TextXAlignment.Left
 end
 FH.p7 = true
