@@ -280,24 +280,23 @@ FH.startSp = function(v)
     if FH.spLoop then return end
     FH.spLoop = task.spawn(function()
         while FH.on.spamComplete do
-            if FH.TR then
-                local activeGui = nil
-                local gui1 = LP.PlayerGui:FindFirstChild("TaskGuiMap1")
-                local gui2 = LP.PlayerGui:FindFirstChild("TaskGuiMap2")
-                local gui3 = LP.PlayerGui:FindFirstChild("TaskGuiMap3")
-                
-                if gui1 and gui1.Enabled then activeGui = gui1 end
-                if gui2 and gui2.Enabled then activeGui = gui2 end
-                if gui3 and gui3.Enabled then activeGui = gui3 end
-                
-                if activeGui and FH.tarea and FH.tarea.id then
-                    for i = 1, 4 do
-                        pcall(function() FH.TR:FireServer("CompleteStep", FH.tarea.id) end)
-                        task.wait(0.125)
-                    end
-                end
+            local taskID = FH.tarea and FH.tarea.id or "Task_1_1"
+            local TR = FH.RST:FindFirstChild("TaskRemote")
+            local RE = FH.RST:FindFirstChild("RewardEvent")
+            local RE2 = FH.RST:FindFirstChild("RewardEvent2")
+            
+            if TR then 
+                pcall(function() TR:FireServer("CompleteStep", taskID) end)
+                pcall(function() TR:FireServer("EndTask", taskID) end)
             end
-            task.wait(0.5)
+            if RE2 then 
+                pcall(function() RE2:FireServer("Completed a Tuning Minigame", 20, "Scientist") end)
+            end
+            if RE then 
+                pcall(function() RE:FireServer("Successfully Transmitted Signal Sequence", 10) end)
+            end
+            
+            task.wait(0.1)
         end
         FH.spLoop = nil
     end)
