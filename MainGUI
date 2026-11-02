@@ -362,6 +362,56 @@ FH.crearOpcion = function(nombre, cb, isBlatant)
     FH.animar(tb2)
 end
 
+FH.crearBotonAccion = function(nombre, onFire, isBlatant)
+    local b = Instance.new("TextButton", oc)
+    b.Size = UDim2.new(1, 0, 0, 34)
+    b.BackgroundColor3 = C.bg_card
+    b.BackgroundTransparency = .2
+    b.Text = ""
+    b.BorderSizePixel = 0
+    b.AutoButtonColor = false
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
+    local l = Instance.new("TextLabel", b)
+    l.Size = UDim2.new(1, -16, 1, 0)
+    l.Position = UDim2.new(0, 14, 0, 0)
+    l.BackgroundTransparency = 1
+    l.Text = nombre
+    l.TextColor3 = C.text
+    l.TextScaled = true
+    l.Font = Enum.Font.GothamBold
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    b.MouseButton1Click:Connect(function()
+        if isBlatant and not FH.blatantMode then
+            if FH.pestana ~= "Blatant" then 
+                FH.pestana = "Blatant"
+                FH.panel() 
+            end
+            return
+        end
+        FH.sfx("button", 2, 1.3)
+        pcall(onFire)
+    end)
+    FH.animar(b)
+end
+
+FH.disableAllBlatant = function()
+    FH.blatantMode = false
+    if FH.k8 then 
+        FH.k8.autoPunch = false
+        FH.k8.killAll = false
+        FH.k8.hitbox360 = false
+        FH.k8.antiStun = false
+        FH.k8.alwaysMaxSpeed = false
+    end
+    if FH.on then
+        FH.on.jackpot = false
+        FH.classSAutoShoot = false
+        FH.on.aimlockS = false
+        FH.silentAimActive = false
+    end
+    if FH.panel then FH.panel() end
+end
+
 local TABS = {"ESP", "Halloween", "Scientist", "Class A", "Class S", "Experiment", "Extra Stuff", "Blatant"}
 local tabs = {}
 FH.tabs = tabs
