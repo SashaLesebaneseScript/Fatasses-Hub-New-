@@ -22,10 +22,13 @@ mt.__namecall = newcclosure(function(self, ...)
     if method == "FireServer" and self.Name == "GunEvent" and (...) == "Shoot" then
         if FH.silentAimActive then
             local exp = FH.getExperiment()
-            if exp and exp.Character and exp.Character:FindFirstChild("Head") then
-                local args = {...}
-                args[2] = exp.Character.Head.Position
-                return oldNC(self, table.unpack(args))
+            if exp and exp.Character then
+                local chest = exp.Character:FindFirstChild("UpperTorso") or exp.Character:FindFirstChild("Torso") or exp.Character:FindFirstChild("HumanoidRootPart")
+                if chest then
+                    local args = {...}
+                    args[2] = chest.Position
+                    return oldNC(self, table.unpack(args))
+                end
             end
         end
     end
@@ -55,13 +58,12 @@ RS.RenderStepped:Connect(function()
     if not isAiming() then return end
     local exp = FH.getExperiment()
     if exp and exp.Character then
-        local head = exp.Character:FindFirstChild("Head")
-        local hrp = exp.Character:FindFirstChild("HumanoidRootPart")
-        if head and hrp then
+        local chest = exp.Character:FindFirstChild("UpperTorso") or exp.Character:FindFirstChild("Torso") or exp.Character:FindFirstChild("HumanoidRootPart")
+        if chest then
             local ping = getPing()
-            local offset = 0
-            if ping > 150 then offset = 5 elseif ping > 100 then offset = 3 else offset = 1 end
-            local targetPos = head.Position + (hrp.Velocity * (offset / 10))
+            local offset = 1
+            if ping > 150 then offset = 4 elseif ping > 100 then offset = 2.5 end
+            local targetPos = chest.Position + (chest.CFrame.LookVector * offset)
             workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, targetPos)
         end
     end
@@ -73,28 +75,13 @@ task.spawn(function()
         if not isAiming() then continue end
         local exp = FH.getExperiment()
         if exp and exp.Character then
-            local head = exp.Character:FindFirstChild("Head")
-            if head and FH.vision and FH.vision(exp.Character) then
+            local chest = exp.Character:FindFirstChild("UpperTorso") or exp.Character:FindFirstChild("Torso") or exp.Character:FindFirstChild("HumanoidRootPart")
+            if chest and FH.vision and FH.vision(exp.Character) then
                 local myChar = LP.Character
                 if myChar then
                     pcall(function() myChar:SetAttribute("IsAiming", true) end)
-                    if GunEvent then pcall(function() GunEvent:FireServer("Shoot", head.Position) end) end
+                    if GunEvent then pcall(function() GunEvent:FireServer("Shoot", chest.Position) end) end
                 end
-            end
-        end
-    end
-end)
-
-task.spawn(function()
-    while task.wait(0.1) do
-        if FH.stunXpSpam then
-            local RE = RST:FindFirstChild("RewardEvent")
-            local RE2 = RST:FindFirstChild("RewardEvent2")
-            if RE then 
-                pcall(function() RE:FireServer("Successfully stunned the Experiment", 30) end)
-            end
-            if RE2 then 
-                pcall(function() RE2:FireServer("Successfully stunned the Experiment", 40, "Scientist2") end)
             end
         end
     end
@@ -108,6 +95,5 @@ FH.panel = function()
     FH.crearOpcion("No Cooldown", function(v) FH.classSAutoShoot = v end, true)
     FH.crearOpcion("Auto Shoot", function(v) FH.classSAutoShoot = v end, true)
     FH.crearOpcion("Silent Aim", function(v) FH.silentAimActive = v end, true)
-    FH.crearOpcion("Get Data & XP (Stun)", function(v) FH.stunXpSpam = v end, true)
 end
 FH.p5 = true
