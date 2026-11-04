@@ -51,11 +51,12 @@ ls.Parent = parent
 FH.ls = ls
 
 local lsFrame = Instance.new("Frame")
-lsFrame.Size = UDim2.new(0, 320, 0, 120)
+lsFrame.Size = UDim2.new(0, 340, 0, 130)
 lsFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 lsFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 lsFrame.BackgroundColor3 = C.bg_panel
 lsFrame.BorderSizePixel = 0
+lsFrame.Active = false
 lsFrame.Parent = ls
 Instance.new("UICorner", lsFrame).CornerRadius = UDim.new(0, 16)
 FH.lsFrame = lsFrame
@@ -63,11 +64,11 @@ FH.lsFrame = lsFrame
 local lsStroke = Instance.new("UIStroke", lsFrame)
 lsStroke.Color = C.accent
 lsStroke.Thickness = 2
-lsStroke.Transparency = 0.2
+lsStroke.Transparency = 0.1
 
 local lsTitle = Instance.new("TextLabel", lsFrame)
 lsTitle.Size = UDim2.new(1, 0, 0.4, 0)
-lsTitle.Position = UDim2.new(0, 0, 0, 10)
+lsTitle.Position = UDim2.new(0, 0, 0, 15)
 lsTitle.BackgroundTransparency = 1
 lsTitle.Text = "FATASSES HUB"
 lsTitle.TextColor3 = C.accent
@@ -85,7 +86,7 @@ lsText.TextScaled = true
 FH.lsText = lsText
 
 local barBg = Instance.new("Frame", lsFrame)
-barBg.Size = UDim2.new(0.8, 0, 0, 12)
+barBg.Size = UDim2.new(0.8, 0, 0, 14)
 barBg.Position = UDim2.new(0.1, 0, 0.75, 0)
 barBg.BackgroundColor3 = C.bg_dark
 barBg.BorderSizePixel = 0
@@ -97,6 +98,21 @@ barFill.BackgroundColor3 = C.accent
 barFill.BorderSizePixel = 0
 Instance.new("UICorner", barFill).CornerRadius = UDim.new(1, 0)
 FH.lsFill = barFill
+
+local barGradient = Instance.new("UIGradient", barFill)
+barGradient.Color = ColorSequence.new(Color3.fromRGB(255, 105, 180), Color3.fromRGB(147, 112, 219))
+barGradient.Rotation = 0
+
+task.spawn(function()
+    while lsFrame.Parent do
+        FH.TW:Create(lsTitle, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {TextTransparency = 0.5}):Play()
+        FH.TW:Create(lsFrame, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(0.5, 0, 0.5, -5)}):Play()
+        task.wait(1.5)
+        FH.TW:Create(lsTitle, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {TextTransparency = 0}):Play()
+        FH.TW:Create(lsFrame, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(0.5, 0, 0.5, 0)}):Play()
+        task.wait(1.5)
+    end
+end)
 
 FH.SND = {button="rbxassetid://9119717523",tab_switch="rbxassetid://14133663945",toggle_on="rbxassetid://9119717523",toggle_off="rbxassetid://103866342467024",hover="rbxassetid://14133663945"}
 FH.sfx = function(n, v, p) 
