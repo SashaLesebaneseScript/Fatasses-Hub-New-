@@ -85,27 +85,11 @@ task.spawn(function()
     end
 end)
 
-FH.spamCandy = function(v)
-    if not v then return end
-    task.spawn(function()
-        while FH.on.spamCandy do
-            local CRE = FH.RST:FindFirstChild("CandyRewardEvent")
-            if CRE then
-                pcall(function() CRE:FireServer(15) end)
-                pcall(function() CRE:FireServer(10) end)
-                pcall(function() CRE:FireServer(7) end)
-            end
-            task.wait(0.1)
-        end
-    end)
-end
-
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
     if FH.pestana ~= "Halloween" then return end
     FH.crearOpcion("ESP Candies", function(v) FH.candyESP_Active = v; FH.startCandyESP(v) end, false)
     FH.crearOpcion("Get all Candies", function(v) FH.autoCandyActive = v end, true)
-    FH.crearOpcion("Spam Candy", function(v) FH.on.spamCandy = v; FH.spamCandy(v) end, true)
 end
 FH.p9 = true
