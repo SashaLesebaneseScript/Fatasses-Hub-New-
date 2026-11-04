@@ -5,7 +5,6 @@ local C = FH.C
 
 FH.sashaSprint = false
 FH.noclipActive = false
-FH.bloodSpam = false
 
 FH.MUSIC_LIST = {
     {name="Mesmerizer",       id="rbxassetid://71934965392436"},
@@ -86,30 +85,14 @@ task.spawn(function()
     end
 end)
 
-task.spawn(function()
-    while task.wait(0.05) do
-        if FH.bloodSpam then
-            local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-            local bloodEv = FH.RST:FindFirstChild("ToggleBloodEvent")
-            if hrp and bloodEv then
-                pcall(function()
-                    bloodEv:FireServer("CreateSplat", hrp.Position, Vector3.new(0,1,0), 2.1, 0.22)
-                end)
-            end
-        end
-    end
-end)
-
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
     if FH.pestana ~= "Extra Stuff" then return end
     local opt = FH.crearOpcion
-    local btn = FH.crearBotonAccion
     
     opt("Inf Stamina", function(v) FH.sashaSprint = v end, true)
     opt("Noclip", function(v) FH.noclipActive = v end, true)
-    opt("Make a lot of blood", function(v) FH.bloodSpam = v end, true)
     
     opt("Music ON/OFF", function(v) 
         if v then 
