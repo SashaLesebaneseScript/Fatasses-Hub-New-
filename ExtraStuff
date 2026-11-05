@@ -12,16 +12,15 @@ FH.MUSIC_LIST = {
     {name="Birdbrain",        id="rbxassetid://139924511923380"},
     {name="Spoken For",       id="rbxassetid://91472362989961"},
     {name="Execution Clap",   id="rbxassetid://72478420140778"},
-    {name="Looping The Rooms",id="rbxassetid://116273924154778"},
+    {name="Looping The Rooms",id="rbxassetid://116273924154778"}
 }
 local music = nil
-local musicVol = 0.15
 
 local function playMusic(id)
     if music then music:Destroy() end
     music = Instance.new("Sound")
     music.SoundId = id
-    music.Volume = musicVol
+    music.Volume = FH.musicVolume
     music.Looped = true
     music.Parent = FH.SS
     music:Play()
@@ -90,9 +89,10 @@ FH.panel = function()
     origPanel()
     if FH.pestana ~= "Extra Stuff" then return end
     local opt = FH.crearOpcion
+    local btn = FH.crearBotonAccion
     
-    opt("Inf Stamina", function(v) FH.sashaSprint = v end, true)
-    opt("Noclip", function(v) FH.noclipActive = v end, true)
+    opt("Inf Stamina", function(v) FH.sashaSprint = v end)
+    opt("Noclip", function(v) FH.noclipActive = v end)
     
     opt("Music ON/OFF", function(v) 
         if v then 
@@ -100,7 +100,7 @@ FH.panel = function()
         else 
             stopMusic() 
         end
-    end, true)
+    end)
     
     local songList = Instance.new("ScrollingFrame", FH.oc)
     songList.Size = UDim2.new(1, 0, 0, 120)
@@ -125,5 +125,59 @@ FH.panel = function()
             playMusic(song.id)
         end)
     end
+    
+    local volFrame = Instance.new("Frame", FH.oc)
+    volFrame.Size = UDim2.new(1, 0, 0, 34)
+    volFrame.BackgroundColor3 = C.bg_card
+    volFrame.BackgroundTransparency = .2
+    volFrame.BorderSizePixel = 0
+    Instance.new("UICorner", volFrame).CornerRadius = UDim.new(0, 10)
+    
+    local volText = Instance.new("TextLabel", volFrame)
+    volText.Size = UDim2.new(0, 60, 1, 0)
+    volText.Position = UDim2.new(0, 10, 0, 0)
+    volText.BackgroundTransparency = 1
+    volText.Text = "Volume"
+    volText.TextColor3 = C.text
+    volText.Font = Enum.Font.GothamBold
+    volText.TextScaled = true
+    
+    local volBar = Instance.new("Frame", volFrame)
+    volBar.Size = UDim2.new(1, -90, 0, 10)
+    volBar.Position = UDim2.new(0, 75, 0.5, -5)
+    volBar.BackgroundColor3 = C.bg_dark
+    volBar.BorderSizePixel = 0
+    Instance.new("UICorner", volBar).CornerRadius = UDim.new(1, 0)
+    
+    local volFill = Instance.new("Frame", volBar)
+    volFill.Size = UDim2.new(FH.musicVolume, 0, 1, 0)
+    volFill.BackgroundColor3 = C.accent
+    volFill.BorderSizePixel = 0
+    Instance.new("UICorner", volFill).CornerRadius = UDim.new(1, 0)
+    
+    local draggingVol = false
+    local function updateVol(x)
+        local rel = math.clamp((x - volBar.AbsolutePosition.X) / volBar.AbsoluteSize.X, 0, 1)
+        volFill.Size = UDim2.new(rel, 0, 1, 0)
+        FH.musicVolume = rel
+        if music then music.Volume = rel end
+    end
+    
+    volBar.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            draggingVol = true
+            updateVol(i.Position.X)
+        end
+    end)
+    FH.UI.InputChanged:Connect(function(i)
+        if draggingVol and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            updateVol(i.Position.X)
+        end
+    end)
+    FH.UI.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            draggingVol = false
+        end
+    end)
 end
 FH.p7 = true
