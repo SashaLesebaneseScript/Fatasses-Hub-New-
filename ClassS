@@ -1,11 +1,9 @@
 local FH = getgenv().FH
 if not FH or not FH.p1 then return end
 local RS, PL, LP, RST = FH.RS, FH.PL, FH.LP, FH.RST
-local C = FH.C
 
 local GunEvent = RST:FindFirstChild("GunEvent")
 local lastShootTime = 0
-local isShooting = false
 
 local function getExperiment()
     for _, p in ipairs(PL:GetPlayers()) do 
@@ -36,6 +34,16 @@ local function getTargetPos()
     return nil
 end
 
+local function isAiming()
+    local gunGui = LP.PlayerGui:FindFirstChild("GunGui")
+    if not gunGui then return false end
+    local aimBtn = gunGui:FindFirstChild("AimButton")
+    if not aimBtn then return false end
+    if aimBtn.Text == "Stop" then return true end
+    if aimBtn.BackgroundColor3 == Color3.fromRGB(200, 50, 50) then return true end
+    return false
+end
+
 local mt = getrawmetatable(game)
 local oldNC = mt.__namecall
 setreadonly(mt, false)
@@ -57,6 +65,7 @@ setreadonly(mt, true)
 
 RS.RenderStepped:Connect(function()
     if not FH.on.aimlockS then return end
+    if not isAiming() then return end
     local targetPos = getTargetPos()
     if targetPos then
         workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, targetPos)
@@ -65,20 +74,28 @@ end)
 
 task.spawn(function()
     while task.wait(0.1) do
-        if not FH.classSAutoShoot then 
-            isShooting = false
-            continue 
-        end
-        
+        if not FH.classSAutoShoot then continue end
+        if not isAiming() then continue end
         local targetPos = getTargetPos()
         if targetPos and GunEvent then
             if tick() - lastShootTime >= 0.5 then
-                isShooting = true
                 lastShootTime = tick()
                 pcall(function() GunEvent:FireServer("Shoot", targetPos) end)
             end
-        else
-            isShooting = false
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(0.1) do
+        if FH.noCooldownActive then
+            local gunGui = LP.PlayerGui:FindFirstChild("GunGui")
+            if gunGui then
+                local aimBtn = gunGui:FindFirstChild("AimButton")
+                if aimBtn and aimBtn:FindFirstChild("CooldownText") then
+                    aimBtn.CooldownText.Text = "0"
+                end
+            end
         end
     end
 end)
@@ -88,28 +105,10 @@ FH.panel = function()
     origPanel()
     if FH.pestana ~= "Class S" then return end
     local opt = FH.crearOpcion
-    
     opt("Aimlock", function(v) FH.on.aimlockS = v end)
     opt("Auto Shoot", function(v) FH.classSAutoShoot = v end)
     opt("Silent Aim", function(v) FH.silentAimActive = v end)
-    opt("Wall Hack (Atraviesa Paredes)", function(v) FH.wallHack = v end)
-    
-    local cooldownToggle = opt("No Cooldown", function(v) FH.noCooldownActive = v end)
-    
-    task.spawn(function()
-        while task.wait(0.1) do
-            if FH.noCooldownActive and FH.pestana == "Class S" then
-                local gunGui = LP.PlayerGui:FindFirstChild("GunGui")
-                if gunGui then
-                    local aimBtn = gunGui:FindFirstChild("AimButton")
-                    if aimBtn then
-                        if aimBtn:FindFirstChild("CooldownText") then
-                            aimBtn.CooldownText.Text = "0"
-                        end
-                    end
-                end
-            end
-        end
-    end)
+    opt("Wall Hack", function(v) FH.wallHack = v end)
+    opt("No Cooldown", function(v) FH.noCooldownActive = v end)
 end
 FH.p5 = true
