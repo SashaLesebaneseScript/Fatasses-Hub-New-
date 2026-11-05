@@ -1,8 +1,13 @@
 local FH = getgenv().FH
 if not FH or not FH.p1 then return end
 local RS, PL, LP, RST = FH.RS, FH.PL, FH.LP, FH.RST
+local C = FH.C
 
-FH.getExperiment = function() 
+local GunEvent = RST:FindFirstChild("GunEvent")
+local lastShootTime = 0
+local isShooting = false
+
+local function getExperiment()
     for _, p in ipairs(PL:GetPlayers()) do 
         if p.Character then 
             local exp = p.Character:FindFirstChild("Experiment")
@@ -12,7 +17,24 @@ FH.getExperiment = function()
     return nil 
 end
 
-local GunEvent = RST:FindFirstChild("GunEvent")
+local function getPing()
+    local ok, ping = pcall(function() return game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue() end)
+    return ok and ping or 50
+end
+
+local function getTargetPos()
+    local exp = getExperiment()
+    if exp and exp.Character then
+        local chest = exp.Character:FindFirstChild("UpperTorso") or exp.Character:FindFirstChild("Torso") or exp.Character:FindFirstChild("HumanoidRootPart")
+        if chest then
+            local ping = getPing()
+            local offset = 1
+            if ping > 150 then offset = 4 elseif ping > 100 then offset = 2.5 end
+            return chest.Position + (chest.Velocity * (offset / 10))
+        end
+    end
+    return nil
+end
 
 local mt = getrawmetatable(game)
 local oldNC = mt.__namecall
@@ -20,15 +42,12 @@ setreadonly(mt, false)
 mt.__namecall = newcclosure(function(self, ...)
     local method = getnamecallmethod()
     if method == "FireServer" and self.Name == "GunEvent" and (...) == "Shoot" then
-        if FH.silentAimActive then
-            local exp = FH.getExperiment()
-            if exp and exp.Character then
-                local chest = exp.Character:FindFirstChild("UpperTorso") or exp.Character:FindFirstChild("Torso") or exp.Character:FindFirstChild("HumanoidRootPart")
-                if chest then
-                    local args = {...}
-                    args[2] = chest.Position
-                    return oldNC(self, table.unpack(args))
-                end
+        if FH.silentAimActive or FH.wallHack then
+            local targetPos = getTargetPos()
+            if targetPos then
+                local args = {...}
+                args[2] = targetPos
+                return oldNC(self, table.unpack(args))
             end
         end
     end
@@ -36,53 +55,30 @@ mt.__namecall = newcclosure(function(self, ...)
 end)
 setreadonly(mt, true)
 
-local function getPing()
-    local ok, ping = pcall(function() return game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue() end)
-    return ok and ping or 50
-end
-
-local function isAiming()
-    local mc = LP.Character
-    if not mc then return false end
-    local gunGui = LP.PlayerGui:FindFirstChild("GunGui")
-    if not gunGui then return false end
-    local aimBtn = gunGui:FindFirstChild("AimButton")
-    if not aimBtn then return false end
-    if aimBtn.Text == "Stop" then return true end
-    if aimBtn.BackgroundColor3 == Color3.fromRGB(200, 50, 50) then return true end
-    return false
-end
-
 RS.RenderStepped:Connect(function()
     if not FH.on.aimlockS then return end
-    if not isAiming() then return end
-    local exp = FH.getExperiment()
-    if exp and exp.Character then
-        local chest = exp.Character:FindFirstChild("UpperTorso") or exp.Character:FindFirstChild("Torso") or exp.Character:FindFirstChild("HumanoidRootPart")
-        if chest then
-            local ping = getPing()
-            local offset = 1
-            if ping > 150 then offset = 4 elseif ping > 100 then offset = 2.5 end
-            local targetPos = chest.Position + (chest.CFrame.LookVector * offset)
-            workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, targetPos)
-        end
+    local targetPos = getTargetPos()
+    if targetPos then
+        workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, targetPos)
     end
 end)
 
 task.spawn(function()
     while task.wait(0.1) do
-        if not FH.classSAutoShoot then continue end
-        if not isAiming() then continue end
-        local exp = FH.getExperiment()
-        if exp and exp.Character then
-            local chest = exp.Character:FindFirstChild("UpperTorso") or exp.Character:FindFirstChild("Torso") or exp.Character:FindFirstChild("HumanoidRootPart")
-            if chest and FH.vision and FH.vision(exp.Character) then
-                local myChar = LP.Character
-                if myChar then
-                    pcall(function() myChar:SetAttribute("IsAiming", true) end)
-                    if GunEvent then pcall(function() GunEvent:FireServer("Shoot", chest.Position) end) end
-                end
+        if not FH.classSAutoShoot then 
+            isShooting = false
+            continue 
+        end
+        
+        local targetPos = getTargetPos()
+        if targetPos and GunEvent then
+            if tick() - lastShootTime >= 0.5 then
+                isShooting = true
+                lastShootTime = tick()
+                pcall(function() GunEvent:FireServer("Shoot", targetPos) end)
             end
+        else
+            isShooting = false
         end
     end
 end)
@@ -91,9 +87,29 @@ local origPanel = FH.panel
 FH.panel = function()
     origPanel()
     if FH.pestana ~= "Class S" then return end
-    FH.crearOpcion("Aimlock", function(v) FH.on.aimlockS = v end, true)
-    FH.crearOpcion("No Cooldown", function(v) FH.classSAutoShoot = v end, true)
-    FH.crearOpcion("Auto Shoot", function(v) FH.classSAutoShoot = v end, true)
-    FH.crearOpcion("Silent Aim", function(v) FH.silentAimActive = v end, true)
+    local opt = FH.crearOpcion
+    
+    opt("Aimlock", function(v) FH.on.aimlockS = v end)
+    opt("Auto Shoot", function(v) FH.classSAutoShoot = v end)
+    opt("Silent Aim", function(v) FH.silentAimActive = v end)
+    opt("Wall Hack (Atraviesa Paredes)", function(v) FH.wallHack = v end)
+    
+    local cooldownToggle = opt("No Cooldown", function(v) FH.noCooldownActive = v end)
+    
+    task.spawn(function()
+        while task.wait(0.1) do
+            if FH.noCooldownActive and FH.pestana == "Class S" then
+                local gunGui = LP.PlayerGui:FindFirstChild("GunGui")
+                if gunGui then
+                    local aimBtn = gunGui:FindFirstChild("AimButton")
+                    if aimBtn then
+                        if aimBtn:FindFirstChild("CooldownText") then
+                            aimBtn.CooldownText.Text = "0"
+                        end
+                    end
+                end
+            end
+        end
+    end)
 end
 FH.p5 = true
