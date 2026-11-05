@@ -8,7 +8,6 @@ local files = {
     "ClassS",
     "Experiment",
     "ExtraStuff",
-    "Blatant",
     "Halloween"
 }
 
