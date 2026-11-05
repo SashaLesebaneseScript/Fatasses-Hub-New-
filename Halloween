@@ -89,7 +89,7 @@ local origPanel = FH.panel
 FH.panel = function()
     origPanel()
     if FH.pestana ~= "Halloween" then return end
-    FH.crearOpcion("ESP Candies", function(v) FH.candyESP_Active = v; FH.startCandyESP(v) end, false)
-    FH.crearOpcion("Get all Candies", function(v) FH.autoCandyActive = v end, true)
+    FH.crearOpcion("ESP Candies", function(v) FH.candyESP_Active = v; FH.startCandyESP(v) end)
+    FH.crearOpcion("Get all Candies", function(v) FH.autoCandyActive = v end)
 end
-FH.p9 = true
+FH.p8 = true
