@@ -1,9 +1,11 @@
 local FH = getgenv().FH
 if not FH or not FH.p1 then return end
 local WS, PL, LP = FH.WS, FH.PL, FH.LP
+local C = FH.C
 
 FH.espTasksCache = {}
 FH.espPlayersCache = {}
+FH.candyESP = {}
 
 FH.startESP = function(v)
     if not v then
@@ -16,20 +18,18 @@ FH.startESP = function(v)
     end
     task.spawn(function()
         while FH.on.espActive do
-            local isMap2 = WS:FindFirstChild("Map2") or WS:FindFirstChild("Map 2")
-            for _, obj in ipairs(WS:GetDescendants()) do
-                local isPatient = obj.Name:lower():find("patient")
-                local isTask = obj:FindFirstChildWhichIsA("ProximityPrompt") or obj.Name:match("^Task_") or obj.Name:match("Patient") or obj.Name:match("Tube") or obj.Name:match("Panel")
-                
-                if obj:IsA("Model") and isTask then
-                    if isMap2 and isPatient then
-                    else
-                        local progress = "0/4"
-                        local isComplete = false
-                        
-                        for _, desc in ipairs(obj:GetDescendants()) do
-                            if desc:IsA("TextLabel") then
-                                local match = string.match(desc.Text, "(%d+/%d+)")
+            local tasks = {"Task_1", "Task_2", "Task_3"}
+            for _, taskName in ipairs(tasks) do
+                local obj = WS:FindFirstChild(taskName) or WS:FindFirstChild(taskName, true)
+                if obj then
+                    local progress = "0/4"
+                    local isComplete = false
+                    
+                    local billboard = obj:FindFirstChild("BillboardGui", true)
+                    if billboard then
+                        for _, txt in ipairs(billboard:GetDescendants()) do
+                            if txt:IsA("TextLabel") then
+                                local match = string.match(txt.Text, "(%d+/%d+)")
                                 if match then
                                     if match == "4/4" then
                                         progress = match
@@ -41,52 +41,52 @@ FH.startESP = function(v)
                                 end
                             end
                         end
+                    end
+                    
+                    local color = isComplete and Color3.fromRGB(152, 255, 152) or C.accent
+                    
+                    if not FH.espTasksCache[obj] then
+                        local hl = Instance.new("Highlight")
+                        hl.Parent = obj
+                        hl.Adornee = obj
+                        hl.FillColor = color
+                        hl.OutlineColor = Color3.new(1,1,1)
+                        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
                         
-                        local color = isComplete and Color3.fromRGB(152, 255, 152) or FH.C.accent
+                        local bg = Instance.new("BillboardGui")
+                        bg.Parent = obj
+                        bg.Adornee = obj
+                        bg.Size = UDim2.new(0, 100, 0, 40)
+                        bg.StudsOffset = Vector3.new(0, 2, 0)
+                        bg.AlwaysOnTop = true
                         
-                        if not FH.espTasksCache[obj] then
-                            local hl = Instance.new("Highlight")
-                            hl.Parent = obj
-                            hl.Adornee = obj
-                            hl.FillColor = color
-                            hl.OutlineColor = Color3.new(1,1,1)
-                            hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                            
-                            local bg = Instance.new("BillboardGui")
-                            bg.Parent = obj
-                            bg.Adornee = obj
-                            bg.Size = UDim2.new(0, 100, 0, 40)
-                            bg.StudsOffset = Vector3.new(0, 2, 0)
-                            bg.AlwaysOnTop = true
-                            
-                            local progTxt = Instance.new("TextLabel", bg)
-                            progTxt.Size = UDim2.new(1, 0, 0.5, 0)
-                            progTxt.Position = UDim2.new(0, 0, 0, 0)
-                            progTxt.BackgroundTransparency = 1
-                            progTxt.Text = progress
-                            progTxt.TextColor3 = color
-                            progTxt.TextStrokeTransparency = 0
-                            progTxt.Font = Enum.Font.GothamBold
-                            progTxt.TextScaled = true
-                            
-                            local txt = Instance.new("TextLabel", bg)
-                            txt.Size = UDim2.new(1, 0, 0.5, 0)
-                            txt.Position = UDim2.new(0, 0, 0.5, 0)
-                            txt.BackgroundTransparency = 1
-                            txt.Text = obj.Name
-                            txt.TextColor3 = color
-                            txt.TextStrokeTransparency = 0
-                            txt.Font = Enum.Font.GothamBold
-                            txt.TextScaled = true
-                            
-                            FH.espTasksCache[obj] = {hl = hl, bg = bg, txt = txt, progTxt = progTxt}
-                        else
-                            local data = FH.espTasksCache[obj]
-                            data.hl.FillColor = color
-                            data.txt.TextColor3 = color
-                            data.progTxt.Text = progress
-                            data.progTxt.TextColor3 = color
-                        end
+                        local progTxt = Instance.new("TextLabel", bg)
+                        progTxt.Size = UDim2.new(1, 0, 0.5, 0)
+                        progTxt.Position = UDim2.new(0, 0, 0, 0)
+                        progTxt.BackgroundTransparency = 1
+                        progTxt.Text = progress
+                        progTxt.TextColor3 = color
+                        progTxt.TextStrokeTransparency = 0
+                        progTxt.Font = Enum.Font.GothamBold
+                        progTxt.TextScaled = true
+                        
+                        local txt = Instance.new("TextLabel", bg)
+                        txt.Size = UDim2.new(1, 0, 0.5, 0)
+                        txt.Position = UDim2.new(0, 0, 0.5, 0)
+                        txt.BackgroundTransparency = 1
+                        txt.Text = obj.Name
+                        txt.TextColor3 = color
+                        txt.TextStrokeTransparency = 0
+                        txt.Font = Enum.Font.GothamBold
+                        txt.TextScaled = true
+                        
+                        FH.espTasksCache[obj] = {hl = hl, bg = bg, txt = txt, progTxt = progTxt}
+                    else
+                        local data = FH.espTasksCache[obj]
+                        data.hl.FillColor = color
+                        data.txt.TextColor3 = color
+                        data.progTxt.Text = progress
+                        data.progTxt.TextColor3 = color
                     end
                 end
             end
@@ -114,7 +114,7 @@ FH.startEP = function(v)
     end
     task.spawn(function()
         while FH.on.espPlActive do
-            local expPlayer = FH.getExperiment and FH.getExperiment() or nil
+            local expPlayer = FH.getExperiment() or nil
             local expHRP = expPlayer and expPlayer.Character and expPlayer.Character:FindFirstChild("HumanoidRootPart")
             
             for _, p in ipairs(PL:GetPlayers()) do
@@ -200,13 +200,65 @@ FH.startEP = function(v)
     end)
 end
 
+FH.startCandyESP = function(v)
+    if not v then
+        for _, data in pairs(FH.candyESP) do 
+            if data.hl then data.hl:Destroy() end
+            if data.bg then data.bg:Destroy() end 
+        end
+        FH.candyESP = {}
+        return
+    end
+    task.spawn(function()
+        while FH.candyESP_Active do
+            local folders = {WS, WS:FindFirstChild("Map1"), WS:FindFirstChild("Map2"), WS:FindFirstChild("Map3")}
+            for _, folder in ipairs(folders) do
+                if folder then
+                    for _, c in ipairs(folder:GetChildren()) do
+                        if c:IsA("Model") and c.Name:match("^Candy") and not FH.candyESP[c] then
+                            local hl = Instance.new("Highlight")
+                            hl.Parent = c
+                            hl.Adornee = c
+                            hl.FillColor = Color3.fromRGB(255, 50, 150)
+                            hl.OutlineColor = Color3.new(1, 1, 1)
+                            hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                            
+                            local bg = Instance.new("BillboardGui")
+                            bg.Parent = c
+                            bg.Adornee = c
+                            bg.Size = UDim2.new(0, 60, 0, 20)
+                            bg.StudsOffset = Vector3.new(0, 2, 0)
+                            bg.AlwaysOnTop = true
+                            
+                            local txt = Instance.new("TextLabel", bg)
+                            txt.Size = UDim2.new(1, 0, 1, 0)
+                            txt.BackgroundTransparency = 1
+                            txt.Text = "Candy"
+                            txt.TextColor3 = Color3.fromRGB(255, 50, 150)
+                            txt.TextStrokeTransparency = 0
+                            txt.Font = Enum.Font.GothamBold
+                            txt.TextScaled = true
+                            
+                            FH.candyESP[c] = {hl = hl, bg = bg}
+                        end
+                    end
+                end
+            end
+            task.wait(1)
+        end
+    end)
+end
+
 local origPanel = FH.panel
 FH.panel = function()
     origPanel()
+    local opt = FH.crearOpcion
+    local btn = FH.crearBotonAccion
+    
     if FH.pestana == "ESP" then
-        FH.crearOpcion("ESP Tasks", function(v) FH.on.espActive = v; FH.startESP(v) end, false)
-        FH.crearOpcion("ESP Players", function(v) FH.on.espPlActive = v; FH.startEP(v) end, false)
-        FH.crearOpcion("Full Bright", function(v) 
+        opt("ESP Tasks", function(v) FH.on.espActive = v; FH.startESP(v) end)
+        opt("ESP Players", function(v) FH.on.espPlActive = v; FH.startEP(v) end)
+        opt("Full Bright", function(v) 
             local L = game.Lighting
             if v then 
                 L.Brightness = 3; L.ClockTime = 12; L.FogEnd = 100000
@@ -215,7 +267,11 @@ FH.panel = function()
                 L.Brightness = 1; L.ClockTime = 14; L.FogEnd = 1000
                 L.Ambient = Color3.fromRGB(70,70,70); L.OutdoorAmbient = Color3.fromRGB(128,128,128)
             end
-        end, false)
+        end)
+        
+    elseif FH.pestana == "Halloween" then
+        opt("ESP Candies", function(v) FH.candyESP_Active = v; FH.startCandyESP(v) end)
+        opt("Get all Candies", function(v) FH.autoCandyActive = v end)
     end
 end
 FH.p2 = true
