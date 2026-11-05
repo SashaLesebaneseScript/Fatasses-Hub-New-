@@ -1,4 +1,4 @@
-if getgenv().FH and getgenv().FH.p1 then return end
+if getgenv().FH and getgenv().FH.p then return end
 local FH = getgenv().FH or {}
 getgenv().FH = FH
 FH.RS = game:GetService("RunService")
