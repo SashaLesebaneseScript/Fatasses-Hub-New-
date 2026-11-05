@@ -1,6 +1,7 @@
 local FH = getgenv().FH
 if not FH or not FH.p1 then return end
-local RS, PL, LP = FH.RS, FH.PL, FH.LP
+local RS, PL, LP, RST = FH.RS, FH.PL, FH.LP, FH.RST
+local C = FH.C
 
 FH.startAP = function()
     if FH.apConn then return end
@@ -322,11 +323,12 @@ local origPanel = FH.panel
 FH.panel = function()
     origPanel()
     if FH.pestana ~= "Scientist" then return end
-    FH.crearOpcion("Auto Patient", function(v) FH.autoPatientLegit = v; if v then FH.startAP() end end, false)
-    FH.crearOpcion("Auto Generator", function(v) FH.autoTubeLegit = v; if v then FH.startGen() end end, false)
-    FH.crearOpcion("Auto Panel", function(v) FH.autoTask3Legit = v; if v then FH.startPanel() end end, false)
-    FH.crearOpcion("End Round", function(v) FH.on.endRound = v; FH.startEndRound(v) end, false)
-    FH.crearOpcion("Spam Complete", function(v) FH.on.spamComplete = v; FH.startSp(v) end, false)
-    FH.crearOpcion("Anti Broken Tube", function(v) FH.antiBrokenTube = v; if v then FH.startAB() end end, false)
+    local opt = FH.crearOpcion
+    opt("Auto Patient", function(v) FH.autoPatientLegit = v; if v then FH.startAP() end end)
+    opt("Auto Generator", function(v) FH.autoTubeLegit = v; if v then FH.startGen() end end)
+    opt("Auto Panel", function(v) FH.autoTask3Legit = v; if v then FH.startPanel() end end)
+    opt("End Round", function(v) FH.on.endRound = v; FH.startEndRound(v) end)
+    opt("Spam Complete", function(v) FH.on.spamComplete = v; FH.startSp(v) end)
+    opt("Anti Broken Tube", function(v) FH.antiBrokenTube = v; if v then FH.startAB() end end)
 end
 FH.p3 = true
