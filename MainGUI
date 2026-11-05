@@ -11,6 +11,7 @@ FH.SS = game:GetService("SoundService")
 FH.CG = game:GetService("CoreGui")
 FH.LP = FH.PL.LocalPlayer
 FH.BW, FH.BH = 420, 340
+FH.musicVolume = 0.15
 
 FH.C = {
     bg_dark=Color3.fromRGB(15, 10, 20),
@@ -28,7 +29,6 @@ FH.C = {
 }
 FH.est = {}
 FH.on = {}
-FH.blatantMode = false
 
 pcall(function() 
     for _,n in ipairs({"FH_Loading","FatassesHub"}) do
@@ -288,7 +288,7 @@ FH.animar = function(obj)
     end)
 end
 
-FH.crearOpcion = function(nombre, cb, isBlatant)
+FH.crearOpcion = function(nombre, cb)
     local o = Instance.new("Frame", oc)
     o.Size = UDim2.new(1, 0, 0, 44)
     o.BackgroundColor3 = C.bg_card
@@ -356,13 +356,6 @@ FH.crearOpcion = function(nombre, cb, isBlatant)
     setV(es, false)
     
     local function tg()
-        if isBlatant and not FH.blatantMode then
-            if FH.pestana ~= "Blatant" then 
-                FH.pestana = "Blatant"
-                FH.panel() 
-            end
-            return
-        end
         es = not es
         FH.est[nombre] = es
         setV(es, true)
@@ -378,7 +371,7 @@ FH.crearOpcion = function(nombre, cb, isBlatant)
     FH.animar(tb2)
 end
 
-FH.crearBotonAccion = function(nombre, onFire, isBlatant)
+FH.crearBotonAccion = function(nombre, onFire)
     local b = Instance.new("TextButton", oc)
     b.Size = UDim2.new(1, 0, 0, 34)
     b.BackgroundColor3 = C.bg_card
@@ -397,38 +390,13 @@ FH.crearBotonAccion = function(nombre, onFire, isBlatant)
     l.Font = Enum.Font.GothamBold
     l.TextXAlignment = Enum.TextXAlignment.Left
     b.MouseButton1Click:Connect(function()
-        if isBlatant and not FH.blatantMode then
-            if FH.pestana ~= "Blatant" then 
-                FH.pestana = "Blatant"
-                FH.panel() 
-            end
-            return
-        end
         FH.sfx("button", 2, 1.3)
         pcall(onFire)
     end)
     FH.animar(b)
 end
 
-FH.disableAllBlatant = function()
-    FH.blatantMode = false
-    if FH.k8 then 
-        FH.k8.autoPunch = false
-        FH.k8.killAll = false
-        FH.k8.hitbox360 = false
-        FH.k8.antiStun = false
-        FH.k8.alwaysMaxSpeed = false
-    end
-    if FH.on then
-        FH.on.jackpot = false
-        FH.classSAutoShoot = false
-        FH.on.aimlockS = false
-        FH.silentAimActive = false
-    end
-    if FH.panel then FH.panel() end
-end
-
-local TABS = {"ESP", "Halloween", "Scientist", "Class A", "Class S", "Experiment", "Extra Stuff", "Blatant"}
+local TABS = {"ESP", "Halloween", "Scientist", "Class A", "Class S", "Experiment", "Extra Stuff"}
 local tabs = {}
 FH.tabs = tabs
 FH.pestana = "ESP"
@@ -484,6 +452,72 @@ end
 for _, n in ipairs(TABS) do mkTab(n) end
 if tabs["ESP"] then tabs["ESP"].S("sel") end
 
+FH.getExperiment = function() 
+    for _, p in ipairs(FH.PL:GetPlayers()) do 
+        if p.Character then 
+            local exp = p.Character:FindFirstChild("Experiment")
+            if exp and exp.Value == true then return p end 
+        end 
+    end
+    return nil 
+end
+
+FH.isKiller = function(m) 
+    local exp = FH.getExperiment()
+    return exp and exp.Character == m 
+end
+
+FH.nearest = function(maxD) 
+    maxD = maxD or math.huge
+    local mc = FH.LP.Character
+    if not mc then return nil end
+    local mh = mc:FindFirstChild("HumanoidRootPart")
+    if not mh then return nil end
+    local b, bd = nil, maxD
+    for _, p in ipairs(FH.PL:GetPlayers()) do 
+        if p ~= FH.LP and p.Character then
+            local ch = p.Character
+            local h = ch:FindFirstChildOfClass("Humanoid")
+            local hr = ch:FindFirstChild("HumanoidRootPart")
+            if h and h.Health > 0 and hr then 
+                local d = (mh.Position - hr.Position).Magnitude
+                if d < bd then 
+                    bd = d
+                    b = {Player=p, Char=ch, HRP=hr} 
+                end 
+            end 
+        end 
+    end 
+    return b 
+end
+
+FH.injPlayer = function(maxD) 
+    maxD = maxD or 9999
+    local mc = FH.LP.Character
+    if not mc then return nil end
+    local mh = mc:FindFirstChild("HumanoidRootPart")
+    if not mh then return nil end
+    local b, bd = nil, maxD
+    for _, p in ipairs(FH.PL:GetPlayers()) do 
+        if p ~= FH.LP and p.Character then
+            local ch = p.Character
+            local h = ch:FindFirstChildOfClass("Humanoid")
+            local hr = ch:FindFirstChild("HumanoidRootPart")
+            if h and hr and h.Health > 0 and h.Health < h.MaxHealth then 
+                local ex = p:FindFirstChild("Experiment")
+                if not (ex and ex.Value == true) then 
+                    local d = (mh.Position - hr.Position).Magnitude
+                    if d < bd then 
+                        bd = d
+                        b = p 
+                    end 
+                end 
+            end 
+        end 
+    end 
+    return b 
+end
+
 FH.panel = function()
     for _, h in ipairs(FH.oc:GetChildren()) do 
         if not h:IsA("UIListLayout") then h:Destroy() end 
@@ -497,7 +531,7 @@ th.BackgroundTransparency = 1
 th.Parent = sg
 local tbtn = Instance.new("TextButton", th)
 tbtn.Size = UDim2.new(1, 0, 1, 0)
-tbtn.BackgroundColor3 = FH.C.accent
+tbtn.BackgroundColor3 = C.accent
 tbtn.Text = "S"
 tbtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 tbtn.TextScaled = true
@@ -506,7 +540,7 @@ tbtn.BorderSizePixel = 0
 tbtn.AutoButtonColor = false
 Instance.new("UICorner", tbtn).CornerRadius = UDim.new(1, 0)
 local stBtn = Instance.new("UIStroke", tbtn)
-stBtn.Color = FH.C.accent2
+stBtn.Color = C.accent2
 stBtn.Thickness = 2
 
 task.spawn(function() 
