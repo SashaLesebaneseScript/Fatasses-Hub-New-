@@ -282,7 +282,7 @@ FH.startSp = function(v)
     FH.spLoop = task.spawn(function()
         while FH.on.spamComplete do
             local taskID = FH.tarea and FH.tarea.id or "Task_1_1"
-            local TR = FH.RST:FindFirstChild("TaskRemote")
+            local TR = RST:FindFirstChild("TaskRemote")
             if TR then 
                 pcall(function() TR:FireServer("CompleteStep", taskID) end)
             end
@@ -298,9 +298,9 @@ FH.startEndRound = function(v)
     FH.endLoop = task.spawn(function()
         while FH.on.endRound do
             local taskID = FH.tarea and FH.tarea.id or "Task_1_1"
-            local TR = FH.RST:FindFirstChild("TaskRemote")
-            local RE = FH.RST:FindFirstChild("RewardEvent")
-            local RE2 = FH.RST:FindFirstChild("RewardEvent2")
+            local TR = RST:FindFirstChild("TaskRemote")
+            local RE = RST:FindFirstChild("RewardEvent")
+            local RE2 = RST:FindFirstChild("RewardEvent2")
             
             if TR then 
                 pcall(function() TR:FireServer("CompleteStep", taskID) end)
