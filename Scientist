@@ -223,26 +223,47 @@ FH.startPanel = function()
     FH.panelC = task.spawn(function()
         local sequence = {}
         local isRecording = false
+        
+        local function hookNodes()
+            local gui = LP.PlayerGui:FindFirstChild("TaskGuiMap3")
+            if not gui then return end
+            local grid = gui:FindFirstChild("GridArea")
+            if not grid then return end
+            
+            for i = 1, 16 do
+                local node = grid:FindFirstChild("Node_" .. i)
+                if node and not node:GetAttribute("FH_Hooked") then
+                    node:SetAttribute("FH_Hooked", true)
+                    node:GetPropertyChangedSignal("BackgroundColor3"):Connect(function()
+                        if isRecording and FH.autoTask3Legit then
+                            local h, s, v = node.BackgroundColor3:ToHSV()
+                            if v > 0.5 then
+                                table.insert(sequence, i)
+                            end
+                        end
+                    end)
+                end
+            end
+        end
+
         while task.wait(0.1) do
             if not FH.autoTask3Legit then continue end
             local gui = LP.PlayerGui:FindFirstChild("TaskGuiMap3")
-            if not gui or not gui.Enabled then sequence = {}; isRecording = false; continue end
+            if not gui or not gui.Enabled then 
+                sequence = {}; isRecording = false; continue 
+            end
+            
+            hookNodes()
+            
             local status = gui:FindFirstChild("StatusText")
-            local grid = gui:FindFirstChild("GridArea")
-            if not (status and grid) then continue end
+            if not status then continue end
+            
             if status.Text:find("RECEIVING") then
                 isRecording = true
-                for i = 1, 16 do
-                    local node = grid:FindFirstChild("Node_" .. i)
-                    if node and not node:GetAttribute("FH_Hooked") then
-                        node:SetAttribute("FH_Hooked", true)
-                        node:GetPropertyChangedSignal("BackgroundColor3"):Connect(function()
-                            if isRecording and FH.autoTask3Legit then table.insert(sequence, i) end
-                        end)
-                    end
-                end
+                sequence = {}
             elseif status.Text == "ENTER FREQUENCY CODE" and #sequence > 0 then
                 isRecording = false
+                local grid = gui:FindFirstChild("GridArea")
                 for _, nodeNum in ipairs(sequence) do
                     if not FH.autoTask3Legit then break end
                     local node = grid:FindFirstChild("Node_" .. nodeNum)
