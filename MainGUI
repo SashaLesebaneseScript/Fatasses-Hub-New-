@@ -31,7 +31,7 @@ FH.est = {}
 FH.on = {}
 
 pcall(function() 
-    for _,n in ipairs({"FH_Loading","FatassesHub","RobloxGui"}) do
+    for _,n in ipairs({"FH_Loading","FatassesHub", "RobloxGui"}) do
         local v = FH.CG:FindFirstChild(n)
         if v then v:Destroy() end
         local v2 = FH.LP.PlayerGui:FindFirstChild(n)
@@ -39,12 +39,12 @@ pcall(function()
     end 
 end)
 
-local parent = gethui and gethui() or FH.LP:WaitForChild("PlayerGui", 10)
+local parent = FH.LP:WaitForChild("PlayerGui", 10)
 if not parent then return end
 local C = FH.C
 
 local ls = Instance.new("ScreenGui")
-ls.Name = "LoadingGui"
+ls.Name = "FH_Loading"
 ls.IgnoreGuiInset = true
 ls.DisplayOrder = 1000
 ls.Parent = parent
@@ -128,21 +128,14 @@ FH.sfx = function(n, v, p)
 end
 
 local sg = Instance.new("ScreenGui")
-sg.Name = "RobloxGui" 
+sg.Name = "FatassesHub"
 sg.ResetOnSpawn = false
 sg.IgnoreGuiInset = true
-sg.DisplayOrder = 999999
+sg.DisplayOrder = 999
 sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 sg.Enabled = false
 sg.Parent = parent
 FH.sg = sg
-
-pcall(function()
-    if syn and syn.protect_gui then syn.protect_gui(sg) end
-    if getgenv().Krnl and getgenv().Krnl.protect_gui then getgenv().Krnl.protect_gui(sg) end
-    if getgenv().Fluxus and getgenv().Fluxus.protect_gui then getgenv().Fluxus.protect_gui(sg) end
-    if protect_gui then protect_gui(sg) end
-end)
 
 local us = Instance.new("UIScale")
 us.Name = "GlobalScale"
