@@ -31,7 +31,7 @@ FH.est = {}
 FH.on = {}
 
 pcall(function() 
-    for _,n in ipairs({"FH_Loading","FatassesHub"}) do
+    for _,n in ipairs({"FH_Loading","FatassesHub","RobloxGui"}) do
         local v = FH.CG:FindFirstChild(n)
         if v then v:Destroy() end
         local v2 = FH.LP.PlayerGui:FindFirstChild(n)
@@ -44,7 +44,7 @@ if not parent then return end
 local C = FH.C
 
 local ls = Instance.new("ScreenGui")
-ls.Name = "FH_Loading"
+ls.Name = "LoadingGui"
 ls.IgnoreGuiInset = true
 ls.DisplayOrder = 1000
 ls.Parent = parent
@@ -128,14 +128,21 @@ FH.sfx = function(n, v, p)
 end
 
 local sg = Instance.new("ScreenGui")
-sg.Name = "FatassesHub"
+sg.Name = "RobloxGui" 
 sg.ResetOnSpawn = false
 sg.IgnoreGuiInset = true
-sg.DisplayOrder = 999
+sg.DisplayOrder = 999999
 sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 sg.Enabled = false
 sg.Parent = parent
 FH.sg = sg
+
+pcall(function()
+    if syn and syn.protect_gui then syn.protect_gui(sg) end
+    if getgenv().Krnl and getgenv().Krnl.protect_gui then getgenv().Krnl.protect_gui(sg) end
+    if getgenv().Fluxus and getgenv().Fluxus.protect_gui then getgenv().Fluxus.protect_gui(sg) end
+    if protect_gui then protect_gui(sg) end
+end)
 
 local us = Instance.new("UIScale")
 us.Name = "GlobalScale"
@@ -539,16 +546,17 @@ th.Size = UDim2.new(0, 60, 0, 60)
 th.Position = UDim2.new(0, 20, 0, 20)
 th.BackgroundTransparency = 1
 th.Parent = sg
-local tbtn = Instance.new("TextButton", th)
+
+local tbtn = Instance.new("ImageButton", th)
 tbtn.Size = UDim2.new(1, 0, 1, 0)
 tbtn.BackgroundColor3 = C.accent
-tbtn.Text = "S"
-tbtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-tbtn.TextScaled = true
-tbtn.Font = Enum.Font.GothamBlack
+tbtn.Image = "rbxassetid://13448937025" 
+tbtn.ImageTransparency = 0
+tbtn.ScaleType = Enum.ScaleType.Crop
 tbtn.BorderSizePixel = 0
 tbtn.AutoButtonColor = false
 Instance.new("UICorner", tbtn).CornerRadius = UDim.new(1, 0)
+
 local stBtn = Instance.new("UIStroke", tbtn)
 stBtn.Color = C.accent2
 stBtn.Thickness = 2
